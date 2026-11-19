@@ -8,6 +8,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
+import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -109,6 +111,50 @@ function apiError(err) {
   return { status: 500, code: "upstream_error", message: String(err && err.message || err) };
 }
 
+// ---- voice-over: free Vietnamese neural voices through Microsoft Edge's Read Aloud service ----
+const TTS_VOICES = {
+  "vi-VN-NamMinhNeural": "Nam Minh (nam)",
+  "vi-VN-HoaiMyNeural": "Hoài My (nữ)",
+};
+const TTS_DEFAULT_VOICE = TTS_VOICES[process.env.CODELENS_TTS_VOICE] ? process.env.CODELENS_TTS_VOICE : "vi-VN-NamMinhNeural";
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
+const ttsAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
+const xmlEscape = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
+let ttsChain = Promise.resolve(); // one synthesis at a time is gentler on the free service
+function synthesize(text, voice, rate) {
+  const run = async () => {
+    const tts = new MsEdgeTTS({ agent: ttsAgent, connectionTimeoutMs: 15000, synthesisTimeoutMs: 60000 });
+    try {
+      await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+      const { audioStream } = tts.toStream(xmlEscape(text), { rate });
+      return await new Promise((resolve, reject) => {
+        const chunks = [];
+        audioStream.on("data", (d) => chunks.push(d));
+        audioStream.on("error", reject);
+        audioStream.on("close", () => (chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error("Không nhận được âm thanh."))));
+      });
+    } finally { try { tts.close(); } catch { /* already closed */ } }
+  };
+  const p = ttsChain.then(run, run);
+  ttsChain = p.catch(() => {});
+  return p;
+}
+async function ttsAudio(text, voice, rate) {
+  const key = crypto.createHash("sha256").update(`${voice}|${rate}|${text}`).digest("hex").slice(0, 32);
+  const file = path.join(DATA, "tts", key + ".mp3");
+  if (existsSync(file)) return fs.readFile(file);
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const buf = await synthesize(text, voice, rate);
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, buf);
+      return buf;
+    } catch (err) { lastErr = err; await new Promise((r) => setTimeout(r, 800 * (attempt + 1))); }
+  }
+  throw lastErr;
+}
+
 // ---- page ----
 const pagePath = path.join(here, "public", "codelens.html");
 const adapterPath = path.join(here, "public", "local-adapter.js");
@@ -123,7 +169,17 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && url.pathname === "/") return send(res, 200, renderPage(), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname === "/local-adapter.js") return send(res, 200, readFileSync(adapterPath), "text/javascript; charset=utf-8");
-    if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL });
+    if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL, voices: TTS_VOICES, defaultVoice: TTS_DEFAULT_VOICE });
+
+    if (req.method === "POST" && url.pathname === "/api/tts") {
+      const { text, voice, rate } = JSON.parse((await readBody(req, 64 * 1024)).toString("utf8") || "{}");
+      const clean = String(text || "").replace(/\*/g, "").replace(/\s+/g, " ").trim().slice(0, 2000);
+      if (!clean) return send(res, 400, { code: "invalid_request", message: "Thiếu nội dung để đọc." });
+      const v = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
+      const r = /^[+-]?\d{1,2}%$/.test(String(rate || "")) ? String(rate) : "+0%";
+      try { return send(res, 200, await ttsAudio(clean, v, r), "audio/mpeg"); }
+      catch (err) { console.error("[tts]", err.message || err); return send(res, 502, { code: "tts_failed", message: "Không tạo được giọng đọc (cần Internet để dùng giọng đọc Microsoft Edge). Thử lại sau." }); }
+    }
 
     if (req.method === "GET" && url.pathname === "/api/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });

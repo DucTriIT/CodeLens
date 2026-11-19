@@ -10,6 +10,7 @@ Có hai cách dùng:
 | Lưu kịch bản, clip | Bộ nhớ của artifact | Thư mục `data/` trên máy |
 | Viết kịch bản theo lịch | Tác vụ Claude theo lịch, lúc 6:47 sáng | Vào giờ render, khi trang đang mở |
 | Giới hạn mỗi clip | 20 MB (clip dài bị nén mạnh hơn) | Không giới hạn, luôn ở 5 Mbps |
+| Giọng đọc thuyết minh | Không có (chỉ lưu lời thuyết minh) | Giọng nam tiếng Việt miễn phí |
 
 ## Chạy trên máy
 
@@ -47,7 +48,30 @@ Mỗi lần gọi Claude, cửa sổ chạy server in ra model và số token đ
 | `CODELENS_MODEL` | `claude-opus-5-5` | Model dùng để viết và kiểm tra kịch bản. Đổi sang `claude-sonnet-5-5` cho rẻ hơn. |
 | `PORT` | `5173` | Cổng của server. |
 | `HOST` | `127.0.0.1` | Chỉ máy bạn truy cập được. Đặt `0.0.0.0` nếu muốn mở cho máy khác trong mạng LAN; khi đó ai vào được trang cũng dùng được API key của bạn. |
-| `CODELENS_DATA_DIR` | `data` | Nơi lưu kịch bản (`data/db/`) và clip (`data/assets/`). |
+| `CODELENS_DATA_DIR` | `data` | Nơi lưu kịch bản (`data/db/`), clip (`data/assets/`) và giọng đọc đã tạo (`data/tts/`). |
+| `CODELENS_TTS_VOICE` | `vi-VN-NamMinhNeural` | Giọng mặc định: `vi-VN-NamMinhNeural` (nam) hoặc `vi-VN-HoaiMyNeural` (nữ). Chọn được trong tab Lịch & logo. |
+
+## Giọng đọc (thuyết minh)
+
+Mỗi cảnh có hai lớp chữ:
+
+- **Phụ đề:** câu nhấn mạnh ngắn, hiện trên màn hình.
+- **Lời thuyết minh:** đoạn giải thích kỹ hơn, được đọc thành tiếng bằng giọng nam tiếng Việt. Cảnh tự kéo dài theo độ dài giọng đọc, đọc xong mới chuyển cảnh. Nhạc nền tự nhỏ lại khi có tiếng nói.
+
+Giọng đọc dùng giọng neural tiếng Việt miễn phí của tính năng Read Aloud trong Microsoft Edge, qua thư viện [`msedge-tts`](https://www.npmjs.com/package/msedge-tts). Không cần key, nhưng cần Internet. Mỗi đoạn đọc được lưu lại trong `data/tts/`, lần sau dùng lại không phải tạo nữa.
+
+Cần biết trước khi dùng cho kênh:
+
+- Đây là dịch vụ không chính thức. Microsoft không công bố nó như một API công khai, nên có thể đổi hoặc ngừng bất cứ lúc nào, và điều khoản dùng cho mục đích thương mại (kênh có kiếm tiền) chưa rõ ràng.
+- Muốn chắc chắn về bản quyền giọng đọc, dùng dịch vụ có giấy phép: Azure AI Speech (cùng giọng NamMinh, có gói miễn phí hằng tháng), FPT.AI hoặc Viettel AI.
+
+Trong trình soạn:
+
+- **▶ Nghe:** nghe thử lời thuyết minh của từng cảnh.
+- **Khớp thời lượng với giọng đọc:** tạo giọng đọc cho cả clip và chỉnh độ dài từng cảnh cho khớp, để phần xem trước đúng nhịp. Khi render, bước này cũng tự chạy.
+- **AI viết lời thuyết minh:** thêm lời thuyết minh cho kịch bản cũ chưa có.
+
+Kịch bản viết trên bản claude.ai chuyển sang bản trên máy được: bấm **Xuất kịch bản (.json)** ở bản claude.ai, rồi bấm **Nhập kịch bản** ở bản trên máy.
 
 ## Bảo mật API key
 

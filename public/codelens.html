@@ -202,6 +202,11 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
         <span class="grow"></span>
         <button class="btn primary" id="btn-render-sel" disabled>Render đã chọn</button>
       </div>
+      <div class="row">
+        <button class="btn small ghost" id="btn-export">Xuất kịch bản (.json)</button>
+        <label class="btn small ghost" for="imp-file" style="cursor:pointer">Nhập kịch bản</label>
+        <input type="file" id="imp-file" accept=".json,application/json" hidden>
+      </div>
       <div class="slist" id="slist"></div>
     </div>
 
@@ -259,6 +264,18 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
       <label class="f"><span>Giờ render</span><input type="time" id="sch-time" value="08:00" style="width:130px"></label>
       <label class="f"><span>Số clip render song song</span><select id="sch-conc" style="width:90px"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
       <div class="row"><button class="btn primary" id="btn-save-sched">Lưu cài đặt</button><span class="hint" id="sch-msg"></span></div>
+    </div>
+    <div class="panel">
+      <h2>Giọng đọc</h2>
+      <p class="hint" id="voice-desc">Mỗi cảnh có lời thuyết minh được đọc bằng giọng tiếng Việt miễn phí (giọng neural của Microsoft Edge). Cảnh tự kéo dài theo độ dài giọng đọc; nhạc nền tự nhỏ lại khi có tiếng nói.</p>
+      <div id="voice-controls">
+        <label class="toggle"><input type="checkbox" id="v-enabled"><span>Thêm giọng đọc khi render</span></label>
+        <div class="row" style="margin-top:10px">
+          <label class="f"><span>Giọng</span><select id="v-voice"></select></label>
+          <label class="f"><span>Tốc độ</span><select id="v-rate"><option value="-10%">Chậm (-10%)</option><option value="-5%">Hơi chậm (-5%)</option><option value="+0%">Bình thường</option><option value="+5%">Hơi nhanh (+5%)</option><option value="+10%">Nhanh (+10%)</option><option value="+15%">Rất nhanh (+15%)</option></select></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="v-test">▶ Nghe thử</button><span class="hint" id="v-msg"></span></div>
+      </div>
     </div>
     <div class="panel">
       <h2>Logo trên clip</h2>
@@ -453,6 +470,7 @@ function normScene(sc) {
     // never shorter than the time needed to read the subtitle
     duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14) * 10) / 10, 1.2, 12),
     layout, heading: String(sc.heading || "").slice(0, 90), subtitle: String(sc.subtitle || "").slice(0, 140),
+    narration: String(sc.narration || "").slice(0, 600),
     actors, links, focus, mark,
     left: String(sc.left || "").slice(0, 24), right: String(sc.right || "").slice(0, 24),
   };
@@ -682,15 +700,22 @@ function drawFrame(c, s, t) {
 }
 
 /* ================= audio (generated) ================= */
-async function renderAudio(s, sampleRate = 48000) {
+async function renderAudio(s, voices, sampleRate = 48000) {
   const total = totalDur(s); const len = Math.ceil((total + 0.3) * sampleRate);
   const ctx = new OfflineAudioContext(2, len, sampleRate);
-  const master = ctx.createGain(); master.gain.value = 2.2; /* louder mix: peaks near -5 dB */ master.connect(ctx.destination);
+  // Buses: music (ducked under the voice) and sound effects share a 2.2x boost; the voice-over runs at unity.
+  // A fast compressor on the output keeps the sum from clipping.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -6; limiter.knee.value = 0; limiter.ratio.value = 12; limiter.attack.value = 0.003; limiter.release.value = 0.12;
+  const out = ctx.createGain(); out.gain.value = 1; out.connect(limiter); limiter.connect(ctx.destination);
+  const musicBus = ctx.createGain(); musicBus.gain.value = 2.2; musicBus.connect(out);
+  const master = ctx.createGain(); master.gain.value = 2.2; master.connect(out); // sound effects
+  const voiceBus = ctx.createGain(); voiceBus.gain.value = 1; voiceBus.connect(out);
   const noiseBuf = ctx.createBuffer(1, sampleRate, sampleRate); const nd = noiseBuf.getChannelData(0);
   let seed = 7; for (let i = 0; i < nd.length; i++) { seed = (seed * 16807) % 2147483647; nd[i] = (seed / 2147483647) * 2 - 1; }
   // pad: Am - F - C - G
   const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [196, 261.63, 329.63], [196, 246.94, 293.66]];
-  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1100; lp.connect(master);
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1100; lp.connect(musicBus);
   for (let t0 = 0, ci = 0; t0 < total; t0 += 2, ci++) {
     for (const f of chords[ci % 4]) for (const det of [-4, 4]) {
       const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f; o.detune.value = det;
@@ -702,10 +727,10 @@ async function renderAudio(s, sampleRate = 48000) {
   for (let t0 = 0; t0 < total; t0 += 0.5) {
     const o = ctx.createOscillator(); o.frequency.setValueAtTime(120, t0); o.frequency.exponentialRampToValueAtTime(45, t0 + 0.18);
     const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
-    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.25);
+    o.connect(g); g.connect(musicBus); o.start(t0); o.stop(t0 + 0.25);
     const h = ctx.createBufferSource(); h.buffer = noiseBuf; const hf = ctx.createBiquadFilter(); hf.type = "highpass"; hf.frequency.value = 7000;
     const hg = ctx.createGain(); hg.gain.setValueAtTime(0.035, t0 + 0.25); hg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.3);
-    h.connect(hf); hf.connect(hg); hg.connect(master); h.start(t0 + 0.25, Math.random() * 0.5, 0.06);
+    h.connect(hf); hf.connect(hg); hg.connect(musicBus); h.start(t0 + 0.25, Math.random() * 0.5, 0.06);
   }
   const whoosh = (t0) => {
     const src = ctx.createBufferSource(); src.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.2;
@@ -725,11 +750,50 @@ async function renderAudio(s, sampleRate = 48000) {
     sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
     sc.links.forEach((_, j) => blip(acc + tm.linkAt(j) + 0.4, 1200, 0.06));
     if (sc.mark) blip(acc + tm.markAt, sc.mark.type === "check" ? 1320 : 300, 0.16);
+    const v = voices && voices[si];
+    if (v && v.buffer) {
+      const t0 = acc + VOICE_LEAD, t1 = t0 + v.buffer.duration;
+      const src = ctx.createBufferSource(); src.buffer = v.buffer; src.connect(voiceBus); src.start(t0);
+      // duck the music to ~30% while the narrator speaks
+      musicBus.gain.setTargetAtTime(2.2 * 0.3, Math.max(0, t0 - 0.2), 0.08);
+      musicBus.gain.setTargetAtTime(2.2, t1 + 0.05, 0.25);
+    }
     acc += sc.duration;
   });
   // fade out at end
-  master.gain.setValueAtTime(2.2, Math.max(0, total - 0.6)); master.gain.linearRampToValueAtTime(0, total + 0.2);
+  out.gain.setValueAtTime(1, Math.max(0, total - 0.6)); out.gain.linearRampToValueAtTime(0, total + 0.2);
   return await ctx.startRendering();
+}
+
+/* ================= voice-over ================= */
+const VOICE_LEAD = 0.35, VOICE_TAIL = 0.5; // seconds of silence before / after the narration in each scene
+const voiceCache = new Map(); // "voice|rate|text" -> Promise<AudioBuffer>
+const narrationText = (sc) => String(sc.narration || "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
+function voiceOpts() { const st = state.settings; return { voice: st.voice || "", rate: st.voiceRate || "+0%" }; }
+function voiceOn() { return !!(cap.voice && state.settings.voiceEnabled !== false); }
+function narrationAudio(text, opts) {
+  const key = `${opts.voice}|${opts.rate}|${text}`;
+  if (!voiceCache.has(key)) {
+    const p = cap.voice.synthesize(text, opts).then(ab => new OfflineAudioContext(1, 1, 48000).decodeAudioData(ab));
+    p.catch(() => voiceCache.delete(key));
+    voiceCache.set(key, p);
+  }
+  return voiceCache.get(key);
+}
+// Returns the script with each scene stretched to fit its narration, plus the decoded voice per scene.
+async function prepareVoice(s, onStep) {
+  if (!voiceOn() || !s.scenes.some(sc => narrationText(sc))) return { script: s, voices: null };
+  const opts = voiceOpts(); const voices = [];
+  const scenes = [];
+  for (let i = 0; i < s.scenes.length; i++) {
+    const sc = s.scenes[i]; const text = narrationText(sc);
+    if (onStep) onStep(i, s.scenes.length);
+    if (!text) { voices.push(null); scenes.push(sc); continue; }
+    const buffer = await narrationAudio(text, opts);
+    voices.push({ buffer });
+    scenes.push({ ...sc, duration: Math.max(sc.duration, Math.round((VOICE_LEAD + buffer.duration + VOICE_TAIL) * 10) / 10) });
+  }
+  return { script: { ...s, scenes }, voices };
 }
 
 /* ================= encoder ================= */
@@ -766,8 +830,14 @@ async function renderMp4(s, job) {
   if (plan.fallback) return renderWebm(s, job);
   if (!plan.video) throw new Error("Trình duyệt này không xuất được video.");
   await ensureFonts();
+  let voices = null;
+  if (voiceOn()) {
+    try { ({ script: s, voices } = await prepareVoice(s, (i, n) => { job.progress = 0.05 * (i / n); job.phase = "Đang tạo giọng đọc"; onJobProgress(job); })); }
+    catch (e) { throw new Error("Không tạo được giọng đọc: " + ((e && e.message) || e)); }
+    job.phase = "";
+  }
   const total = totalDur(s); const nFrames = Math.ceil(total * FPS);
-  const audioBuf = plan.audio ? await renderAudio(s) : null;
+  const audioBuf = plan.audio ? await renderAudio(s, voices) : null;
   const target = new Mp4Muxer.ArrayBufferTarget();
   const muxOpts = { target, video: { codec: plan.video.mux, width: W, height: H, frameRate: FPS }, fastStart: "in-memory", firstTimestampBehavior: "offset" };
   if (plan.audio) muxOpts.audio = { codec: plan.audio.mux, numberOfChannels: 2, sampleRate: 48000 };
@@ -786,7 +856,7 @@ async function renderMp4(s, job) {
     const vf = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
     venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
     while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
-    if (i % 6 === 0) { job.progress = (i / nFrames) * (plan.audio ? 0.92 : 0.98); onJobProgress(job); await nextTick(); }
+    if (i % 6 === 0) { job.progress = 0.05 + (i / nFrames) * (plan.audio ? 0.87 : 0.93); onJobProgress(job); await nextTick(); }
   }
   await venc.flush(); venc.close();
   if (encErr) throw encErr;
@@ -807,17 +877,19 @@ async function renderMp4(s, job) {
   }
   muxer.finalize();
   job.progress = 1; onJobProgress(job);
-  return { blob: new Blob([target.buffer], { type: "video/mp4" }), ext: "mp4", mime: "video/mp4", duration: total };
+  return { blob: new Blob([target.buffer], { type: "video/mp4" }), ext: "mp4", mime: "video/mp4", duration: total, voiced: !!voices };
 }
 async function renderWebm(s, job) {
   await ensureFonts();
+  let voices = null;
+  if (voiceOn()) ({ script: s, voices } = await prepareVoice(s));
   const total = totalDur(s);
   const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H; const c = canvas.getContext("2d");
   drawFrame(c, s, 0);
   const vstream = canvas.captureStream(FPS);
   let tracks = [...vstream.getVideoTracks()]; let actx = null;
   try {
-    const buf = await renderAudio(s); actx = new AudioContext(); const dest = actx.createMediaStreamDestination();
+    const buf = await renderAudio(s, voices); actx = new AudioContext(); const dest = actx.createMediaStreamDestination();
     const src = actx.createBufferSource(); src.buffer = buf; src.connect(dest); tracks.push(...dest.stream.getAudioTracks()); src.start();
   } catch (e) {}
   const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm", videoBitsPerSecond: 5_000_000 });
@@ -842,14 +914,14 @@ function ensureFonts() {
 }
 
 /* ================= capabilities & data ================= */
-const cap = { db: null, sample: null, assets: null, downloads: null, user: null };
+const cap = { db: null, sample: null, assets: null, downloads: null, user: null, voice: null };
 const state = {
   scripts: new Map(), clips: new Map(), settings: defaultSettings(),
   selected: new Set(), editingId: null, draft: null, dirty: false,
   jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
   aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
 };
-function defaultSettings() { return { enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+function defaultSettings() { return { voiceEnabled: true, voice: "", voiceRate: "+0%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
 const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -858,8 +930,9 @@ async function initCaps() {
   const C = window.claude;
   if (!C || typeof C.use !== "function") { goLocal("Trang đang chạy ngoài claude.ai: kịch bản chỉ lưu tạm trong tab này."); return; }
   const get = (n) => C.use(n).catch(() => null);
-  const [db, sample, assets, downloads, user] = await Promise.all([get("db"), get("sample"), get("assets"), get("downloads"), get("user")]);
-  Object.assign(cap, { db, sample, assets, downloads, user });
+  const [db, sample, assets, downloads, user, voice] = await Promise.all([get("db"), get("sample"), get("assets"), get("downloads"), get("user"), LOCAL ? get("voice") : Promise.resolve(null)]);
+  Object.assign(cap, { db, sample, assets, downloads, user, voice });
+  renderVoicePanel(); if (state.draft) renderEditor();
   if (!sample) { $("ai-box").querySelectorAll("button, input, select").forEach(el => el.disabled = true); $("ai-status").textContent = "AI viết kịch bản không khả dụng ở chế độ xem này. Bạn vẫn có thể tự soạn kịch bản."; }
   if (!db) { goLocal("Không kết nối được bộ nhớ chung (cần đăng nhập claude.ai). Kịch bản chỉ lưu tạm trong tab này."); return; }
   const loadTimer = setTimeout(() => { if (!state.loaded.scripts) banner("Đang chờ dữ liệu lâu hơn bình thường… Kiểm tra kết nối mạng.", true); }, 10000);
@@ -878,7 +951,7 @@ async function initCaps() {
     state.settings = { ...defaultSettings(), ...(snap.exists ? snap.data() : {}) }; state.loaded.settings = true;
     logoState.corner = state.settings.logoCorner === "right" ? "right" : "left";
     if ((state.settings.logoAssetId || "") !== logoState.assetId) loadLogo(state.settings.logoAssetId || "");
-    renderSchedule(); renderLogoPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
+    renderSchedule(); renderLogoPanel(); renderVoicePanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
   }, () => { state.loaded.settings = true; });
 }
 function goLocal(msg) { state.localMode = true; state.loaded.scripts = state.loaded.settings = true; banner(msg, true); renderList(); renderSchedule(); }
@@ -1009,6 +1082,8 @@ function renderEditor() {
         <span class="save-state${state.dirty ? " dirty" : ""}" id="save-state">${state.dirty ? "Chưa lưu" : "Đã lưu"}</span>
         <button class="btn primary" data-act="save">Lưu</button>
         <button class="btn blue" data-act="review" ${cap.sample ? "" : "disabled"}>AI kiểm tra kỹ thuật</button>
+        <button class="btn" data-act="narrate" ${cap.sample ? "" : "disabled"}>AI viết lời thuyết minh</button>
+        ${cap.voice ? `<button class="btn" data-act="voice-sync">Khớp thời lượng với giọng đọc</button>` : ""}
         <button class="btn" data-act="render" ${d.id ? "" : "disabled"}>Render clip này</button>
         <button class="btn ghost danger" data-act="delete" ${d.id ? "" : "disabled"}>Xóa</button>
       </div>
@@ -1018,6 +1093,7 @@ function renderEditor() {
       <label class="f"><span>Lĩnh vực</span>${sel("category", CATEGORIES.map(c => [c, c]), d.category, 'id="ed-cat"')}</label>
       <label class="f"><span>Ví dụ kỹ thuật</span><input type="text" data-f="metaphor" id="ed-metaphor" value="${esc(d.metaphor)}" placeholder="Ví dụ: Nginx đứng trước 3 instance API"></label>
     </div>
+    ${!cap.voice && d.scenes.some(sc => narrationText(sc)) ? `<p class="hint">Giọng đọc chỉ có ở bản chạy trên máy (dùng API key). Ở đây clip render không có giọng đọc, chỉ có phụ đề và nhạc nền.</p>` : ""}
     ${d.source === "article" ? `<p class="hint">Tạo từ bài viết (${(d.sourceText || "").length.toLocaleString("vi-VN")} ký tự). “AI kiểm tra kỹ thuật” sẽ đối chiếu lại với bài này.</p>` : ""}
     ${d.reviewed ? `<div class="banner"><b style="color:var(--ok)">Đã kiểm tra kỹ thuật.</b> ${d.reviewNotes && d.reviewNotes.length ? "Đã sửa: " + d.reviewNotes.map(esc).join(" · ") : "Không phát hiện lỗi."}</div>` : `<div class="banner warn">Kịch bản chưa được kiểm tra kỹ thuật. Bấm “AI kiểm tra kỹ thuật” trước khi render.</div>`}
     <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (tối đa khoảng 120s): <b id="ed-total">${totalDur(normScript(d)).toFixed(1)}s</b></p>
@@ -1042,7 +1118,11 @@ function renderSceneCard(sc, i, n, sel) {
       <label class="f"><span>Dấu ✓ / ✗</span>${sel(p + ".mark", markOpts, sc.mark ? `${sc.mark.index}:${sc.mark.type}` : "", `data-type="mark" id="ed-${i}-mark"`)}</label>
     </div>
     <label class="f"><span>Tiêu đề (in hoa)</span><input type="text" data-f="${p}.heading" id="ed-${i}-heading" value="${esc(sc.heading)}"></label>
-    <label class="f"><span>Phụ đề tiếng Việt</span><textarea rows="2" data-f="${p}.subtitle" id="ed-${i}-sub">${esc(sc.subtitle)}</textarea></label>
+    <label class="f"><span>Phụ đề (câu nhấn mạnh, hiện trên màn hình)</span><textarea rows="2" data-f="${p}.subtitle" id="ed-${i}-sub">${esc(sc.subtitle)}</textarea></label>
+    <div class="f"><span class="hint" style="font-weight:600">Lời thuyết minh (giọng đọc, giải thích kỹ hơn phụ đề)</span>
+      <textarea rows="3" data-f="${p}.narration" id="ed-${i}-nar" placeholder="Đoạn giải thích được đọc thành tiếng trong cảnh này">${esc(sc.narration || "")}</textarea>
+      <div class="row"><span class="hint" id="ed-${i}-narinfo">${narrationText(sc) ? `${narrationText(sc).length} ký tự · khoảng ${Math.round(narrationText(sc).length / 12)} giây đọc` : "Chưa có lời thuyết minh"}</span>${cap.voice ? `<span class="grow"></span><button class="btn small" data-act="speak" data-i="${i}" ${narrationText(sc) ? "" : "disabled"}>▶ Nghe</button>` : ""}</div>
+    </div>
     ${isCmp ? `<div class="scene-grid"><label class="f"><span>Nhãn cột trái</span><input type="text" data-f="${p}.left" id="ed-${i}-left" value="${esc(sc.left)}" placeholder="${sc.layout === "before-after" ? "TRƯỚC" : "A"}"></label><label class="f"><span>Nhãn cột phải</span><input type="text" data-f="${p}.right" id="ed-${i}-right" value="${esc(sc.right)}" placeholder="${sc.layout === "before-after" ? "SAU" : "B"}"></label></div>` : ""}
     <div class="f"><span class="hint" style="font-weight:600">Đối tượng (tối đa 6)</span>
       <div class="sub-list">${sc.actors.map((a, k) => `<div class="sub-row">
@@ -1074,6 +1154,8 @@ $("editor").addEventListener("input", (e) => {
   if (ty === "num") v = v === "" ? 0 : +v;
   if (ty === "mark") { if (!v) v = null; else { const [i, t] = v.split(":"); v = { index: +i, type: t }; } }
   setPath(state.draft, f, v); markDirty();
+  const mi = /^scenes\.(\d+)\.narration$/.exec(f);
+  if (mi) { const info = $(`ed-${mi[1]}-narinfo`); const n = narrationText({ narration: v }).length; if (info) info.textContent = n ? `${n} ký tự · khoảng ${Math.round(n / 12)} giây đọc` : "Chưa có lời thuyết minh"; const sb = document.querySelector(`[data-act="speak"][data-i="${mi[1]}"]`); if (sb) sb.disabled = !n; }
   if (e.target.dataset.rerender || e.target.dataset.rerenderSoft) { if (e.type === "input" && e.target.tagName === "SELECT") renderEditor(); }
 });
 $("editor").addEventListener("change", (e) => { if (e.target.tagName === "SELECT" && (e.target.dataset.rerender || e.target.dataset.rerenderSoft)) renderEditor(); });
@@ -1100,6 +1182,38 @@ $("editor").addEventListener("click", async (e) => {
   else if (act === "del-link") { d.scenes[i].links.splice(k, 1); re(); }
   else if (act === "preview-scene") { let acc = 0; for (let j = 0; j < i; j++) acc += +d.scenes[j].duration || 0; pv.seek(acc + 0.01); pv.play(); }
   else if (act === "save") await saveDraft();
+  else if (act === "speak") {
+    const text = narrationText(d.scenes[i] || {}); if (!text) return;
+    if (speakAudio) { speakAudio.pause(); speakAudio = null; }
+    b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+    try {
+      const ab = await cap.voice.synthesize(text, voiceOpts());
+      speakAudio = new Audio(URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" })));
+      speakAudio.play().catch(() => {});
+    } catch (err) { toast((err && err.message) || "Không tạo được giọng đọc."); }
+    b.disabled = false; b.textContent = "▶ Nghe";
+  }
+  else if (act === "voice-sync") {
+    b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang tạo giọng đọc…';
+    try {
+      const { script } = await prepareVoice(normScript(d), (k, n) => { b.innerHTML = `<span class="spin"></span> Giọng đọc ${k + 1}/${n}`; });
+      script.scenes.forEach((sc, k) => { if (d.scenes[k]) d.scenes[k].duration = sc.duration; });
+      markDirty(); renderEditor(); toast(`Đã khớp thời lượng: clip dài ${totalDur(normScript(state.draft)).toFixed(0)} giây. Bấm Lưu để ghi lại.`, 5000);
+    } catch (err) { toast("Không tạo được giọng đọc: " + ((err && err.message) || err), 5000); renderEditor(); }
+  }
+  else if (act === "narrate") {
+    if (!cap.sample || state.aiBusy) return;
+    b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang viết lời thuyết minh…'; state.aiBusy = true;
+    try {
+      const r = await cap.sample.json(narratePrompt(normScript(d)), { modelTier: "complex" });
+      const fixed = r && Array.isArray(r.scenes) && r.scenes.length ? r : null;
+      if (!fixed) throw { message: "AI không trả về kịch bản hợp lệ." };
+      const n = normScript({ ...d, ...fixed, reviewed: d.reviewed, reviewNotes: d.reviewNotes });
+      state.draft = { ...n, id: d.id }; state.dirty = true; renderEditor(); pv.draw();
+      toast("Đã thêm lời thuyết minh cho từng cảnh. Nghe thử rồi bấm Lưu.", 5000);
+    } catch (err) { toast(aiError(err), 5000); renderEditor(); }
+    state.aiBusy = false;
+  }
   else if (act === "review") {
     if (!cap.sample || state.aiBusy) return;
     b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang kiểm tra…'; state.aiBusy = true;
@@ -1128,6 +1242,8 @@ async function saveDraft() {
     return true;
   } catch (err) { toast("Không lưu được: " + (err.message || err.code || "lỗi")); return false; }
 }
+
+let speakAudio = null;
 
 /* ================= preview ================= */
 const pv = (() => {
@@ -1177,13 +1293,14 @@ ${head}
 Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
 
 Quy tắc:
-- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn, không phải vài câu điểm danh. Độ dài theo nội dung: thường 60–100 giây (12–25 cảnh), tối thiểu khoảng 45 giây, tối đa 120 giây (30 cảnh).
-- Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất mà dev cần biết (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Không lặp ý, không độn cho đủ thời lượng, nhưng cũng không bỏ bước quan trọng khiến người xem thiếu thông tin.
+- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 8–16 cảnh. Tổng độ dài tất cả "narration" khoảng 700–1.400 ký tự (giọng đọc khoảng 12 ký tự mỗi giây), không vượt quá 1.400 ký tự.
+- Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất mà dev cần biết (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
 - Cảnh 1 dùng layout "title" với câu hook gây tò mò ở phụ đề. Cảnh cuối tóm tắt (thường dùng "compare" hoặc "before-after").
 - Cấu trúc gợi ý: hook → bối cảnh / vì sao quan trọng → vấn đề → cơ chế hoạt động từng bước (đúng thứ tự) → ví dụ cụ thể → lỗi hay gặp / trade-off → cách xử lý, công cụ phổ biến → tóm tắt + mẹo nhớ. Mỗi cảnh một ý.
 - "heading": tiếng Việt hoặc thuật ngữ tiếng Anh, ngắn (tối đa 5 từ), sẽ được in hoa. Bao 1 từ quan trọng trong *dấu sao* để tô cam.
-- "subtitle": phụ đề tiếng Việt tự nhiên, một câu đầy đủ ý, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*.
-- "duration": đủ để đọc phụ đề, khoảng 1.4 + (số ký tự ÷ 13) giây; thường 3–6 giây mỗi cảnh.
+- "subtitle": câu NHẤN MẠNH hiện trên màn hình: ngắn, đắt giá, chốt ý chính của cảnh, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*.
+- "narration": lời thuyết minh được đọc thành tiếng bằng giọng nam, GIẢI THÍCH RÕ cảnh đó cho người nghe hiểu: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 60–200 ký tự. Văn nói tự nhiên, dễ hiểu, như một kỹ sư giải thích cho đồng nghiệp; nối mạch với cảnh trước và chuyển ý sang cảnh sau. Không lặp nguyên văn phụ đề. Viết để ĐỌC THÀNH TIẾNG: không dùng ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên; tránh viết tắt khó đọc.
+- "duration": để 3 (hệ thống tự kéo dài cảnh theo độ dài giọng đọc).
 - "actors": 1–6 đối tượng, mỗi đối tượng {"icon", "label", "side"}. label ngắn (tối đa 3 từ). "side" chỉ dùng cho compare/before-after: "L" hoặc "R".
 - icon CHỈ được chọn trong: ${ICON_NAMES.join(", ")}.
 - "layout" CHỈ được chọn trong: title, flow, hub, compare, before-after, stack, grid. hub: đối tượng 0 ở giữa, các đối tượng khác bao quanh. stack: các tầng từ trên xuống.
@@ -1192,7 +1309,7 @@ Quy tắc:
 - "left"/"right": nhãn cột cho compare/before-after (tối đa 2 từ).
 
 Chỉ trả về JSON đúng dạng:
-{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "subtitle": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
+{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
 }
 function reviewPrompt(sc) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = sc;
@@ -1201,7 +1318,8 @@ function reviewPrompt(sc) {
 Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch bản clip dưới đây:
 1. Độ chính xác kỹ thuật: định nghĩa, thứ tự các bước, tên trạng thái/thuật toán, trade-off, ví dụ công cụ/sản phẩm. Sửa mọi chỗ sai hoặc gây hiểu nhầm. Bỏ số liệu không chắc chắn.
 2. Bỏ mọi ẩn dụ đời thường/công sở, thay bằng thành phần kỹ thuật thật.
-2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (thường 60–100 giây). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
+2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá 1.400 ký tự.
+2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (tối đa khoảng 2 phút). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
 3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
 ${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
 
@@ -1211,7 +1329,23 @@ ${sourceText}
 ` : ""}Kịch bản:
 ${JSON.stringify(body)}
 
-Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc: title, category, hook, metaphor, scenes}}`;
+Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc, mỗi cảnh có cả subtitle và narration: title, category, hook, metaphor, scenes}}`;
+}
+function narratePrompt(sc) {
+  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = sc;
+  return `${STYLE_RULES}
+
+Kịch bản clip dưới đây có phụ đề ngắn cho từng cảnh. Hãy viết thêm "narration" (lời thuyết minh đọc bằng giọng nam) cho TỪNG cảnh.
+- Phụ đề giữ nguyên: đó là câu nhấn mạnh hiện trên màn hình.
+- Narration GIẢI THÍCH RÕ cảnh đó: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 60–200 ký tự, văn nói tự nhiên, dễ hiểu, nối mạch giữa các cảnh, không lặp nguyên văn phụ đề.
+- Viết để đọc thành tiếng: không ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên.
+- Tổng narration của cả clip không quá 1.400 ký tự (khoảng 2 phút). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất; nếu thiếu ý quan trọng thì thêm cảnh.
+- Phải đúng kỹ thuật; không bịa số liệu.
+${sourceText ? `\nĐối chiếu với BÀI VIẾT NGUỒN:\n=== BÀI VIẾT NGUỒN ===\n${sourceText}\n=== HẾT BÀI VIẾT ===\n` : ""}
+Kịch bản hiện tại:
+${JSON.stringify(body)}
+
+Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, scenes), mỗi cảnh có thêm trường "narration".`;
 }
 async function aiReview(script) {
   const r = await cap.sample.json(reviewPrompt(script), { modelTier: "complex" });
@@ -1354,7 +1488,7 @@ function renderJobs() {
   $("cnt-queue").textContent = active || "";
   if (!state.jobs.length) { el.innerHTML = `<div class="empty"><strong>Hàng đợi trống</strong>Chọn kịch bản ở tab Kịch bản rồi bấm “Render đã chọn”.</div>`; return; }
   el.innerHTML = state.jobs.map(j => `<div class="job ${j.status}">
-    <div><div class="name">${esc(j.title)}</div><div class="meta"><span>${JOB_LABEL[j.status]}${j.status === "running" ? " · " + Math.round(j.progress * 100) + "%" : ""}</span>${j.result ? `<span>${(j.result.blob.size / 1048576).toFixed(1)} MB · ${j.result.ext.toUpperCase()}</span>` : ""}${j.error ? `<span style="color:var(--bad)">${esc(j.error)}</span>` : ""}${j.note ? `<span style="color:var(--orange)">${esc(j.note)}</span>` : ""}</div></div>
+    <div><div class="name">${esc(j.title)}</div><div class="meta"><span>${j.phase && j.status === "running" ? esc(j.phase) : JOB_LABEL[j.status]}${j.status === "running" ? " · " + Math.round(j.progress * 100) + "%" : ""}</span>${j.result && j.result.voiced ? "<span>có giọng đọc</span>" : ""}${j.result ? `<span>${(j.result.blob.size / 1048576).toFixed(1)} MB · ${j.result.ext.toUpperCase()}</span>` : ""}${j.error ? `<span style="color:var(--bad)">${esc(j.error)}</span>` : ""}${j.note ? `<span style="color:var(--orange)">${esc(j.note)}</span>` : ""}</div></div>
     <div class="row">${j.status === "done" ? `<button class="btn small primary" data-jdl="${j.id}">Tải về</button>` : ""}${j.status === "running" || j.status === "waiting" ? `<button class="btn small ghost" data-jcancel="${j.id}">Hủy</button>` : ""}${j.status === "failed" || j.status === "cancelled" ? `<button class="btn small" data-jretry="${j.id}">Thử lại</button>` : ""}</div>
     <div class="bar"><i style="width:${Math.round(j.progress * 100)}%"></i></div></div>`).join("");
 }
@@ -1492,6 +1626,61 @@ $("btn-save-sched").addEventListener("click", async () => {
   } catch (err) { $("sch-msg").textContent = "Không lưu được: " + (err.message || err.code); }
 });
 
+/* ================= voice settings ================= */
+async function renderVoicePanel() {
+  const st = state.settings;
+  if (!cap.voice) {
+    $("voice-desc").textContent = "Giọng đọc chỉ có ở bản chạy trên máy (dùng API key), vì trang trên claude.ai không gọi được dịch vụ giọng đọc. Lời thuyết minh vẫn được lưu trong kịch bản để dùng ở bản trên máy.";
+    $("voice-controls").hidden = true; return;
+  }
+  $("voice-controls").hidden = false;
+  $("v-enabled").checked = st.voiceEnabled !== false; $("v-rate").value = st.voiceRate || "+0%";
+  try {
+    const info = await cap.voice.info();
+    const cur = st.voice || info.defaultVoice;
+    $("v-voice").innerHTML = Object.entries(info.voices).map(([k, v]) => `<option value="${esc(k)}"${k === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
+  } catch (e) {}
+}
+async function saveVoiceSettings() {
+  const patch = { voiceEnabled: $("v-enabled").checked, voice: $("v-voice").value, voiceRate: $("v-rate").value };
+  try { await saveLogoSettings(patch); if (!cap.db) Object.assign(state.settings, patch); $("v-msg").textContent = "Đã lưu."; setTimeout(() => $("v-msg").textContent = "", 2000); }
+  catch (e) { $("v-msg").textContent = "Không lưu được."; }
+}
+["v-enabled", "v-voice", "v-rate"].forEach(id => $(id).addEventListener("change", saveVoiceSettings));
+$("v-test").addEventListener("click", async () => {
+  const b = $("v-test"); b.disabled = true; $("v-msg").innerHTML = '<span class="spin"></span> Đang tạo giọng đọc…';
+  try {
+    const ab = await cap.voice.synthesize("Xin chào, đây là CodeLens. Hôm nay chúng ta cùng tìm hiểu cách một reverse proxy chia request cho nhiều server.", { voice: $("v-voice").value, rate: $("v-rate").value });
+    if (speakAudio) speakAudio.pause();
+    speakAudio = new Audio(URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" }))); speakAudio.play().catch(() => {});
+    $("v-msg").textContent = "";
+  } catch (err) { $("v-msg").textContent = (err && err.message) || "Không tạo được giọng đọc."; }
+  b.disabled = false;
+});
+
+/* ================= export / import ================= */
+$("btn-export").addEventListener("click", () => {
+  const ids = state.selected.size ? [...state.selected] : [...state.scripts.keys()];
+  if (!ids.length) { toast("Chưa có kịch bản nào để xuất."); return; }
+  const list = ids.map(id => state.scripts.get(id)).filter(Boolean).map(s => ({ ...s }));
+  const data = JSON.stringify({ app: "codelens", version: 1, exportedAt: new Date().toISOString(), scripts: list }, null, 2);
+  saveFile(`codelens-kich-ban-${new Date().toISOString().slice(0, 10)}.json`, new Blob([data], { type: "application/json" }));
+});
+$("imp-file").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); const list = Array.isArray(j) ? j : (j && j.scripts) || [];
+    if (!list.length) throw new Error("File không có kịch bản nào.");
+    let n = 0;
+    for (const raw of list.slice(0, 500)) {
+      const id = /^[A-Za-z0-9_-]{1,100}$/.test(raw.id || "") ? raw.id : uid();
+      const st = raw.status === "done" || raw.status === "rendering" ? "draft" : raw.status;
+      await putScript({ ...raw, id, status: st }); n++;
+    }
+    toast(`Đã nhập ${n} kịch bản.`);
+  } catch (err) { toast("Không nhập được: " + ((err && err.message) || err)); }
+});
+
 /* ================= logo panel ================= */
 function renderLogoPanel() {
   const cv = $("logo-prev"); if (!cv) return; const c = cv.getContext("2d");
@@ -1538,7 +1727,7 @@ if (LOCAL) {
   $("sch-desc").textContent = "Bản chạy trên máy: vào giờ render bên dưới, nếu trang đang mở, Claude dùng API key của bạn để viết kịch bản mới rồi render luôn.";
   $("sch-note").hidden = true;
 }
-fillSelects(); renderLogoPanel(); renderList(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
+fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
