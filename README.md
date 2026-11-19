@@ -51,6 +51,16 @@ Mỗi lần gọi Claude, cửa sổ chạy server in ra model và số token đ
 | `CODELENS_DATA_DIR` | `data` | Nơi lưu kịch bản (`data/db/`), clip (`data/assets/`) và giọng đọc đã tạo (`data/tts/`). |
 | `CODELENS_TTS_VOICE` | `vi-VN-NamMinhNeural` | Giọng mặc định: `vi-VN-NamMinhNeural` (nam) hoặc `vi-VN-HoaiMyNeural` (nữ). Chọn được trong tab Lịch & logo. |
 
+## Cấu trúc kịch bản
+
+Mỗi kịch bản có ba phần, ghi ở ô **Phần** của từng cảnh:
+
+1. **Mở bài** (2 cảnh): câu hook, rồi giới thiệu clip sẽ nói về những gì ("Trong clip này, mình sẽ…").
+2. **Thân bài:** giải thích từng bước, đi đúng các ý đã hứa ở mở bài.
+3. **Kết bài:** tóm tắt ý chính và một câu chốt hoặc mẹo nhớ.
+
+Cuối mọi clip, CodeLens tự thêm **cảnh kêu gọi follow**: logo lớn, nút "Theo dõi" được bấm, kèm lời đọc. Đổi chữ hoặc tắt cảnh này ở tab **Lịch & logo → Cảnh kết**. Trình soạn hiện số cảnh của mỗi phần và báo khi kịch bản thiếu phần nào.
+
 ## Giọng đọc (thuyết minh)
 
 Mỗi cảnh có hai lớp chữ:

@@ -99,6 +99,9 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
 .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); font-family: var(--font); font-weight: 600; }
 .chip.cat { color: var(--blue); border-color: rgba(77,184,255,.35); }
+.chip.part-intro { color: var(--ok); border-color: rgba(52,211,153,.45); }
+.chip.part-body { color: var(--blue); border-color: rgba(77,184,255,.45); }
+.chip.part-outro { color: var(--orange); border-color: rgba(255,138,31,.45); }
 .chip.st-draft { color: var(--muted); }
 .chip.st-queued { color: var(--orange); border-color: rgba(255,138,31,.45); }
 .chip.st-rendering { color: var(--orange); border-color: var(--orange); }
@@ -271,6 +274,15 @@ a.btn { text-decoration: none; color: inherit; }
       <div class="row"><button class="btn primary" id="btn-save-sched">Lưu cài đặt</button><span class="hint" id="sch-msg"></span></div>
     </div>
     <div class="panel">
+      <h2>Cảnh kết: kêu gọi follow</h2>
+      <p class="hint">Cảnh này tự thêm vào cuối mọi clip: logo lớn, nút “Theo dõi” được bấm, kèm lời đọc. Để trống ô nào thì dùng câu mặc định.</p>
+      <label class="toggle"><input type="checkbox" id="o-enabled"><span>Tự thêm cảnh kết vào cuối clip</span></label>
+      <label class="f"><span>Tiêu đề</span><input type="text" id="o-heading"></label>
+      <label class="f"><span>Phụ đề</span><input type="text" id="o-subtitle"></label>
+      <label class="f"><span>Lời đọc</span><textarea id="o-narration" rows="3"></textarea></label>
+      <div class="row"><button class="btn small" id="o-save">Lưu cảnh kết</button><span class="hint" id="o-msg"></span></div>
+    </div>
+    <div class="panel">
       <h2>Model AI</h2>
       <p class="hint">Chọn model cho từng việc. Haiku rẻ nhất nhưng kém hơn ở độ chính xác kỹ thuật và văn tiếng Việt dài; Opus tốt nhất nhưng đắt nhất. Trên claude.ai, lựa chọn này tính vào hạn mức gói của bạn; ở bản chạy trên máy, nó tính tiền theo API key.</p>
       <label class="f"><span>Gợi ý chủ đề, caption Facebook</span><select id="m-light"></select></label>
@@ -339,8 +351,10 @@ const LOCAL = !!window.__CODELENS_LOCAL; // running from the local server with a
 const CATEGORIES = ["Network", "Backend", "Frontend", "Database", "Cloud", "AI", "Architecture"];
 const LAYOUTS = {
   title: "Mở đầu (tiêu đề lớn)", flow: "Dòng chảy (A → B → C)", hub: "Trung tâm & vệ tinh",
-  compare: "So sánh 2 cột", "before-after": "Trước / Sau", stack: "Các tầng xếp chồng", grid: "Lưới"
+  compare: "So sánh 2 cột", "before-after": "Trước / Sau", stack: "Các tầng xếp chồng", grid: "Lưới",
+  outro: "Kết: kêu gọi follow kênh"
 };
+const PARTS = { intro: "Mở bài", body: "Thân bài", outro: "Kết bài" };
 const STATUS_LABEL = { draft: "Nháp", queued: "Chờ render", rendering: "Đang render", done: "Đã render", failed: "Lỗi" };
 const COL = { bg: "#0B1120", bg2: "#0F1B33", grid: "rgba(77,184,255,0.05)", blue: "#4DB8FF", orange: "#FF8A1F",
   teal: "#2ED3B7", violet: "#9B7BFF", red: "#FF5C6C", green: "#34D399", yellow: "#FFD43B", cyan: "#3FE0F5", white: "#F2F6FC",
@@ -509,11 +523,25 @@ function normScene(sc) {
     duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14) * 10) / 10, 1.2, 12),
     layout, heading: String(sc.heading || "").slice(0, 90), subtitle: String(sc.subtitle || "").slice(0, 140),
     narration: String(sc.narration || "").slice(0, 600),
+    part: PARTS[sc.part] ? sc.part : (layout === "outro" ? "outro" : ""),
     actors, links, focus, mark,
     left: String(sc.left || "").slice(0, 24), right: String(sc.right || "").slice(0, 24),
   };
 }
 const totalDur = (s) => s.scenes.reduce((a, b) => a + b.duration, 0);
+// Every clip ends on the same "follow the channel" card unless the script already has one or it is turned off.
+const OUTRO_DEFAULT = {
+  heading: "FOLLOW ĐỂ XEM *TIẾP*",
+  subtitle: "Theo dõi để xem thêm các khái niệm khó, *giải thích dễ hiểu*",
+  narration: "Nếu thấy clip này hữu ích, hãy follow CodeLens để xem thêm các clip giải thích công nghệ dễ hiểu cho dev nhé.",
+};
+function withOutro(s) {
+  const st = state.settings || {};
+  if (st.outroEnabled === false || s.scenes.some(sc => sc.layout === "outro")) return s;
+  const o = st.outro || {};
+  return { ...s, scenes: [...s.scenes, normScene({ layout: "outro", part: "outro", duration: 4.2,
+    heading: o.heading || OUTRO_DEFAULT.heading, subtitle: o.subtitle || OUTRO_DEFAULT.subtitle, narration: o.narration || OUTRO_DEFAULT.narration })] };
+}
 
 /* ================= scene layout geometry ================= */
 function positions(sc) {
@@ -675,7 +703,60 @@ function drawMark(c, p, type, k) {
   c.save(); c.translate(p.x + p.r * 0.72, p.y - p.r * 0.72); c.scale(s * 0.62, s * 0.62);
   ICONS[type].d(c, type === "check" ? COL.green : COL.red); c.restore();
 }
+function drawOutro(c, s, sc, tl, t) {
+  const d = sc.duration;
+  // big logo: the uploaded image, or the drawn CodeLens mark
+  const k = easeBack(tl / 0.6);
+  c.save(); c.translate(540, 650); c.scale(k, k);
+  if (logoState.img) {
+    const im = logoState.img; const h = 420, w = Math.min(860, h * ((im.width || 1) / (im.height || 1)));
+    c.drawImage(im, -w / 2, -h / 2, w, h);
+  } else {
+    const r = 150;
+    c.shadowColor = COL.cyan; c.shadowBlur = 40 + Math.sin(t * 3) * 10;
+    c.strokeStyle = COL.cyan; c.lineCap = "round"; c.lineWidth = 16;
+    c.beginPath(); c.arc(-20, -40, r, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = 30; c.beginPath(); c.moveTo(-20 + r * 0.72, -40 + r * 0.72); c.lineTo(-20 + r * 1.3, -40 + r * 1.3); c.stroke();
+    c.lineWidth = 15; c.beginPath();
+    c.moveTo(-60, -95); c.lineTo(-110, -40); c.lineTo(-60, 15);
+    c.moveTo(20, -95); c.lineTo(70, -40); c.lineTo(20, 15);
+    c.moveTo(-5, -110); c.lineTo(-35, 30); c.stroke();
+    c.shadowBlur = 24; c.font = `800 96px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = COL.cyan;
+    c.fillText("CODELENS", -20, 230);
+  }
+  c.restore();
+  // heading
+  c.font = `800 86px ${FONT}`;
+  drawTokens(c, parseAccent(sc.heading), 540, 1110, 960, 96, { upper: true, base: COL.blue, reveal: easeOut((tl - 0.35) / 0.6), maxLines: 2 });
+  // "follow" button that gets tapped
+  const tapAt = Math.min(1.8, d * 0.45); const tapped = tl >= tapAt;
+  const bk = easeOut((tl - 0.6) / 0.4); const pulse = tapped ? 1 : 1 + Math.sin(t * 6) * 0.03;
+  const press = tl > tapAt - 0.12 && tl < tapAt + 0.12 ? 0.94 : 1;
+  c.save(); c.globalAlpha *= bk; c.translate(540, 1290); c.scale(pulse * press, pulse * press);
+  const label = tapped ? "ĐÃ THEO DÕI" : "THEO DÕI";
+  c.font = `800 54px ${FONT}`; const bw = c.measureText(label).width + 190;
+  c.beginPath(); c.roundRect(-bw / 2, -62, bw, 124, 62); c.fillStyle = tapped ? COL.blue : COL.orange; c.fill();
+  c.fillStyle = COL.ink; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(label, -bw / 2 + 140, 3);
+  c.save(); c.translate(-bw / 2 + 80, 0);
+  if (tapped) { c.beginPath(); c.moveTo(-18, 0); c.lineTo(-4, 16); c.lineTo(22, -14); c.strokeStyle = COL.ink; c.lineWidth = 10; c.lineCap = "round"; c.lineJoin = "round"; c.stroke(); }
+  else {
+    c.rotate(tl > 1 ? Math.sin(t * 14) * 0.25 : 0);
+    c.beginPath(); c.moveTo(-24, 16); c.quadraticCurveTo(-24, -26, 0, -28); c.quadraticCurveTo(24, -26, 24, 16); c.lineTo(30, 22); c.lineTo(-30, 22); c.closePath(); c.fillStyle = COL.ink; c.fill();
+    c.beginPath(); c.arc(0, 30, 8, 0, Math.PI * 2); c.fill();
+  }
+  c.restore(); c.restore();
+  // tap ripple and pointer
+  const rk = (tl - tapAt) / 0.6;
+  if (rk > 0 && rk < 1) { c.save(); c.globalAlpha *= 1 - rk; c.strokeStyle = COL.white; c.lineWidth = 6; c.beginPath(); c.arc(640, 1310, 30 + rk * 140, 0, Math.PI * 2); c.stroke(); c.restore(); }
+  if (tl > tapAt - 0.7 && tl < tapAt + 0.9) {
+    const pk = easeInOut((tl - (tapAt - 0.7)) / 0.6);
+    const px = 860 - (860 - 640) * pk, py = 1520 - (1520 - 1320) * pk;
+    c.save(); c.translate(px, py); c.fillStyle = COL.white; c.strokeStyle = COL.ink; c.lineWidth = 4;
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(0, 64); c.lineTo(16, 50); c.lineTo(28, 76); c.lineTo(40, 70); c.lineTo(28, 46); c.lineTo(48, 44); c.closePath(); c.fill(); c.stroke(); c.restore();
+  }
+}
 function drawScene(c, s, sc, tl, t) {
+  if (sc.layout === "outro") { drawOutro(c, s, sc, tl, t); return; }
   const tm = sceneTimes(sc); const pts = positions(sc);
   const isCompare = sc.layout === "compare" || sc.layout === "before-after";
   if (sc.layout === "title") {
@@ -788,6 +869,7 @@ async function renderAudio(s, voices, sampleRate = 48000) {
     sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
     sc.links.forEach((_, j) => blip(acc + tm.linkAt(j) + 0.4, 1200, 0.06));
     if (sc.mark) blip(acc + tm.markAt, sc.mark.type === "check" ? 1320 : 300, 0.16);
+    if (sc.layout === "outro") { const ta = acc + Math.min(1.8, sc.duration * 0.45); blip(ta, 900, 0.16); blip(ta + 0.09, 1350, 0.12); }
     const v = voices && voices[si];
     if (v && v.buffer) {
       const t0 = acc + VOICE_LEAD, t1 = t0 + v.buffer.duration;
@@ -864,6 +946,7 @@ async function pickEncoder() {
 }
 const nextTick = () => new Promise(r => setTimeout(r, 0));
 async function renderMp4(s, job) {
+  s = withOutro(s);
   const plan = await pickEncoder();
   if (plan.fallback) return renderWebm(s, job);
   if (!plan.video) throw new Error("Trình duyệt này không xuất được video.");
@@ -918,6 +1001,7 @@ async function renderMp4(s, job) {
   return { blob: new Blob([target.buffer], { type: "video/mp4" }), ext: "mp4", mime: "video/mp4", duration: total, voiced: !!voices };
 }
 async function renderWebm(s, job) {
+  s = withOutro(s);
   await ensureFonts();
   let voices = null;
   if (voiceOn()) ({ script: s, voices } = await prepareVoice(s));
@@ -959,7 +1043,7 @@ const state = {
   jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
   aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
 };
-function defaultSettings() { return { models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+0%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+0%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
 const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -989,7 +1073,7 @@ async function initCaps() {
     state.settings = { ...defaultSettings(), ...(snap.exists ? snap.data() : {}) }; state.loaded.settings = true;
     logoState.corner = state.settings.logoCorner === "right" ? "right" : "left";
     if ((state.settings.logoAssetId || "") !== logoState.assetId) loadLogo(state.settings.logoAssetId || "");
-    renderSchedule(); renderLogoPanel(); renderVoicePanel(); renderModelPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
+    renderSchedule(); renderLogoPanel(); renderVoicePanel(); renderModelPanel(); renderOutroPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
   }, () => { state.loaded.settings = true; });
 }
 function goLocal(msg) { state.localMode = true; state.loaded.scripts = state.loaded.settings = true; banner(msg, true); renderList(); renderSchedule(); }
@@ -1134,9 +1218,16 @@ function renderEditor() {
     ${!cap.voice && d.scenes.some(sc => narrationText(sc)) ? `<p class="hint">Giọng đọc chỉ có ở bản chạy trên máy (dùng API key). Ở đây clip render không có giọng đọc, chỉ có phụ đề và nhạc nền.</p>` : ""}
     ${d.source === "article" ? `<p class="hint">Tạo từ bài viết (${(d.sourceText || "").length.toLocaleString("vi-VN")} ký tự). “AI kiểm tra kỹ thuật” sẽ đối chiếu lại với bài này.</p>` : ""}
     ${d.reviewed ? `<div class="banner"><b style="color:var(--ok)">Đã kiểm tra kỹ thuật.</b> ${d.reviewNotes && d.reviewNotes.length ? "Đã sửa: " + d.reviewNotes.map(esc).join(" · ") : "Không phát hiện lỗi."}</div>` : `<div class="banner warn">Kịch bản chưa được kiểm tra kỹ thuật. Bấm “AI kiểm tra kỹ thuật” trước khi render.</div>`}
-    <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (tối đa khoảng 120s): <b id="ed-total">${totalDur(normScript(d)).toFixed(1)}s</b></p>
+    ${structureNote(d)}
+    <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (tối đa khoảng 120s): <b id="ed-total">${totalDur(withOutro(normScript(d))).toFixed(1)}s</b></p>
     ${d.scenes.map((sc, i) => renderSceneCard(sc, i, d.scenes.length, sel)).join("")}
     <div class="row"><button class="btn" data-act="add-scene">+ Thêm cảnh</button></div>`;
+}
+function structureNote(d) {
+  const cnt = { intro: 0, body: 0, outro: 0 }; d.scenes.forEach(sc => { if (cnt[sc.part] !== undefined) cnt[sc.part]++; });
+  const auto = state.settings.outroEnabled !== false && !d.scenes.some(sc => sc.layout === "outro");
+  const missing = Object.keys(cnt).filter(k => !cnt[k]).map(k => PARTS[k]);
+  return `<p class="hint">Cấu trúc: ${PARTS.intro} ${cnt.intro} cảnh · ${PARTS.body} ${cnt.body} cảnh · ${PARTS.outro} ${cnt.outro} cảnh${auto ? " · cuối clip tự thêm cảnh kêu gọi follow" : ""}.${missing.length ? ` <span style="color:var(--orange)">Thiếu: ${missing.join(", ")}.</span>` : ""}</p>`;
 }
 function renderSceneCard(sc, i, n, sel) {
   const p = `scenes.${i}`; const actorOpts = [["-1", "Không"]].concat(sc.actors.map((a, k) => [k, `${k + 1}. ${a.label || a.icon}`]));
@@ -1144,12 +1235,13 @@ function renderSceneCard(sc, i, n, sel) {
   const isCmp = sc.layout === "compare" || sc.layout === "before-after";
   const idxOpts = sc.actors.map((a, k) => [k, String(k + 1)]);
   return `<div class="scene">
-    <div class="scene-head"><span class="n">CẢNH ${i + 1}</span><span class="grow"></span>
+    <div class="scene-head"><span class="n">CẢNH ${i + 1}</span>${sc.part ? `<span class="chip part-${sc.part}">${PARTS[sc.part]}</span>` : ""}<span class="grow"></span>
       <button class="btn small ghost" data-act="preview-scene" data-i="${i}">Xem cảnh</button>
       <button class="btn small ghost" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="Lên">↑</button>
       <button class="btn small ghost" data-act="down" data-i="${i}" ${i === n - 1 ? "disabled" : ""} aria-label="Xuống">↓</button>
       <button class="btn small ghost danger" data-act="del-scene" data-i="${i}" ${n <= 1 ? "disabled" : ""} aria-label="Xóa cảnh">✕</button></div>
     <div class="scene-grid">
+      <label class="f"><span>Phần</span>${sel(p + ".part", [["", "Chưa gán"], ...Object.entries(PARTS)], sc.part || "", `data-rerender="1" id="ed-${i}-part"`)}</label>
       <label class="f"><span>Bố cục</span>${sel(p + ".layout", Object.entries(LAYOUTS), sc.layout, `data-rerender="1" id="ed-${i}-layout"`)}</label>
       <label class="f"><span>Thời lượng (giây)</span><input type="number" step="0.1" min="1.2" max="12" data-f="${p}.duration" data-type="num" id="ed-${i}-dur" value="${sc.duration}"></label>
       <label class="f"><span>Nhấn mạnh</span>${sel(p + ".focus", actorOpts, sc.focus, `data-type="num" id="ed-${i}-focus"`)}</label>
@@ -1185,7 +1277,7 @@ function setPath(obj, path, val) {
   for (let i = 0; i < ks.length - 1; i++) o = o[isNaN(ks[i]) ? ks[i] : +ks[i]];
   o[ks[ks.length - 1]] = val;
 }
-function markDirty() { state.dirty = true; const s = $("save-state"); if (s) { s.textContent = "Chưa lưu"; s.className = "save-state dirty"; } const t = $("ed-total"); if (t) t.textContent = totalDur(normScript(state.draft)).toFixed(1) + "s"; pv.draw(); }
+function markDirty() { state.dirty = true; const s = $("save-state"); if (s) { s.textContent = "Chưa lưu"; s.className = "save-state dirty"; } const t = $("ed-total"); if (t) t.textContent = totalDur(withOutro(normScript(state.draft))).toFixed(1) + "s"; pv.draw(); }
 $("editor").addEventListener("input", (e) => {
   const f = e.target.dataset.f; if (!f || !state.draft) return;
   let v = e.target.value; const ty = e.target.dataset.type;
@@ -1236,7 +1328,7 @@ $("editor").addEventListener("click", async (e) => {
     try {
       const { script } = await prepareVoice(normScript(d), (k, n) => { b.innerHTML = `<span class="spin"></span> Giọng đọc ${k + 1}/${n}`; });
       script.scenes.forEach((sc, k) => { if (d.scenes[k]) d.scenes[k].duration = sc.duration; });
-      markDirty(); renderEditor(); toast(`Đã khớp thời lượng: clip dài ${totalDur(normScript(state.draft)).toFixed(0)} giây. Bấm Lưu để ghi lại.`, 5000);
+      markDirty(); renderEditor(); toast(`Đã khớp thời lượng: clip dài khoảng ${totalDur(withOutro(normScript(state.draft))).toFixed(0)} giây (gồm cảnh kết). Bấm Lưu để ghi lại.`, 5000);
     } catch (err) { toast("Không tạo được giọng đọc: " + ((err && err.message) || err), 5000); renderEditor(); }
   }
   else if (act === "narrate") {
@@ -1286,7 +1378,7 @@ let speakAudio = null;
 /* ================= preview ================= */
 const pv = (() => {
   const canvas = $("pv"); const c = canvas.getContext("2d"); let t = 0, playing = false, last = 0, raf = 0;
-  const cur = () => { const d = state.draft || (state.editingId && state.scripts.get(state.editingId)); return d ? normScript(d) : null; };
+  const cur = () => { const d = state.draft || (state.editingId && state.scripts.get(state.editingId)); return d ? withOutro(normScript(d)) : null; };
   function draw() {
     const s = cur(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
     if (!s) { drawBg(c, 0); c.font = `700 44px ${FONT}`; c.fillStyle = COL.muted; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("Chọn một kịch bản", 540, 960); $("pv-info").textContent = ""; $("pv-time").textContent = "0:00.0"; return; }
@@ -1331,10 +1423,13 @@ ${head}
 Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
 
 Quy tắc:
-- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 8–16 cảnh. Tổng độ dài tất cả "narration" khoảng 700–1.400 ký tự (giọng đọc khoảng 12 ký tự mỗi giây), không vượt quá 1.400 ký tự.
+- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 9–16 cảnh. Tổng độ dài tất cả "narration" khoảng 700–1.250 ký tự (giọng đọc khoảng 12 ký tự mỗi giây), không vượt quá 1.250 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây).
 - Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất mà dev cần biết (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
-- Cảnh 1 dùng layout "title" với câu hook gây tò mò ở phụ đề. Cảnh cuối tóm tắt (thường dùng "compare" hoặc "before-after").
-- Cấu trúc gợi ý: hook → bối cảnh / vì sao quan trọng → vấn đề → cơ chế hoạt động từng bước (đúng thứ tự) → ví dụ cụ thể → lỗi hay gặp / trade-off → cách xử lý, công cụ phổ biến → tóm tắt + mẹo nhớ. Mỗi cảnh một ý.
+- CẤU TRÚC BẮT BUỘC gồm 3 phần, mỗi cảnh ghi rõ phần của nó trong trường "part":
+  • MỞ BÀI ("part": "intro", đúng 2 cảnh). Cảnh 1 dùng layout "title": hook gây tò mò (vấn đề dev hay gặp, hoặc một câu hỏi), phụ đề là câu hook. Cảnh 2 nói rõ clip sẽ trả lời những gì: layout "stack" hoặc "grid" liệt kê 2–4 ý sẽ trình bày, narration kiểu "Trong clip này, mình sẽ cùng bạn tìm hiểu...".
+  • THÂN BÀI ("part": "body"): bối cảnh / vì sao quan trọng → vấn đề → cơ chế hoạt động từng bước (đúng thứ tự) → ví dụ cụ thể → lỗi hay gặp / trade-off → cách xử lý, công cụ phổ biến. Mỗi cảnh một ý, đi đúng các ý đã hứa ở mở bài.
+  • KẾT BÀI ("part": "outro", 1–2 cảnh): tóm tắt lại các ý chính (thường dùng "compare" hoặc "before-after") và một câu chốt hoặc mẹo nhớ nhanh.
+  • KHÔNG viết cảnh kêu gọi follow, like, subscribe: hệ thống tự thêm cảnh đó ở cuối mọi clip.
 - "heading": tiếng Việt hoặc thuật ngữ tiếng Anh, ngắn (tối đa 5 từ), sẽ được in hoa. Bao 1 từ quan trọng trong *dấu sao* để tô cam.
 - "subtitle": câu NHẤN MẠNH hiện trên màn hình: ngắn, đắt giá, chốt ý chính của cảnh, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*.
 - "narration": lời thuyết minh được đọc thành tiếng bằng giọng nam, GIẢI THÍCH RÕ cảnh đó cho người nghe hiểu: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 60–200 ký tự. Văn nói tự nhiên, dễ hiểu, như một kỹ sư giải thích cho đồng nghiệp; nối mạch với cảnh trước và chuyển ý sang cảnh sau. Không lặp nguyên văn phụ đề. Viết để ĐỌC THÀNH TIẾNG: không dùng ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên; tránh viết tắt khó đọc.
@@ -1347,7 +1442,7 @@ Quy tắc:
 - "left"/"right": nhãn cột cho compare/before-after (tối đa 2 từ).
 
 Chỉ trả về JSON đúng dạng:
-{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
+{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
 }
 function reviewPrompt(sc) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = sc;
@@ -1357,6 +1452,7 @@ Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch 
 1. Độ chính xác kỹ thuật: định nghĩa, thứ tự các bước, tên trạng thái/thuật toán, trade-off, ví dụ công cụ/sản phẩm. Sửa mọi chỗ sai hoặc gây hiểu nhầm. Bỏ số liệu không chắc chắn.
 2. Bỏ mọi ẩn dụ đời thường/công sở, thay bằng thành phần kỹ thuật thật.
 2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá 1.400 ký tự.
+2c. Cấu trúc: phải có MỞ BÀI (2 cảnh: hook, rồi giới thiệu clip sẽ nói gì), THÂN BÀI giải thích đúng các ý đã hứa, KẾT BÀI tóm tắt. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.250 ký tự.
 2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (tối đa khoảng 2 phút). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
 3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
 ${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
@@ -1377,7 +1473,8 @@ Kịch bản clip dưới đây có phụ đề ngắn cho từng cảnh. Hãy v
 - Phụ đề giữ nguyên: đó là câu nhấn mạnh hiện trên màn hình.
 - Narration GIẢI THÍCH RÕ cảnh đó: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 60–200 ký tự, văn nói tự nhiên, dễ hiểu, nối mạch giữa các cảnh, không lặp nguyên văn phụ đề.
 - Viết để đọc thành tiếng: không ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên.
-- Tổng narration của cả clip không quá 1.400 ký tự (khoảng 2 phút). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất; nếu thiếu ý quan trọng thì thêm cảnh.
+- Giữ cấu trúc 3 phần và ghi "part" cho từng cảnh: MỞ BÀI ("intro", 2 cảnh: hook, rồi giới thiệu clip sẽ nói gì, narration kiểu "Trong clip này, mình sẽ..."), THÂN BÀI ("body") giải thích, KẾT BÀI ("outro") tóm tắt và chốt ý. Không viết lời kêu gọi follow: hệ thống tự thêm cảnh đó.
+- Tổng narration của cả clip không quá 1.250 ký tự (khoảng 2 phút, chưa tính cảnh follow). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất; nếu thiếu ý quan trọng thì thêm cảnh.
 - Phải đúng kỹ thuật; không bịa số liệu.
 ${sourceText ? `\nĐối chiếu với BÀI VIẾT NGUỒN:\n=== BÀI VIẾT NGUỒN ===\n${sourceText}\n=== HẾT BÀI VIẾT ===\n` : ""}
 Kịch bản hiện tại:
@@ -1764,6 +1861,22 @@ $("btn-save-sched").addEventListener("click", async () => {
   } catch (err) { $("sch-msg").textContent = "Không lưu được: " + (err.message || err.code); }
 });
 
+/* ================= outro settings ================= */
+function renderOutroPanel() {
+  const st = state.settings; const o = st.outro || {};
+  $("o-enabled").checked = st.outroEnabled !== false;
+  $("o-heading").value = o.heading || ""; $("o-heading").placeholder = OUTRO_DEFAULT.heading;
+  $("o-subtitle").value = o.subtitle || ""; $("o-subtitle").placeholder = OUTRO_DEFAULT.subtitle;
+  $("o-narration").value = o.narration || ""; $("o-narration").placeholder = OUTRO_DEFAULT.narration;
+}
+async function saveOutro() {
+  const patch = { outroEnabled: $("o-enabled").checked, outro: { heading: $("o-heading").value.trim(), subtitle: $("o-subtitle").value.trim(), narration: $("o-narration").value.trim() } };
+  try { await saveLogoSettings(patch); if (!cap.db) Object.assign(state.settings, patch); $("o-msg").textContent = "Đã lưu."; setTimeout(() => $("o-msg").textContent = "", 2000); pv.draw(); }
+  catch (e) { $("o-msg").textContent = "Không lưu được."; }
+}
+$("o-save").addEventListener("click", saveOutro);
+$("o-enabled").addEventListener("change", saveOutro);
+
 /* ================= model settings ================= */
 function renderModelPanel() {
   const m = state.settings.models || {};
@@ -1882,7 +1995,7 @@ if (LOCAL) {
   $("sch-desc").textContent = "Bản chạy trên máy: vào giờ render bên dưới, nếu trang đang mở, Claude dùng API key của bạn để viết kịch bản mới rồi render luôn.";
   $("sch-note").hidden = true;
 }
-fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelPanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
+fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelPanel(); renderOutroPanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
