@@ -83,17 +83,18 @@ const listeners = new Set();
 const broadcast = (col) => { for (const res of listeners) res.write(`data: ${JSON.stringify({ col })}\n\n`); };
 
 // ---- Claude ----
-async function askClaude(input, tier) {
+// Models the page may pick per task (Model AI panel). Anything else falls back to CODELENS_MODEL.
+const ALLOWED_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+async function askClaude(input, tier, requestedModel) {
   const messages = typeof input === "string" ? [{ role: "user", content: input }] : input;
-  const stream = client.beta.messages.stream({
-    model: MODEL,
-    max_tokens: 64000,
-    output_config: { effort: EFFORT[tier] || "medium" },
-    // On a policy decline the API retries on a fallback model inside the same call.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    messages,
-  });
+  const model = ALLOWED_MODELS.has(requestedModel) ? requestedModel : MODEL;
+  const params = { model, max_tokens: 64000, output_config: { effort: EFFORT[tier] || "medium" }, messages };
+  if (model !== "claude-haiku-5-5") {
+    // On a policy decline the API retries on a fallback model inside the same call (not offered for Haiku 5.5).
+    params.betas = ["server-side-fallback-2026-07-01"];
+    params.fallbacks = "default";
+  }
+  const stream = client.beta.messages.stream(params);
   const msg = await stream.finalMessage();
   if (msg.stop_reason === "refusal") {
     throw Object.assign(new Error("Claude từ chối yêu cầu này."), { code: "refused" });
@@ -291,9 +292,9 @@ const server = http.createServer(async (req, res) => {
     // Claude
     if (url.pathname === "/api/ai" && req.method === "POST") {
       if (!client) return send(res, 400, { code: "no_api_key", message: "Chưa có API key: thêm ANTHROPIC_API_KEY vào file .env rồi khởi động lại server." });
-      const { input, modelTier } = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString("utf8"));
+      const { input, modelTier, model } = JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString("utf8"));
       try {
-        const out = await askClaude(input, modelTier);
+        const out = await askClaude(input, modelTier, model);
         console.log(`[ai] ${out.model} in=${out.usage.input_tokens} out=${out.usage.output_tokens}`);
         return send(res, 200, out);
       } catch (err) { const e = apiError(err); console.error("[ai]", e.code, e.message); return send(res, e.status, { code: e.code, message: e.message }); }

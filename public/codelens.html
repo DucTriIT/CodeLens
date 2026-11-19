@@ -271,6 +271,14 @@ a.btn { text-decoration: none; color: inherit; }
       <div class="row"><button class="btn primary" id="btn-save-sched">Lưu cài đặt</button><span class="hint" id="sch-msg"></span></div>
     </div>
     <div class="panel">
+      <h2>Model AI</h2>
+      <p class="hint">Chọn model cho từng việc. Haiku rẻ nhất nhưng kém hơn ở độ chính xác kỹ thuật và văn tiếng Việt dài; Opus tốt nhất nhưng đắt nhất. Trên claude.ai, lựa chọn này tính vào hạn mức gói của bạn; ở bản chạy trên máy, nó tính tiền theo API key.</p>
+      <label class="f"><span>Gợi ý chủ đề, caption Facebook</span><select id="m-light"></select></label>
+      <label class="f"><span>Viết kịch bản và lời thuyết minh</span><select id="m-write"></select></label>
+      <label class="f"><span>Kiểm tra kỹ thuật</span><select id="m-review"></select></label>
+      <div class="row"><button class="btn small" id="m-preset">Dùng gợi ý tiết kiệm</button><span class="hint" id="m-msg"></span></div>
+    </div>
+    <div class="panel">
       <h2>Giọng đọc</h2>
       <p class="hint" id="voice-desc">Mỗi cảnh có lời thuyết minh được đọc bằng giọng tiếng Việt miễn phí (giọng neural của Microsoft Edge). Cảnh tự kéo dài theo độ dài giọng đọc; nhạc nền tự nhỏ lại khi có tiếng nói.</p>
       <div id="voice-controls">
@@ -951,7 +959,7 @@ const state = {
   jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
   aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
 };
-function defaultSettings() { return { voiceEnabled: true, voice: "", voiceRate: "+0%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+function defaultSettings() { return { models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+0%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
 const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -981,7 +989,7 @@ async function initCaps() {
     state.settings = { ...defaultSettings(), ...(snap.exists ? snap.data() : {}) }; state.loaded.settings = true;
     logoState.corner = state.settings.logoCorner === "right" ? "right" : "left";
     if ((state.settings.logoAssetId || "") !== logoState.assetId) loadLogo(state.settings.logoAssetId || "");
-    renderSchedule(); renderLogoPanel(); renderVoicePanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
+    renderSchedule(); renderLogoPanel(); renderVoicePanel(); renderModelPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
   }, () => { state.loaded.settings = true; });
 }
 function goLocal(msg) { state.localMode = true; state.loaded.scripts = state.loaded.settings = true; banner(msg, true); renderList(); renderSchedule(); }
@@ -1235,7 +1243,7 @@ $("editor").addEventListener("click", async (e) => {
     if (!cap.sample || state.aiBusy) return;
     b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang viết lời thuyết minh…'; state.aiBusy = true;
     try {
-      const r = await cap.sample.json(narratePrompt(normScript(d)), { modelTier: "complex" });
+      const r = await cap.sample.json(narratePrompt(normScript(d)), aiOpts("write", "complex"));
       const fixed = r && Array.isArray(r.scenes) && r.scenes.length ? r : null;
       if (!fixed) throw { message: "AI không trả về kịch bản hợp lệ." };
       const n = normScript({ ...d, ...fixed, reviewed: d.reviewed, reviewNotes: d.reviewNotes });
@@ -1378,7 +1386,7 @@ ${JSON.stringify(body)}
 Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, scenes), mỗi cảnh có thêm trường "narration".`;
 }
 async function aiReview(script) {
-  const r = await cap.sample.json(reviewPrompt(script), { modelTier: "complex" });
+  const r = await cap.sample.json(reviewPrompt(script), aiOpts("review", "complex"));
   const fixed = r && r.script && Array.isArray(r.script.scenes) && r.script.scenes.length ? r.script : script;
   const issues = r && Array.isArray(r.issues) ? r.issues.filter(Boolean).map(String) : [];
   return { fixed, issues };
@@ -1392,6 +1400,13 @@ function topicsPrompt(category) {
 Chủ đề phải là khái niệm có định nghĩa rõ ràng, đã được công nhận rộng rãi (không phải tin đồn hay sản phẩm chưa phát hành).
 Không trùng với các chủ đề đã có: ${existing || "chưa có"}.
 Chỉ trả về JSON: {"topics": [{"topic": "tên chủ đề ngắn", "category": "một trong ${CATEGORIES.join("|")}", "angle": "vì sao dev cần biết hoặc góc giải thích kỹ thuật, tiếng Việt, tối đa 12 từ"}]}`;
+}
+// Model per task: "light" = topic ideas and captions, "write" = scripts and narration, "review" = technical check.
+// An empty value keeps the default (claude.ai picks by tier; the local server uses CODELENS_MODEL).
+const AI_MODELS = { "": "Mặc định", "claude-haiku-5-5": "Claude Haiku 5.5 (rẻ nhất)", "claude-sonnet-5-5": "Claude Sonnet 5.5 (cân bằng)", "claude-opus-5-5": "Claude Opus 5.5 (tốt nhất)" };
+function aiOpts(kind, tier) {
+  const m = (state.settings.models || {})[kind];
+  return AI_MODELS[m] && m ? { modelTier: tier, model: m } : { modelTier: tier };
 }
 function aiError(err) {
   const code = err && err.code;
@@ -1410,7 +1425,7 @@ $("btn-suggest").addEventListener("click", async () => {
   if (!cap.sample || state.aiBusy) return;
   const cat = $("ai-cat").value; setAiBusy(true, "Đang nghĩ chủ đề…");
   try {
-    const r = await cap.sample.json(topicsPrompt(cat), { modelTier: "default" });
+    const r = await cap.sample.json(topicsPrompt(cat), aiOpts("light", "default"));
     state.suggestions = (r && Array.isArray(r.topics) ? r.topics : []).slice(0, 10).filter(x => x && x.topic);
     renderSuggestions(); setAiBusy(false, state.suggestions.length ? "Bấm một chủ đề để AI viết kịch bản." : "Không có gợi ý nào. Thử lại.");
   } catch (err) { setAiBusy(false, aiError(err)); }
@@ -1425,7 +1440,7 @@ async function aiWrite(topic, category, sugIdx) {
   if (!cap.sample || state.aiBusy) return;
   setAiBusy(true, "Claude đang viết kịch bản…");
   try {
-    const r0 = await cap.sample.json(scriptPrompt(topic, category), { modelTier: "default" });
+    const r0 = await cap.sample.json(scriptPrompt(topic, category), aiOpts("write", "default"));
     setAiBusy(true, "Claude đang kiểm tra lại độ chính xác kỹ thuật…");
     let r = r0, issues = [], reviewed = false;
     try { const rv = await aiReview(normScript(r0)); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
@@ -1447,7 +1462,7 @@ async function aiFromArticle() {
   state.aiBusy = true; btn.disabled = true;
   st.innerHTML = '<span class="spin"></span> Claude đang đọc bài và viết kịch bản…';
   try {
-    const r0 = await cap.sample.json(scriptPrompt(title, cat, text, note), { modelTier: "complex" });
+    const r0 = await cap.sample.json(scriptPrompt(title, cat, text, note), aiOpts("write", "complex"));
     st.innerHTML = '<span class="spin"></span> Đang đối chiếu kịch bản với bài viết…';
     let r = r0, issues = [], reviewed = false;
     try { const rv = await aiReview(normScript({ ...r0, sourceText: text })); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
@@ -1563,14 +1578,14 @@ async function autoWriteScripts(n, cats) {
   if (state.aiBusy) return;
   try {
     setAiBusy(true, "Lịch chạy: Claude đang chọn chủ đề…");
-    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all"), { modelTier: "default" });
+    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all"), aiOpts("light", "default"));
     const topics = (r && Array.isArray(r.topics) ? r.topics : []).filter(t => t && t.topic && (!cats.length || cats.includes(t.category))).slice(0, n);
     setAiBusy(false, "");
     let done = 0;
     for (const t of topics) {
       setAiBusy(true, `Lịch chạy: đang viết “${t.topic}” (${done + 1}/${topics.length})…`);
       try {
-        const r0 = await cap.sample.json(scriptPrompt(t.topic + (t.angle ? ` — gợi ý: ${t.angle}` : ""), t.category), { modelTier: "default" });
+        const r0 = await cap.sample.json(scriptPrompt(t.topic + (t.angle ? ` — gợi ý: ${t.angle}` : ""), t.category), aiOpts("write", "default"));
         let fixed = r0, issues = [], reviewed = false;
         try { const rv = await aiReview(normScript(r0)); fixed = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
         await putScript(normScript({ ...fixed, topic: t.topic, category: CATEGORIES.includes(t.category) ? t.category : fixed.category, createdBy: "ai", status: "queued", reviewed, reviewNotes: issues }));
@@ -1647,7 +1662,7 @@ $("fb-ai").addEventListener("click", async () => {
   const script = fbClip && state.scripts.get(fbClip.scriptId);
   if (!script) { $("fb-msg").textContent = "Không còn kịch bản gốc của clip này để AI đọc."; return; }
   const b = $("fb-ai"); b.disabled = true; $("fb-msg").innerHTML = '<span class="spin"></span> Đang viết caption…';
-  try { const r = await cap.sample.json(captionPrompt(script), { modelTier: "default" }); if (r && r.caption) { $("fb-caption").value = String(r.caption).slice(0, 2200); fbClip.fbCaption = $("fb-caption").value; } $("fb-msg").textContent = ""; }
+  try { const r = await cap.sample.json(captionPrompt(script), aiOpts("light", "default")); if (r && r.caption) { $("fb-caption").value = String(r.caption).slice(0, 2200); fbClip.fbCaption = $("fb-caption").value; } $("fb-msg").textContent = ""; }
   catch (err) { $("fb-msg").textContent = aiError(err); }
   b.disabled = false;
 });
@@ -1747,6 +1762,23 @@ $("btn-save-sched").addEventListener("click", async () => {
     if (cap.db) await cap.db.doc("settings/schedule").set(next); else { state.settings = next; renderSchedule(); }
     $("q-conc").value = String(next.concurrency); $("sch-msg").textContent = "Đã lưu."; setTimeout(() => $("sch-msg").textContent = "", 2500);
   } catch (err) { $("sch-msg").textContent = "Không lưu được: " + (err.message || err.code); }
+});
+
+/* ================= model settings ================= */
+function renderModelPanel() {
+  const m = state.settings.models || {};
+  ["light", "write", "review"].forEach(k => {
+    $("m-" + k).innerHTML = Object.entries(AI_MODELS).map(([v, t]) => `<option value="${v}"${(m[k] || "") === v ? " selected" : ""}>${esc(t)}</option>`).join("");
+  });
+}
+async function saveModels(models) {
+  try { await saveLogoSettings({ models }); if (!cap.db) state.settings.models = models; $("m-msg").textContent = "Đã lưu."; setTimeout(() => $("m-msg").textContent = "", 2000); }
+  catch (e) { $("m-msg").textContent = "Không lưu được."; }
+}
+["light", "write", "review"].forEach(k => $("m-" + k).addEventListener("change", () => saveModels({ light: $("m-light").value, write: $("m-write").value, review: $("m-review").value })));
+$("m-preset").addEventListener("click", () => {
+  const models = { light: "claude-haiku-5-5", write: "claude-sonnet-5-5", review: "claude-opus-5-5" };
+  Object.entries(models).forEach(([k, v]) => $("m-" + k).value = v); saveModels(models);
 });
 
 /* ================= voice settings ================= */
@@ -1850,7 +1882,7 @@ if (LOCAL) {
   $("sch-desc").textContent = "Bản chạy trên máy: vào giờ render bên dưới, nếu trang đang mở, Claude dùng API key của bạn để viết kịch bản mới rồi render luôn.";
   $("sch-note").hidden = true;
 }
-fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
+fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelPanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();

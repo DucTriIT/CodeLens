@@ -55,7 +55,7 @@
     throw { code: "invalid_json", message: "Claude trả về kết quả không phải JSON hợp lệ." };
   };
   const sample = async (input, opts = {}) => {
-    const r = await call("POST", "/api/ai", { input, modelTier: opts.modelTier || "default" });
+    const r = await call("POST", "/api/ai", { input, modelTier: opts.modelTier || "default", model: opts.model || "" });
     if (opts.onText) { try { opts.onText({ text: r.text, delta: r.text }); } catch (_) {} }
     return { text: r.text, truncated: r.truncated, modelTierApplied: opts.modelTier || "default", modelApplied: r.model };
   };

@@ -93,6 +93,22 @@ Token này đăng được lên Fanpage của bạn: giữ bí mật như mật 
 
 Kịch bản viết trên bản claude.ai chuyển sang bản trên máy được: bấm **Xuất kịch bản (.json)** ở bản claude.ai, rồi bấm **Nhập kịch bản** ở bản trên máy.
 
+## Chọn model AI
+
+Tab **Lịch & logo → Model AI** cho chọn model riêng cho từng việc. Áp dụng cho cả bản claude.ai lẫn bản trên máy.
+
+| Việc | Gợi ý tiết kiệm | Vì sao |
+|---|---|---|
+| Gợi ý chủ đề, caption Facebook | Claude Haiku 5.5 | Việc ngắn, sai sót ít hậu quả |
+| Viết kịch bản và lời thuyết minh | Claude Sonnet 5.5 | Cần văn tiếng Việt tốt và đúng kỹ thuật |
+| Kiểm tra kỹ thuật | Claude Opus 5.5 | Lớp chốt chặn cuối cho độ chính xác |
+
+Bấm **Dùng gợi ý tiết kiệm** để chọn nhanh bộ trên. Để "Mặc định" thì bản trên máy dùng `CODELENS_MODEL`, còn claude.ai tự chọn.
+
+Giá API (USD cho mỗi 1 triệu token, đầu vào / đầu ra): Haiku 5.5 $0.10 / $0.50, Sonnet 5.5 $2 / $10, Opus 5.5 $4 / $20. Bản claude.ai không tính tiền theo token mà tính vào hạn mức gói của bạn.
+
+Trên bản chạy trên máy, Haiku 5.5 không có fallback phía server: nếu Haiku từ chối một yêu cầu vì chính sách an toàn, nút AI sẽ báo lỗi thay vì tự chuyển sang model khác.
+
 ## Bảo mật API key
 
 - Key chỉ nằm trong `.env` và trong server Node. Trình duyệt không bao giờ thấy key.
