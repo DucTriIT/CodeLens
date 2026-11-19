@@ -71,6 +71,26 @@ Trong trình soạn:
 - **Khớp thời lượng với giọng đọc:** tạo giọng đọc cho cả clip và chỉnh độ dài từng cảnh cho khớp, để phần xem trước đúng nhịp. Khi render, bước này cũng tự chạy.
 - **AI viết lời thuyết minh:** thêm lời thuyết minh cho kịch bản cũ chưa có.
 
+## Chia sẻ Facebook
+
+Mỗi clip trong Thư viện (và trong Hàng đợi khi render xong) có nút **Chia sẻ Facebook**. Hộp chia sẻ gồm:
+
+- **Caption:** soạn sẵn từ kịch bản (tiêu đề, câu mở đầu, các ý chính, hashtag). Bấm **AI viết caption** để Claude viết lại cho hấp dẫn hơn, rồi bấm **Sao chép caption**.
+- **Đăng thẳng lên Fanpage:** chỉ có ở bản chạy trên máy, khi `.env` có `FB_PAGE_ID` và `FB_PAGE_TOKEN`. Video được tải lên Fanpage kèm caption, công khai ngay; trang hỏi bấm hai lần để tránh đăng nhầm.
+- **Chia sẻ qua ứng dụng:** hiện khi trình duyệt hỗ trợ chia sẻ file (điện thoại, Windows), để chọn ứng dụng Facebook.
+- **Tự đăng trên Facebook:** tải video, sao chép caption, mở facebook.com, rồi tạo bài viết hoặc Reel. Dùng cách này cho **trang cá nhân**.
+
+Facebook không cho phần mềm tự đăng lên trang cá nhân; API chỉ đăng được lên Fanpage.
+
+Lấy `FB_PAGE_ID` và `FB_PAGE_TOKEN`:
+
+1. Tạo một app tại https://developers.facebook.com (loại Business).
+2. Mở Graph API Explorer, chọn app vừa tạo, cấp quyền `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, rồi bấm Generate Access Token.
+3. Gọi `me/accounts`. Kết quả liệt kê các Fanpage bạn quản trị, kèm `id` (đây là `FB_PAGE_ID`) và `access_token` (đây là `FB_PAGE_TOKEN`).
+4. Token lấy từ Explorer thường hết hạn sau vài giờ. Đổi sang token dài hạn bằng Access Token Debugger (nút Extend), rồi gọi lại `me/accounts` để lấy Page token không hết hạn.
+
+Token này đăng được lên Fanpage của bạn: giữ bí mật như mật khẩu, chỉ để trong `.env`.
+
 Kịch bản viết trên bản claude.ai chuyển sang bản trên máy được: bấm **Xuất kịch bản (.json)** ở bản claude.ai, rồi bấm **Nhập kịch bản** ở bản trên máy.
 
 ## Bảo mật API key

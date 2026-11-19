@@ -155,6 +155,30 @@ async function ttsAudio(text, voice, rate) {
   throw lastErr;
 }
 
+// ---- Facebook Page publishing (Graph API; personal profiles cannot be posted to by apps) ----
+const FB_PAGE_ID = process.env.FB_PAGE_ID || "";
+const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN || "";
+const FB_PAGE_NAME = process.env.FB_PAGE_NAME || "";
+const FB_GRAPH_VERSION = process.env.FB_GRAPH_VERSION || "v26.0";
+const FB_VIDEO_BASE = process.env.FB_GRAPH_VIDEO_BASE || "https://graph-video.facebook.com"; // overridable for testing
+const fbConfigured = Boolean(FB_PAGE_ID && FB_PAGE_TOKEN);
+async function publishToPage(file, caption, title) {
+  const buf = await fs.readFile(file);
+  const form = new FormData();
+  form.append("access_token", FB_PAGE_TOKEN);
+  form.append("description", caption);
+  if (title) form.append("title", title.slice(0, 250));
+  form.append("published", "true");
+  form.append("source", new Blob([buf], { type: "video/mp4" }), "codelens.mp4");
+  const res = await fetch(`${FB_VIDEO_BASE}/${FB_GRAPH_VERSION}/${encodeURIComponent(FB_PAGE_ID)}/videos`, { method: "POST", body: form });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body.error) {
+    const e = body.error || {};
+    throw Object.assign(new Error(e.message || `Facebook trả lỗi HTTP ${res.status}`), { fbCode: e.code });
+  }
+  return body; // { id: <video id> }
+}
+
 // ---- page ----
 const pagePath = path.join(here, "public", "codelens.html");
 const adapterPath = path.join(here, "public", "local-adapter.js");
@@ -169,7 +193,24 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && url.pathname === "/") return send(res, 200, renderPage(), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname === "/local-adapter.js") return send(res, 200, readFileSync(adapterPath), "text/javascript; charset=utf-8");
-    if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL, voices: TTS_VOICES, defaultVoice: TTS_DEFAULT_VOICE });
+    if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL, voices: TTS_VOICES, defaultVoice: TTS_DEFAULT_VOICE, facebook: { configured: fbConfigured, pageName: FB_PAGE_NAME } });
+
+    if (req.method === "POST" && url.pathname === "/api/facebook/publish") {
+      if (!fbConfigured) return send(res, 400, { code: "fb_not_configured", message: "Chưa cấu hình Fanpage: thêm FB_PAGE_ID và FB_PAGE_TOKEN vào file .env rồi khởi động lại server." });
+      const { assetId, caption, title } = JSON.parse((await readBody(req, 256 * 1024)).toString("utf8") || "{}");
+      if (!/^[0-9a-f]{32}$/.test(assetId || "")) return send(res, 400, { code: "invalid_request", message: "Thiếu file video." });
+      const file = path.join(DATA, "assets", assetId);
+      if (!existsSync(file)) return send(res, 404, { code: "not_found", message: "Không tìm thấy file video trong thư viện." });
+      try {
+        const out = await publishToPage(file, String(caption || "").slice(0, 5000), String(title || ""));
+        console.log(`[facebook] published video ${out.id}`);
+        return send(res, 200, { id: out.id, url: `https://www.facebook.com/${encodeURIComponent(out.id)}` });
+      } catch (err) {
+        console.error("[facebook]", err.message);
+        const hint = err.fbCode === 190 ? " Token đã hết hạn hoặc không hợp lệ: tạo Page access token mới." : err.fbCode === 200 || err.fbCode === 10 ? " Token thiếu quyền pages_manage_posts hoặc bạn không phải quản trị viên Fanpage." : "";
+        return send(res, 502, { code: "fb_failed", message: err.message + hint });
+      }
+    }
 
     if (req.method === "POST" && url.pathname === "/api/tts") {
       const { text, voice, rate } = JSON.parse((await readBody(req, 64 * 1024)).toString("utf8") || "{}");

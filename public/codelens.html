@@ -158,6 +158,11 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
 .logo-prev { width: 100%; max-width: 360px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
 .logo-prev canvas { width: 100%; display: block; }
 
+.modal { position: fixed; inset: 0; background: rgba(3, 6, 14, 0.72); z-index: 40; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modal-box { width: min(640px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
+.fb-actions { display: grid; gap: 10px; }
+.fb-opt { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+a.btn { text-decoration: none; color: inherit; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.4); z-index: 50; max-width: min(520px, calc(100% - 32px)); font-size: 13px; }
 .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp .7s linear infinite; }
 @keyframes sp { to { transform: rotate(360deg); } }
@@ -291,6 +296,31 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
   </section>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="modal" id="fb-modal" hidden role="dialog" aria-modal="true" aria-labelledby="fb-title">
+  <div class="modal-box">
+    <div class="panel-head"><h2 id="fb-title">Chia sẻ lên Facebook</h2><button class="btn small ghost" id="fb-close" aria-label="Đóng">Đóng</button></div>
+    <p class="hint" id="fb-clipname"></p>
+    <label class="f"><span>Caption bài đăng</span><textarea id="fb-caption" rows="9"></textarea></label>
+    <div class="row"><button class="btn small" id="fb-ai">AI viết caption</button><button class="btn small" id="fb-copy">Sao chép caption</button><span class="hint" id="fb-msg"></span></div>
+    <div class="fb-actions">
+      <div class="fb-opt" id="fb-page-opt" hidden>
+        <b>Đăng thẳng lên Fanpage</b>
+        <span class="hint" id="fb-page-desc"></span>
+        <div class="row"><button class="btn primary" id="fb-publish">Đăng lên Fanpage</button><span class="hint" id="fb-pub-msg"></span></div>
+      </div>
+      <div class="fb-opt" id="fb-share-opt" hidden>
+        <b>Chia sẻ qua ứng dụng</b>
+        <span class="hint">Mở bảng chia sẻ của máy, rồi chọn Facebook (trên điện thoại hoặc Windows có cài ứng dụng Facebook).</span>
+        <div class="row"><button class="btn" id="fb-native">Chia sẻ…</button></div>
+      </div>
+      <div class="fb-opt">
+        <b>Tự đăng trên Facebook</b>
+        <span class="hint">Dùng cho trang cá nhân hoặc Reels: tải video, sao chép caption, mở Facebook, tạo bài viết hoặc Reel rồi dán caption.</span>
+        <div class="row"><button class="btn" id="fb-dl">1. Tải video</button><button class="btn" id="fb-copy2">2. Sao chép caption</button><a class="btn" id="fb-open" href="https://www.facebook.com/" target="_blank" rel="noopener">3. Mở Facebook</a></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -1489,10 +1519,11 @@ function renderJobs() {
   if (!state.jobs.length) { el.innerHTML = `<div class="empty"><strong>Hàng đợi trống</strong>Chọn kịch bản ở tab Kịch bản rồi bấm “Render đã chọn”.</div>`; return; }
   el.innerHTML = state.jobs.map(j => `<div class="job ${j.status}">
     <div><div class="name">${esc(j.title)}</div><div class="meta"><span>${j.phase && j.status === "running" ? esc(j.phase) : JOB_LABEL[j.status]}${j.status === "running" ? " · " + Math.round(j.progress * 100) + "%" : ""}</span>${j.result && j.result.voiced ? "<span>có giọng đọc</span>" : ""}${j.result ? `<span>${(j.result.blob.size / 1048576).toFixed(1)} MB · ${j.result.ext.toUpperCase()}</span>` : ""}${j.error ? `<span style="color:var(--bad)">${esc(j.error)}</span>` : ""}${j.note ? `<span style="color:var(--orange)">${esc(j.note)}</span>` : ""}</div></div>
-    <div class="row">${j.status === "done" ? `<button class="btn small primary" data-jdl="${j.id}">Tải về</button>` : ""}${j.status === "running" || j.status === "waiting" ? `<button class="btn small ghost" data-jcancel="${j.id}">Hủy</button>` : ""}${j.status === "failed" || j.status === "cancelled" ? `<button class="btn small" data-jretry="${j.id}">Thử lại</button>` : ""}</div>
+    <div class="row">${j.status === "done" ? `<button class="btn small primary" data-jdl="${j.id}">Tải về</button>${j.clipId ? `<button class="btn small blue" data-jfb="${j.clipId}">Chia sẻ Facebook</button>` : ""}` : ""}${j.status === "running" || j.status === "waiting" ? `<button class="btn small ghost" data-jcancel="${j.id}">Hủy</button>` : ""}${j.status === "failed" || j.status === "cancelled" ? `<button class="btn small" data-jretry="${j.id}">Thử lại</button>` : ""}</div>
     <div class="bar"><i style="width:${Math.round(j.progress * 100)}%"></i></div></div>`).join("");
 }
 $("jobs").addEventListener("click", (e) => {
+  const fb = e.target.closest("[data-jfb]"); if (fb) { openFbShare(fb.dataset.jfb); return; }
   const dl = e.target.closest("[data-jdl]"), cc = e.target.closest("[data-jcancel]"), rt = e.target.closest("[data-jretry]");
   if (dl) { const j = state.jobs.find(x => x.id === dl.dataset.jdl); if (j && j.result) saveFile(slug(j.title) + "." + j.result.ext, j.result.blob); }
   if (cc) { const j = state.jobs.find(x => x.id === cc.dataset.jcancel); if (j) { if (j.status === "waiting") { j.status = "cancelled"; patchScript(j.scriptId, { status: "queued" }); renderJobs(); } else j.cancelled = true; } }
@@ -1552,6 +1583,97 @@ async function autoWriteScripts(n, cats) {
   } catch (err) { setAiBusy(false, aiError(err)); }
 }
 
+/* ================= share to Facebook ================= */
+const HASHTAGS = { Network: ["#Networking"], Backend: ["#Backend"], Frontend: ["#Frontend", "#WebDev"], Database: ["#Database"], Cloud: ["#Cloud", "#DevOps"], AI: ["#AI", "#LLM"], Architecture: ["#SystemDesign", "#Architecture"] };
+let fbClip = null, fbStatus = null;
+function captionTemplate(script, clip) {
+  const title = (script && script.title) || clip.title;
+  const plain = (t) => String(t || "").replace(/\*/g, "").trim();
+  const points = script ? script.scenes.slice(1).map(sc => plain(sc.subtitle)).filter(Boolean).slice(0, 4) : [];
+  const tags = ["#CodeLens", ...(HASHTAGS[(script && script.category) || clip.category] || []), "#LapTrinh", "#Developer"];
+  return [`${title.toUpperCase()} — giải thích trong ${Math.round(+clip.durationSec || 60)} giây`, script && script.hook ? plain(script.hook) : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để xem thêm các khái niệm khó, giải thích dễ hiểu cho dev.", "", tags.join(" ")].filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
+}
+function captionPrompt(script) {
+  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = script;
+  return `Viết caption tiếng Việt cho bài đăng Facebook kèm video ngắn của kênh CodeLens (kênh giải thích khái niệm công nghệ cho lập trình viên Việt Nam).
+Yêu cầu:
+- Dòng đầu là hook gây tò mò, ngắn.
+- 3 đến 5 dòng tóm tắt ý chính của video, mỗi dòng bắt đầu bằng một emoji phù hợp. Nội dung phải đúng với kịch bản, không thêm thông tin ngoài kịch bản.
+- Một câu kêu gọi theo dõi kênh hoặc bình luận câu hỏi.
+- Dòng cuối 4 đến 6 hashtag, luôn có #CodeLens.
+- Tổng dưới 900 ký tự. Văn tự nhiên, không sến, không dùng chữ in hoa toàn bộ trừ thuật ngữ.
+Kịch bản video:
+${JSON.stringify(body)}
+Chỉ trả về JSON: {"caption": "..."}`;
+}
+async function openFbShare(clipId) {
+  const c = state.clips.get(clipId); if (!c) { toast("Không tìm thấy clip."); return; }
+  fbClip = c; const script = state.scripts.get(c.scriptId);
+  $("fb-clipname").textContent = `${c.title} · ${(+c.durationSec || 0).toFixed(0)} giây · ${((+c.sizeBytes || 0) / 1048576).toFixed(1)} MB`;
+  $("fb-caption").value = c.fbCaption || captionTemplate(script, c);
+  $("fb-msg").textContent = ""; $("fb-pub-msg").textContent = "";
+  $("fb-ai").hidden = !cap.sample;
+  $("fb-share-opt").hidden = !(navigator.canShare && navigator.share && !!window.File);
+  $("fb-page-opt").hidden = true;
+  if (cap.voice) { // local server: check whether a Fanpage token is configured
+    try { fbStatus = fbStatus || await fetch("/api/status").then(r => r.json()); } catch (e) { fbStatus = {}; }
+    const fb = fbStatus.facebook || {};
+    if (fb.configured) {
+      $("fb-page-opt").hidden = false;
+      $("fb-page-desc").textContent = `Đăng video kèm caption lên ${fb.pageName ? "Fanpage “" + fb.pageName + "”" : "Fanpage đã cấu hình"} ngay từ máy bạn. Facebook không cho phép phần mềm tự đăng lên trang cá nhân.`;
+      $("fb-publish").disabled = !c.assetId;
+    }
+  }
+  $("fb-modal").hidden = false; $("fb-caption").focus();
+}
+async function clipBlob(c) {
+  let blob = state.sessionBlobs.get(c.id);
+  if (!blob && c.assetId) { const r = await fetch("/_blob/" + c.assetId); if (!r.ok) throw new Error("Không đọc được file video."); blob = await r.blob(); }
+  if (!blob) throw new Error("Clip này không còn file video.");
+  return blob;
+}
+async function copyCaption() {
+  const ta = $("fb-caption"); const text = ta.value;
+  try { await navigator.clipboard.writeText(text); $("fb-msg").textContent = "Đã sao chép caption."; }
+  catch (e) { ta.focus(); ta.select(); $("fb-msg").textContent = "Đã bôi đen caption: bấm Ctrl+C để sao chép."; }
+}
+$("fb-close").addEventListener("click", () => { $("fb-modal").hidden = true; });
+$("fb-modal").addEventListener("click", (e) => { if (e.target.id === "fb-modal") $("fb-modal").hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("fb-modal").hidden) $("fb-modal").hidden = true; });
+$("fb-copy").addEventListener("click", copyCaption);
+$("fb-copy2").addEventListener("click", copyCaption);
+$("fb-caption").addEventListener("input", () => { if (fbClip) fbClip.fbCaption = $("fb-caption").value; });
+$("fb-ai").addEventListener("click", async () => {
+  const script = fbClip && state.scripts.get(fbClip.scriptId);
+  if (!script) { $("fb-msg").textContent = "Không còn kịch bản gốc của clip này để AI đọc."; return; }
+  const b = $("fb-ai"); b.disabled = true; $("fb-msg").innerHTML = '<span class="spin"></span> Đang viết caption…';
+  try { const r = await cap.sample.json(captionPrompt(script), { modelTier: "default" }); if (r && r.caption) { $("fb-caption").value = String(r.caption).slice(0, 2200); fbClip.fbCaption = $("fb-caption").value; } $("fb-msg").textContent = ""; }
+  catch (err) { $("fb-msg").textContent = aiError(err); }
+  b.disabled = false;
+});
+$("fb-dl").addEventListener("click", async () => { try { saveFile(fbClip.filename || slug(fbClip.title) + ".mp4", await clipBlob(fbClip)); } catch (err) { toast(err.message); } });
+$("fb-native").addEventListener("click", async () => {
+  try {
+    const blob = await clipBlob(fbClip);
+    const file = new File([blob], fbClip.filename || slug(fbClip.title) + ".mp4", { type: blob.type || "video/mp4" });
+    if (!navigator.canShare({ files: [file] })) throw new Error("Máy này không chia sẻ được file video.");
+    try { await navigator.clipboard.writeText($("fb-caption").value); } catch (e) {}
+    await navigator.share({ files: [file], text: $("fb-caption").value, title: fbClip.title });
+  } catch (err) { if (err && err.name === "AbortError") return; $("fb-msg").textContent = (err && err.message) || "Không mở được bảng chia sẻ. Dùng cách tự đăng bên dưới."; }
+});
+$("fb-publish").addEventListener("click", async () => {
+  const b = $("fb-publish"); const msg = $("fb-pub-msg");
+  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Bấm lần nữa để đăng công khai"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = "Đăng lên Fanpage"; }, 4000); return; }
+  b.dataset.confirm = ""; b.disabled = true; b.textContent = "Đăng lên Fanpage"; msg.innerHTML = '<span class="spin"></span> Đang tải video lên Facebook…';
+  try {
+    const r = await fetch("/api/facebook/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ assetId: fbClip.assetId, caption: $("fb-caption").value, title: fbClip.title }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || `Lỗi ${r.status}`);
+    msg.innerHTML = `Đã đăng. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem bài trên Facebook</a>`;
+  } catch (err) { msg.textContent = "Không đăng được: " + err.message; }
+  b.disabled = false;
+});
+
 /* ================= library ================= */
 function renderLibrary() {
   const el = $("clips"); const list = [...state.clips.values()].sort((a, b) => String(b.renderedAt).localeCompare(String(a.renderedAt)));
@@ -1564,7 +1686,7 @@ function renderLibrary() {
       ${src ? `<video src="${esc(src)}" controls playsinline preload="metadata"></video>` : `<div class="empty">Không còn bản xem trước</div>`}
       <div class="name">${esc(c.title)}</div>
       <div class="meta"><span class="chip cat">${esc(c.category || "")}</span><span>${(+c.durationSec || 0).toFixed(1)}s · ${((+c.sizeBytes || 0) / 1048576).toFixed(1)} MB</span><span>${esc(fmtDate(c.renderedAt))}</span>${c.sessionOnly ? "<span>chỉ trong tab này</span>" : ""}</div>
-      <div class="row"><button class="btn small primary" data-cdl="${c.id}">Tải về</button><button class="btn small ghost danger" data-cdel="${c.id}">Xóa</button></div>
+      <div class="row"><button class="btn small primary" data-cdl="${c.id}">Tải về</button><button class="btn small blue" data-cfb="${c.id}">Chia sẻ Facebook</button><button class="btn small ghost danger" data-cdel="${c.id}">Xóa</button></div>
     </div>`;
   }).join("");
   refreshUsage();
@@ -1575,6 +1697,7 @@ async function refreshUsage() {
 }
 const fmtDate = (iso) => { try { return new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }); } catch (e) { return ""; } };
 $("clips").addEventListener("click", async (e) => {
+  const fb = e.target.closest("[data-cfb]"); if (fb) { openFbShare(fb.dataset.cfb); return; }
   const dl = e.target.closest("[data-cdl]"), del = e.target.closest("[data-cdel]");
   if (dl) {
     const c = state.clips.get(dl.dataset.cdl); if (!c) return;
