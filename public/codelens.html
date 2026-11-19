@@ -1,0 +1,1547 @@
+<title>CodeLens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.js"></script>
+<style>
+/* Layout: studio console — script list | editor | 9:16 monitor; dark-only by design, matching the clips it renders */
+:root {
+  --bg: #0A0F1C;
+  --panel: #111A2E;
+  --panel-2: #16223A;
+  --line: #24314D;
+  --fg: #E6EDF7;
+  --muted: #8C9BB5;
+  --blue: #4DB8FF;
+  --orange: #FF8A1F;
+  --ok: #34D399;
+  --bad: #F87171;
+  --font: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--fg); }
+body {
+  font-family: var(--font); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 48px;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.app { max-width: 1440px; margin: 0 auto; display: grid; gap: 16px; }
+
+header.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 0.04em; color: var(--blue); }
+.brand h1 b { color: var(--orange); font-weight: 800; }
+.brand span { color: var(--muted); font-size: 13px; }
+.tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px; flex-wrap: wrap; }
+.tabs button { border: 0; background: transparent; padding: 7px 14px; border-radius: 7px; color: var(--muted); font-weight: 600; }
+.tabs button[aria-selected="true"] { background: var(--panel-2); color: var(--fg); }
+.tabs .count { font-family: var(--mono); font-size: 11px; color: var(--orange); margin-left: 4px; }
+
+.banner { padding: 10px 14px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.banner.warn { border-color: rgba(255,138,31,.5); color: var(--fg); }
+
+.btn { border: 1px solid var(--line); background: var(--panel-2); padding: 7px 12px; border-radius: 7px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn:hover { border-color: var(--blue); }
+.btn.primary { background: var(--orange); border-color: var(--orange); color: #1A0D00; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.blue { background: var(--blue); border-color: var(--blue); color: #001526; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn.small { padding: 4px 8px; font-size: 12px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+
+input[type="text"], input[type="number"], input[type="time"], select, textarea {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0;
+}
+textarea { resize: vertical; width: 100%; }
+input[type="text"] { width: 100%; }
+label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+label.f > span { font-weight: 600; letter-spacing: .02em; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.panel h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* Scripts workspace */
+.work { display: grid; gap: 16px; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr) 320px; grid-template-areas: "list editor monitor"; align-items: start; }
+.work > .list { grid-area: list; }
+.work > .editor { grid-area: editor; }
+.work > .monitor { grid-area: monitor; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 1180px) {
+  .work { grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); grid-template-areas: "list monitor" "list editor"; }
+  .work > .monitor { position: static; }
+}
+@media (max-width: 760px) {
+  .work { grid-template-columns: minmax(0, 1fr); grid-template-areas: "monitor" "list" "editor"; }
+}
+
+.ai-box { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: var(--panel-2); }
+.suggest { display: grid; gap: 4px; }
+.suggest button { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 8px; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.suggest button:hover { border-color: var(--orange); }
+.suggest button em { font-style: normal; color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+.slist { display: grid; gap: 4px; max-height: 62vh; overflow-y: auto; }
+.sitem { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px; border-radius: 8px; border: 1px solid transparent; }
+.sitem:hover { background: var(--panel-2); }
+.sitem.active { border-color: var(--blue); background: var(--panel-2); }
+.sitem input { margin-top: 3px; accent-color: var(--orange); width: 16px; height: 16px; }
+.sitem .t { font-weight: 600; cursor: pointer; overflow-wrap: anywhere; background: none; border: 0; padding: 0; text-align: left; }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); font-family: var(--font); font-weight: 600; }
+.chip.cat { color: var(--blue); border-color: rgba(77,184,255,.35); }
+.chip.st-draft { color: var(--muted); }
+.chip.st-queued { color: var(--orange); border-color: rgba(255,138,31,.45); }
+.chip.st-rendering { color: var(--orange); border-color: var(--orange); }
+.chip.st-done { color: var(--ok); border-color: rgba(52,211,153,.45); }
+.chip.st-failed { color: var(--bad); border-color: rgba(248,113,113,.45); }
+.empty { color: var(--muted); padding: 18px 8px; text-align: center; font-size: 13px; }
+.empty strong { color: var(--fg); display: block; margin-bottom: 4px; }
+
+/* Editor */
+.meta-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.scene { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--bg); }
+.scene-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scene-head .n { font-family: var(--mono); color: var(--orange); font-weight: 700; font-size: 12px; }
+.scene-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.sub-list { display: grid; gap: 6px; }
+.sub-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+.sub-row.link { grid-template-columns: 70px 16px 70px minmax(0, 1fr) auto; }
+.sub-row .arrow { color: var(--orange); text-align: center; }
+@media (max-width: 520px) { .sub-row { grid-template-columns: 110px minmax(0, 1fr) auto; } .sub-row .side { grid-column: 1 / -1; } }
+.hint { color: var(--muted); font-size: 12px; }
+.hint code { font-family: var(--mono); color: var(--orange); }
+.save-state { font-size: 12px; color: var(--muted); }
+.save-state.dirty { color: var(--orange); }
+
+/* Monitor */
+.screen { width: 100%; max-width: 300px; margin: 0 auto; aspect-ratio: 9 / 16; background: #0B1120; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+.screen canvas { width: 100%; height: 100%; display: block; }
+.transport { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.transport input[type="range"] { width: 100%; accent-color: var(--orange); }
+.tc { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Queue */
+.jobs { display: grid; gap: 8px; }
+.job { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); align-items: center; }
+.job .bar { grid-column: 1 / -1; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.job .bar i { display: block; height: 100%; background: var(--orange); width: 0; }
+.job.done .bar i { background: var(--ok); }
+.job.failed .bar i { background: var(--bad); }
+.job .name { font-weight: 600; overflow-wrap: anywhere; }
+
+/* Library */
+.clips { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.clip { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.clip video { width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: 10px; border: 1px solid var(--line); max-width: 100%; }
+.clip .name { font-weight: 600; overflow-wrap: anywhere; }
+
+/* Schedule */
+.sched { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.cats label { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; cursor: pointer; }
+.cats input { accent-color: var(--orange); }
+.toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.toggle input { accent-color: var(--orange); width: 18px; height: 18px; margin-top: 2px; flex: none; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--mono); }
+.logo-prev { width: 100%; max-width: 360px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.logo-prev canvas { width: 100%; display: block; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.4); z-index: 50; max-width: min(520px, calc(100% - 32px)); font-size: 13px; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp .7s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2s; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>CODE<b>LENS</b></h1><span id="brand-sub">Xưởng clip giải thích công nghệ · 9:16</span></div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="scripts" aria-selected="true">Kịch bản <span class="count" id="cnt-scripts"></span></button>
+      <button role="tab" data-tab="queue" aria-selected="false">Hàng đợi render <span class="count" id="cnt-queue"></span></button>
+      <button role="tab" data-tab="library" aria-selected="false">Thư viện clip <span class="count" id="cnt-clips"></span></button>
+      <button role="tab" data-tab="schedule" aria-selected="false">Lịch &amp; logo</button>
+    </nav>
+  </header>
+  <div id="banners"></div>
+
+  <section id="view-scripts" class="work">
+    <div class="panel list">
+      <div class="panel-head"><h2>Kịch bản</h2><button class="btn small" id="btn-new">+ Từ bài viết</button></div>
+      <div class="ai-box" id="ai-box">
+        <div class="row">
+          <select id="ai-cat" aria-label="Lĩnh vực"></select>
+          <button class="btn blue" id="btn-suggest">Gợi ý chủ đề</button>
+        </div>
+        <div class="row">
+          <input type="text" id="ai-topic" class="grow" placeholder="Hoặc tự gõ chủ đề, ví dụ: Idempotency key">
+          <button class="btn primary" id="btn-write">AI viết</button>
+        </div>
+        <div class="suggest" id="suggest"></div>
+        <div class="hint" id="ai-status"></div>
+      </div>
+      <div class="row">
+        <select id="f-cat" aria-label="Lọc lĩnh vực"></select>
+        <select id="f-status" aria-label="Lọc trạng thái">
+          <option value="all">Mọi trạng thái</option><option value="draft">Nháp</option><option value="queued">Chờ render</option><option value="done">Đã render</option><option value="failed">Lỗi</option>
+        </select>
+      </div>
+      <div class="row">
+        <label class="row hint" style="cursor:pointer"><input type="checkbox" id="sel-all" style="accent-color:var(--orange)"> Chọn tất cả</label>
+        <span class="grow"></span>
+        <button class="btn primary" id="btn-render-sel" disabled>Render đã chọn</button>
+      </div>
+      <div class="slist" id="slist"></div>
+    </div>
+
+    <div class="panel editor" id="editor"></div>
+
+    <div class="panel monitor">
+      <div class="panel-head"><h2>Xem trước</h2><span class="tc" id="pv-info"></span></div>
+      <div class="screen"><canvas id="pv" width="1080" height="1920" aria-label="Khung xem trước clip"></canvas></div>
+      <div class="transport">
+        <button class="btn small" id="pv-play" aria-label="Phát">▶</button>
+        <input type="range" id="pv-scrub" min="0" max="1000" value="0" aria-label="Tua">
+        <span class="tc" id="pv-time">0:00.0</span>
+      </div>
+      <p class="hint">Xem trước không có tiếng. Nhạc nền và hiệu ứng âm thanh được thêm khi render.</p>
+    </div>
+  </section>
+
+  <section id="view-queue" class="panel" hidden>
+    <div class="panel-head">
+      <h2>Hàng đợi render</h2>
+      <div class="row">
+        <label class="row hint" for="q-conc">Chạy song song</label>
+        <select id="q-conc"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+        <button class="btn small" id="btn-render-queued">Render kịch bản đang chờ</button>
+        <button class="btn small ghost" id="btn-clear-jobs">Xóa job đã xong</button>
+      </div>
+    </div>
+    <p class="hint" id="enc-info"></p>
+    <div class="jobs" id="jobs"></div>
+  </section>
+
+  <section id="view-library" class="panel" hidden>
+    <div class="panel-head"><h2>Thư viện clip</h2><span class="hint" id="lib-usage"></span></div>
+    <div class="clips" id="clips"></div>
+  </section>
+
+  <section id="view-schedule" class="sched" hidden>
+    <div class="panel">
+      <h2>Claude viết kịch bản theo lịch</h2>
+      <p class="hint" id="sch-desc">Một tác vụ Claude chạy theo lịch, đọc cài đặt ở đây, viết kịch bản mới không trùng chủ đề và đưa vào hàng chờ render.</p>
+      <dl class="kv">
+        <dt>Lịch chạy</dt><dd id="sch-claude-time">Chưa thiết lập</dd>
+        <dt>Lần chạy gần nhất</dt><dd id="sch-last">Chưa chạy</dd>
+      </dl>
+      <label class="toggle"><input type="checkbox" id="sch-enabled"><span>Bật: mỗi lần chạy, Claude viết kịch bản mới</span></label>
+      <label class="f"><span>Số kịch bản mỗi lần</span><input type="number" id="sch-count" min="1" max="10" value="3" style="width:90px"></label>
+      <div class="f"><span class="hint" style="font-weight:600">Lĩnh vực ưu tiên</span><div class="cats" id="sch-cats"></div></div>
+      <p class="hint" id="sch-note">Muốn đổi giờ chạy của tác vụ Claude, hãy nhắn Claude trong cuộc trò chuyện.</p>
+    </div>
+    <div class="panel">
+      <h2>Render trên trang này</h2>
+      <p class="hint">Video chỉ được render khi trang đang mở trong trình duyệt. Chrome hoặc Edge bản mới render nhanh nhất.</p>
+      <label class="toggle"><input type="checkbox" id="sch-autoopen"><span>Tự render các kịch bản đang chờ mỗi khi mở trang</span></label>
+      <label class="toggle"><input type="checkbox" id="sch-timer"><span>Render vào giờ cố định nếu trang đang mở</span></label>
+      <label class="f"><span>Giờ render</span><input type="time" id="sch-time" value="08:00" style="width:130px"></label>
+      <label class="f"><span>Số clip render song song</span><select id="sch-conc" style="width:90px"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+      <div class="row"><button class="btn primary" id="btn-save-sched">Lưu cài đặt</button><span class="hint" id="sch-msg"></span></div>
+    </div>
+    <div class="panel">
+      <h2>Logo trên clip</h2>
+      <p class="hint">Logo luôn hiện ở góc trên của mọi clip. Tải ảnh logo của bạn lên (PNG nền trong suốt đẹp nhất). Khi chưa có ảnh, clip dùng logo CodeLens vẽ sẵn.</p>
+      <div class="row" style="align-items:flex-start">
+        <div class="logo-prev"><canvas id="logo-prev" width="540" height="180" aria-label="Xem trước logo"></canvas></div>
+      </div>
+      <label class="f"><span>Ảnh logo</span><input type="file" id="logo-file" accept="image/png,image/jpeg,image/webp"></label>
+      <div class="f"><span class="hint" style="font-weight:600">Vị trí</span>
+        <div class="cats"><label><input type="radio" name="logo-corner" id="logo-left" value="left"> Góc trái</label><label><input type="radio" name="logo-corner" id="logo-right" value="right"> Góc phải</label></div></div>
+      <div class="row"><button class="btn ghost danger small" id="logo-remove">Dùng logo vẽ sẵn</button><span class="hint" id="logo-msg"></span></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+"use strict";
+/* ================= constants ================= */
+const W = 1080, H = 1920, FPS = 30;
+const LOCAL = !!window.__CODELENS_LOCAL; // running from the local server with an API key
+const CATEGORIES = ["Network", "Backend", "Frontend", "Database", "Cloud", "AI", "Architecture"];
+const LAYOUTS = {
+  title: "Mở đầu (tiêu đề lớn)", flow: "Dòng chảy (A → B → C)", hub: "Trung tâm & vệ tinh",
+  compare: "So sánh 2 cột", "before-after": "Trước / Sau", stack: "Các tầng xếp chồng", grid: "Lưới"
+};
+const STATUS_LABEL = { draft: "Nháp", queued: "Chờ render", rendering: "Đang render", done: "Đã render", failed: "Lỗi" };
+const COL = { bg: "#0B1120", bg2: "#0F1B33", grid: "rgba(77,184,255,0.05)", blue: "#4DB8FF", orange: "#FF8A1F",
+  teal: "#2ED3B7", violet: "#9B7BFF", red: "#FF5C6C", green: "#34D399", yellow: "#FFD43B", cyan: "#3FE0F5", white: "#F2F6FC",
+  muted: "#8C9BB5", disk: "#13203A", ink: "#0B1120" };
+const FONT = '"Be Vietnam Pro", "Segoe UI", system-ui, sans-serif';
+
+/* ================= icons (flat, drawn in a 100×100 box centred on 0,0) ================= */
+const P = (c) => c.beginPath();
+const circ = (c, x, y, r) => { c.moveTo(x + r, y); c.arc(x, y, r, 0, Math.PI * 2); };
+const fillC = (c, col) => { c.fillStyle = col; c.fill(); };
+const strokeC = (c, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.lineCap = "round"; c.lineJoin = "round"; c.stroke(); };
+function personShape(c, x, y, s, col) {
+  P(c); circ(c, x, y - 22 * s, 17 * s); fillC(c, col);
+  P(c); c.roundRect(x - 29 * s, y + 2 * s, 58 * s, 42 * s, [29 * s, 29 * s, 8 * s, 8 * s]); fillC(c, col);
+}
+const ICONS = {
+  person: { col: "blue", d(c, k) { personShape(c, 0, 0, 1, k); } },
+  group: { col: "teal", d(c, k) { c.globalAlpha *= 0.65; personShape(c, -28, 6, 0.72, k); personShape(c, 28, 6, 0.72, k); c.globalAlpha /= 0.65; personShape(c, 0, -2, 0.9, k); } },
+  manager: { col: "violet", d(c, k) { personShape(c, 0, 0, 1, k); P(c); c.moveTo(0, 4); c.lineTo(-7, 14); c.lineTo(0, 38); c.lineTo(7, 14); c.closePath(); fillC(c, COL.orange); } },
+  cart: { col: "orange", d(c, k) { P(c); c.moveTo(-42, -30); c.lineTo(-30, -30); c.lineTo(-20, 16); c.lineTo(28, 16); c.lineTo(38, -16); c.lineTo(-26, -16); strokeC(c, k, 8); P(c); circ(c, -12, 32, 7); circ(c, 22, 32, 7); fillC(c, k); } },
+  shop: { col: "orange", d(c, k) { P(c); c.roundRect(-38, -6, 76, 46, 6); fillC(c, k); P(c); c.roundRect(-12, 12, 24, 28, 3); fillC(c, COL.ink); for (let i = 0; i < 4; i++) { P(c); c.moveTo(-44 + i * 22, -36); c.lineTo(-22 + i * 22, -36); c.lineTo(-22 + i * 22, -14); c.arc(-33 + i * 22, -14, 11, 0, Math.PI); c.closePath(); fillC(c, i % 2 ? COL.white : k); } } },
+  server: { col: "blue", d(c, k) { for (let i = 0; i < 3; i++) { P(c); c.roundRect(-38, -42 + i * 29, 76, 24, 6); fillC(c, k); P(c); circ(c, -24, -30 + i * 29, 4); fillC(c, COL.ink); P(c); c.moveTo(0, -30 + i * 29); c.lineTo(26, -30 + i * 29); strokeC(c, COL.ink, 4); } } },
+  database: { col: "teal", d(c, k) { P(c); c.ellipse(0, -30, 36, 12, 0, 0, Math.PI * 2); c.rect(-36, -30, 72, 62); c.ellipse(0, 32, 36, 12, 0, 0, Math.PI * 2); fillC(c, k); for (const y of [-30, -8, 12]) { P(c); c.ellipse(0, y, 36, 12, 0, 0, Math.PI); strokeC(c, COL.ink, 4); } } },
+  cloud: { col: "blue", d(c, k) { P(c); circ(c, -20, 6, 22); circ(c, 6, -10, 28); circ(c, 28, 8, 18); c.roundRect(-42, 6, 88, 26, 13); fillC(c, k); } },
+  browser: { col: "blue", d(c, k) { P(c); c.roundRect(-44, -34, 88, 68, 8); strokeC(c, k, 6); P(c); c.roundRect(-44, -34, 88, 18, [8, 8, 0, 0]); fillC(c, k); for (let i = 0; i < 3; i++) { P(c); circ(c, -34 + i * 10, -25, 3); fillC(c, COL.ink); } P(c); c.roundRect(-30, -4, 40, 8, 4); c.roundRect(-30, 12, 60, 8, 4); fillC(c, k); } },
+  phone: { col: "violet", d(c, k) { P(c); c.roundRect(-24, -44, 48, 88, 10); strokeC(c, k, 7); P(c); c.roundRect(-8, 30, 16, 5, 2.5); fillC(c, k); } },
+  laptop: { col: "blue", d(c, k) { P(c); c.roundRect(-34, -32, 68, 46, 5); strokeC(c, k, 7); P(c); c.moveTo(-46, 24); c.lineTo(46, 24); c.lineTo(40, 34); c.lineTo(-40, 34); c.closePath(); fillC(c, k); } },
+  globe: { col: "teal", d(c, k) { P(c); circ(c, 0, 0, 40); strokeC(c, k, 6); P(c); c.ellipse(0, 0, 17, 40, 0, 0, Math.PI * 2); strokeC(c, k, 5); P(c); c.moveTo(-40, 0); c.lineTo(40, 0); c.moveTo(-34, -20); c.lineTo(34, -20); c.moveTo(-34, 20); c.lineTo(34, 20); strokeC(c, k, 4); } },
+  firewall: { col: "red", d(c, k) { for (let r = 0; r < 4; r++) for (let i = 0; i < 3; i++) { const off = r % 2 ? 14 : 0; const x = -44 + off + i * 30; if (x > 20 + off) continue; P(c); c.roundRect(Math.max(-44, x), -40 + r * 21, Math.min(26, 44 - x), 17, 3); fillC(c, k); } } },
+  lock: { col: "yellow", d(c, k) { P(c); c.arc(0, -12, 20, Math.PI, 0); strokeC(c, k, 9); P(c); c.roundRect(-32, -12, 64, 50, 9); fillC(c, k); P(c); circ(c, 0, 8, 7); c.rect(-3, 8, 6, 16); fillC(c, COL.ink); } },
+  key: { col: "yellow", d(c, k) { P(c); circ(c, -22, 0, 18); strokeC(c, k, 9); P(c); c.moveTo(-4, 0); c.lineTo(42, 0); c.moveTo(30, 0); c.lineTo(30, 14); c.moveTo(18, 0); c.lineTo(18, 11); strokeC(c, k, 9); } },
+  loadbalancer: { col: "orange", d(c, k) { P(c); c.moveTo(0, -26); c.lineTo(-32, 22); c.moveTo(0, -26); c.lineTo(0, 22); c.moveTo(0, -26); c.lineTo(32, 22); strokeC(c, k, 6); P(c); circ(c, 0, -30, 14); fillC(c, k); for (const x of [-32, 0, 32]) { P(c); c.roundRect(x - 11, 22, 22, 18, 4); fillC(c, COL.white); } } },
+  cache: { col: "yellow", d(c, k) { P(c); c.moveTo(8, -44); c.lineTo(-26, 6); c.lineTo(-2, 6); c.lineTo(-10, 44); c.lineTo(26, -8); c.lineTo(2, -8); c.closePath(); fillC(c, k); } },
+  queue: { col: "violet", d(c, k) { for (let i = 0; i < 4; i++) { P(c); c.roundRect(-46 + i * 20, -16, 16, 32, 4); fillC(c, k); } P(c); c.moveTo(36, -12); c.lineTo(48, 0); c.lineTo(36, 12); strokeC(c, COL.orange, 6); } },
+  api: { col: "teal", d(c, k) { c.fillStyle = k; c.font = `800 46px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("API", 0, 2); P(c); c.roundRect(-46, -30, 92, 60, 12); strokeC(c, k, 5); } },
+  code: { col: "blue", d(c, k) { P(c); c.moveTo(-18, -24); c.lineTo(-40, 0); c.lineTo(-18, 24); c.moveTo(18, -24); c.lineTo(40, 0); c.lineTo(18, 24); c.moveTo(8, -32); c.lineTo(-8, 32); strokeC(c, k, 8); } },
+  gear: { col: "muted", d(c, k) { P(c); for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; const r = i % 2 ? 30 : 42; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); } c.closePath(); fillC(c, k); P(c); circ(c, 0, 0, 12); fillC(c, COL.ink); } },
+  robot: { col: "teal", d(c, k) { P(c); c.moveTo(0, -42); c.lineTo(0, -28); strokeC(c, k, 5); P(c); circ(c, 0, -44, 6); fillC(c, COL.orange); P(c); c.roundRect(-36, -28, 72, 56, 14); fillC(c, k); P(c); circ(c, -14, -4, 8); circ(c, 14, -4, 8); fillC(c, COL.ink); P(c); c.roundRect(-14, 12, 28, 6, 3); fillC(c, COL.ink); P(c); c.roundRect(-46, -10, 8, 22, 4); c.roundRect(38, -10, 8, 22, 4); fillC(c, k); } },
+  document: { col: "white", d(c, k) { P(c); c.moveTo(-30, -42); c.lineTo(14, -42); c.lineTo(32, -24); c.lineTo(32, 42); c.lineTo(-30, 42); c.closePath(); fillC(c, k); for (let i = 0; i < 4; i++) { P(c); c.roundRect(-20, -18 + i * 14, i === 3 ? 26 : 40, 6, 3); fillC(c, COL.ink); } } },
+  clock: { col: "orange", d(c, k) { P(c); circ(c, 0, 0, 40); fillC(c, k); P(c); c.moveTo(0, 0); c.lineTo(0, -26); c.moveTo(0, 0); c.lineTo(18, 10); strokeC(c, COL.ink, 7); } },
+  warning: { col: "yellow", d(c, k) { P(c); c.moveTo(0, -42); c.lineTo(44, 38); c.lineTo(-44, 38); c.closePath(); c.lineJoin = "round"; fillC(c, k); P(c); c.moveTo(0, -14); c.lineTo(0, 12); strokeC(c, COL.ink, 8); P(c); circ(c, 0, 26, 5); fillC(c, COL.ink); } },
+  check: { col: "green", d(c, k) { P(c); circ(c, 0, 0, 40); fillC(c, k); P(c); c.moveTo(-18, 0); c.lineTo(-4, 14); c.lineTo(20, -14); strokeC(c, COL.ink, 9); } },
+  cross: { col: "red", d(c, k) { P(c); circ(c, 0, 0, 40); fillC(c, k); P(c); c.moveTo(-15, -15); c.lineTo(15, 15); c.moveTo(15, -15); c.lineTo(-15, 15); strokeC(c, COL.ink, 9); } },
+  mail: { col: "blue", d(c, k) { P(c); c.roundRect(-42, -28, 84, 56, 7); fillC(c, k); P(c); c.moveTo(-38, -24); c.lineTo(0, 6); c.lineTo(38, -24); strokeC(c, COL.ink, 5); } },
+  package: { col: "orange", d(c, k) { P(c); c.roundRect(-38, -32, 76, 66, 6); fillC(c, k); P(c); c.rect(-8, -32, 16, 30); fillC(c, COL.white); } },
+  chart: { col: "teal", d(c, k) { [[-36, 10, 28], [-12, -8, 46], [12, -26, 64], [36, -40, 78]].forEach(([x, y, h]) => { P(c); c.roundRect(x - 9, y, 18, h - (y + h - 38) + 0, 4); fillC(c, k); }); } },
+  bug: { col: "red", d(c, k) { P(c); for (const s of [-1, 1]) for (const y of [-10, 6, 22]) { c.moveTo(0, y); c.lineTo(s * 40, y - 8 + (y > 0 ? 12 : 0)); } strokeC(c, k, 5); P(c); c.ellipse(0, 6, 22, 30, 0, 0, Math.PI * 2); fillC(c, k); P(c); circ(c, 0, -28, 14); fillC(c, k); } },
+  shield: { col: "green", d(c, k) { P(c); c.moveTo(0, -44); c.lineTo(36, -30); c.quadraticCurveTo(36, 22, 0, 44); c.quadraticCurveTo(-36, 22, -36, -30); c.closePath(); fillC(c, k); P(c); c.moveTo(-14, 0); c.lineTo(-3, 12); c.lineTo(16, -10); strokeC(c, COL.ink, 7); } },
+  cpu: { col: "violet", d(c, k) { P(c); c.roundRect(-28, -28, 56, 56, 8); fillC(c, k); P(c); for (let i = -1; i <= 1; i++) { const v = i * 16; c.moveTo(v, -28); c.lineTo(v, -42); c.moveTo(v, 28); c.lineTo(v, 42); c.moveTo(-28, v); c.lineTo(-42, v); c.moveTo(28, v); c.lineTo(42, v); } strokeC(c, k, 6); P(c); c.roundRect(-12, -12, 24, 24, 4); fillC(c, COL.ink); } },
+  book: { col: "violet", d(c, k) { P(c); c.roundRect(-36, -40, 72, 80, 6); fillC(c, k); P(c); c.rect(-36, -40, 12, 80); fillC(c, COL.ink); c.globalAlpha *= .5; P(c); c.rect(-12, -22, 36, 6); c.rect(-12, -8, 28, 6); fillC(c, COL.ink); c.globalAlpha *= 2; } },
+  house: { col: "orange", d(c, k) { P(c); c.moveTo(0, -42); c.lineTo(44, -4); c.lineTo(34, -4); c.lineTo(34, 40); c.lineTo(-34, 40); c.lineTo(-34, -4); c.lineTo(-44, -4); c.closePath(); fillC(c, k); P(c); c.roundRect(-10, 12, 20, 28, 3); fillC(c, COL.ink); } },
+  truck: { col: "blue", d(c, k) { P(c); c.roundRect(-46, -26, 56, 44, 5); fillC(c, k); P(c); c.moveTo(14, -12); c.lineTo(34, -12); c.lineTo(46, 4); c.lineTo(46, 18); c.lineTo(14, 18); c.closePath(); fillC(c, k); P(c); circ(c, -28, 26, 10); circ(c, 30, 26, 10); fillC(c, COL.white); } },
+  money: { col: "green", d(c, k) { P(c); c.roundRect(-44, -26, 88, 52, 6); fillC(c, k); P(c); circ(c, 0, 0, 14); fillC(c, COL.ink); c.fillStyle = k; c.font = `800 20px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("$", 0, 1); } },
+  door: { col: "orange", d(c, k) { P(c); c.roundRect(-26, -44, 52, 88, 4); fillC(c, k); P(c); circ(c, 14, 4, 5); fillC(c, COL.ink); } },
+  search: { col: "blue", d(c, k) { P(c); circ(c, -8, -8, 26); strokeC(c, k, 9); P(c); c.moveTo(12, 12); c.lineTo(38, 38); strokeC(c, k, 11); } },
+};
+const ICON_NAMES = Object.keys(ICONS);
+const ICON_ALIASES = { user: "person", client: "person", people: "group", team: "group", boss: "manager", secretary: "manager", proxy: "manager", store: "shop", db: "database", web: "browser", internet: "globe", network: "globe", wall: "firewall", security: "shield", balancer: "loadbalancer", lb: "loadbalancer", fast: "cache", redis: "cache", message: "mail", email: "mail", box: "package", ai: "robot", model: "robot", time: "clock", error: "warning", ok: "check", no: "cross", graph: "chart", money_bag: "money", home: "house" };
+const colorOf = (name) => COL[name] || COL.blue;
+
+/* ================= text helpers ================= */
+function parseAccent(text) {
+  // "*word*" marks accent (orange). Returns tokens [{w, acc}]
+  const out = []; let prevEndsSpace = true;
+  String(text || "").split(/(\*[^*]+\*)/g).forEach(part => {
+    if (!part) return;
+    const acc = part.startsWith("*") && part.endsWith("*") && part.length > 2;
+    const body = acc ? part.slice(1, -1) : part;
+    const words = body.split(/[ \t\r\n]+/).filter(Boolean); // non-breaking spaces keep terms like "O(log n)" together
+    words.forEach((w, i) => out.push({ w, acc, glue: i === 0 && out.length > 0 && !prevEndsSpace && !/^\s/.test(body) }));
+    prevEndsSpace = /\s$/.test(body);
+  });
+  return out;
+}
+function wrapTokens(c, tokens, maxW) {
+  const lines = []; let cur = []; let curW = 0; const sp = c.measureText(" ").width;
+  for (const t of tokens) {
+    const w = c.measureText(t.w).width;
+    const gap = cur.length && !t.glue ? sp : 0;
+    if (cur.length && !t.glue && curW + gap + w > maxW) { lines.push({ toks: cur, w: curW }); cur = []; curW = 0; }
+    cur.push({ ...t, width: w, gap: cur.length ? (t.glue ? 0 : sp) : 0 }); curW += cur[cur.length - 1].gap + w;
+  }
+  if (cur.length) lines.push({ toks: cur, w: curW });
+  return { lines, sp };
+}
+function drawTokens(c, tokens, cx, y, maxW, lineH, opts = {}) {
+  const { base = COL.white, acc = COL.orange, reveal = 1, maxLines = 3, upper = false } = opts;
+  const toks = upper ? tokens.map(t => ({ ...t, w: t.w.toLocaleUpperCase("vi") })) : tokens;
+  let { lines, sp } = wrapTokens(c, toks, maxW);
+  // shrink if too many lines
+  if (lines.length > maxLines && opts.shrink !== false) {
+    const m = /(\d+)px/.exec(c.font); const size = m ? +m[1] : 40;
+    c.font = c.font.replace(/\d+px/, Math.round(size * 0.84) + "px");
+    return drawTokens(c, tokens, cx, y, maxW, lineH * 0.84, { ...opts, shrink: size * 0.84 > 26 ? undefined : false });
+  }
+  const total = toks.length; let idx = 0;
+  c.textBaseline = "middle"; c.textAlign = "left";
+  const startY = y - ((lines.length - 1) * lineH) / 2;
+  lines.forEach((ln, li) => {
+    let x = cx - ln.w / 2;
+    for (const t of ln.toks) {
+      x += t.gap;
+      const k = clamp(reveal * (total + 2) - idx, 0, 1); idx++;
+      if (k > 0) {
+        c.save(); c.globalAlpha *= k; c.fillStyle = t.acc ? acc : base;
+        c.fillText(t.w, x, startY + li * lineH + (1 - k) * 14); c.restore();
+      }
+      x += t.width;
+    }
+  });
+  return lines.length;
+}
+
+/* ================= easing ================= */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const easeOut = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeInOut = (t) => { t = clamp(t, 0, 1); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+const easeBack = (t) => { t = clamp(t, 0, 1); const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+
+/* ================= script normalisation ================= */
+function normIcon(n) {
+  n = String(n || "").toLowerCase().trim().replace(/[\s-]+/g, "");
+  if (ICONS[n]) return n;
+  if (ICON_ALIASES[n]) return ICON_ALIASES[n];
+  const hit = ICON_NAMES.find(k => n.includes(k) || k.includes(n));
+  return hit || "gear";
+}
+function normScript(s) {
+  s = s && typeof s === "object" ? s : {};
+  const scenes = (Array.isArray(s.scenes) ? s.scenes : []).slice(0, 40).map(normScene);
+  return {
+    title: String(s.title || s.topic || "Chủ đề mới").slice(0, 120),
+    topic: String(s.topic || s.title || "").slice(0, 120),
+    category: CATEGORIES.includes(s.category) ? s.category : "Architecture",
+    hook: String(s.hook || "").slice(0, 200),
+    metaphor: String(s.metaphor || "").slice(0, 200),
+    scenes: scenes.length ? scenes : [normScene({ layout: "title", heading: s.title || "CHỦ ĐỀ MỚI", subtitle: "Phụ đề tiếng Việt ở đây" })],
+    status: STATUS_LABEL[s.status] ? s.status : "draft",
+    createdBy: s.createdBy === "ai" ? "ai" : "user",
+    sample: !!s.sample,
+    createdAt: s.createdAt || new Date().toISOString(),
+    sourceText: String(s.sourceText || "").slice(0, ARTICLE_MAX), source: s.source === "article" ? "article" : (s.source || ""),
+    reviewed: !!s.reviewed, reviewNotes: Array.isArray(s.reviewNotes) ? s.reviewNotes.slice(0, 12).map(x => String(x).slice(0, 200)) : [],
+  };
+}
+function normScene(sc) {
+  sc = sc && typeof sc === "object" ? sc : {};
+  const layout = LAYOUTS[sc.layout] ? sc.layout : "flow";
+  const actors = (Array.isArray(sc.actors) ? sc.actors : []).slice(0, 6).map((a, i) => ({
+    icon: normIcon(a && a.icon), label: String((a && a.label) || "").slice(0, 40),
+    side: a && (a.side === "R" || a.side === "right") ? "R" : (a && (a.side === "L" || a.side === "left") ? "L" : ""),
+  }));
+  const n = actors.length;
+  const links = (Array.isArray(sc.links) ? sc.links : []).map(l => ({
+    from: Math.round(+l.from), to: Math.round(+l.to), label: String(l.label || "").slice(0, 30)
+  })).filter(l => l.from >= 0 && l.to >= 0 && l.from < n && l.to < n && l.from !== l.to).slice(0, 6);
+  let focus = sc.focus === null || sc.focus === undefined || sc.focus === "" ? -1 : Math.round(+sc.focus);
+  if (!(focus >= 0 && focus < n)) focus = -1;
+  let mark = null;
+  if (sc.mark && typeof sc.mark === "object") {
+    const mi = Math.round(+sc.mark.index);
+    if (mi >= 0 && mi < n && (sc.mark.type === "check" || sc.mark.type === "cross")) mark = { index: mi, type: sc.mark.type };
+  }
+  return {
+    // never shorter than the time needed to read the subtitle
+    duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14) * 10) / 10, 1.2, 12),
+    layout, heading: String(sc.heading || "").slice(0, 90), subtitle: String(sc.subtitle || "").slice(0, 140),
+    actors, links, focus, mark,
+    left: String(sc.left || "").slice(0, 24), right: String(sc.right || "").slice(0, 24),
+  };
+}
+const totalDur = (s) => s.scenes.reduce((a, b) => a + b.duration, 0);
+
+/* ================= scene layout geometry ================= */
+function positions(sc) {
+  const n = sc.actors.length; const L = sc.layout; const pts = [];
+  if (L === "hub") {
+    if (n) pts.push({ x: 540, y: 1010, r: 118 });
+    const m = Math.max(1, n - 1); const off = m % 2 === 0 ? Math.PI / m : 0; // even counts sit on diagonals so no link crosses the centre label
+    for (let i = 1; i < n; i++) { const a = -Math.PI / 2 + off + ((i - 1) / m) * Math.PI * 2; pts.push({ x: 540 + Math.cos(a) * 345, y: 1010 + Math.sin(a) * 300, r: 84, labelAbove: Math.sin(a) < -0.5 }); }
+  } else if (L === "compare" || L === "before-after") {
+    const left = [], right = [];
+    sc.actors.forEach((a, i) => { const side = a.side || (i < Math.ceil(n / 2) ? "L" : "R"); (side === "L" ? left : right).push(i); });
+    const place = (arr, x) => arr.forEach((idx, k) => { const m = arr.length; const step = m > 2 ? 235 : 300; const y0 = 1040 - ((m - 1) * step) / 2; pts[idx] = { x, y: y0 + k * step, r: m > 2 ? 72 : 90 }; });
+    place(left, 290); place(right, 790);
+  } else if (L === "stack") {
+    const step = n > 4 ? 150 : 175; const y0 = 1030 - ((n - 1) * step) / 2;
+    for (let i = 0; i < n; i++) pts.push({ x: 540, y: y0 + i * step, r: 62, bar: true });
+  } else if (L === "title") {
+    const gap = 230; const x0 = 540 - ((n - 1) * gap) / 2;
+    for (let i = 0; i < n; i++) pts.push({ x: x0 + i * gap, y: 1270, r: 92 });
+  } else { // flow, grid
+    if (n <= 3) { const gap = n === 3 ? 350 : 440; const x0 = 540 - ((n - 1) * gap) / 2; for (let i = 0; i < n; i++) pts.push({ x: x0 + i * gap, y: 1020, r: n === 3 ? 100 : 115 }); }
+    else if (n === 4) { [[300, 820], [780, 820], [300, 1230], [780, 1230]].forEach(([x, y]) => pts.push({ x, y, r: 98 })); }
+    else { for (let i = 0; i < n; i++) { const row = Math.floor(i / 3), col = i % 3; pts.push({ x: 210 + col * 330, y: 840 + row * 400, r: 88 }); } }
+  }
+  return pts;
+}
+function sceneTimes(sc) {
+  const n = sc.actors.length;
+  const actorAt = (i) => 0.3 + i * 0.14;
+  const linkStart = 0.3 + n * 0.14 + 0.15;
+  const linkAt = (j) => linkStart + j * 0.42;
+  const linksEnd = linkStart + sc.links.length * 0.42;
+  const markAt = Math.max(linksEnd + 0.1, sc.duration * 0.45);
+  return { actorAt, linkAt, linksEnd, markAt };
+}
+
+/* ================= renderer ================= */
+function drawBg(c, t) {
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, COL.bg); g.addColorStop(1, COL.bg2);
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.strokeStyle = COL.grid; c.lineWidth = 2; c.beginPath();
+  const off = (t * 12) % 72;
+  for (let x = -72 + off; x < W + 72; x += 72) { c.moveTo(x, 0); c.lineTo(x, H); }
+  for (let y = -72 + off; y < H + 72; y += 72) { c.moveTo(0, y); c.lineTo(W, y); }
+  c.stroke();
+  const gx = 540 + Math.sin(t * 0.6) * 160, gy = 1000 + Math.cos(t * 0.45) * 120;
+  const rg = c.createRadialGradient(gx, gy, 0, gx, gy, 620); rg.addColorStop(0, "rgba(77,184,255,0.13)"); rg.addColorStop(1, "rgba(77,184,255,0)");
+  c.fillStyle = rg; c.fillRect(0, 0, W, H);
+}
+function drawChrome(c, s, t, total) {
+  c.fillStyle = "rgba(255,255,255,0.08)"; c.fillRect(60, 64, W - 120, 8);
+  c.fillStyle = COL.orange; c.fillRect(60, 64, (W - 120) * clamp(t / total, 0, 1), 8);
+  const right = logoState.corner === "right";
+  drawLogo(c, right ? W - 60 : 60, 96, right, t);
+  const cat = (s.category || "").toUpperCase(); c.font = `700 28px ${FONT}`; c.textBaseline = "middle";
+  const cw = c.measureText(cat).width + 40; const cx = right ? 60 : W - 60 - cw;
+  c.beginPath(); c.roundRect(cx, 137, cw, 48, 24);
+  c.strokeStyle = COL.orange; c.lineWidth = 3; c.stroke(); c.fillStyle = COL.orange; c.textAlign = "center"; c.fillText(cat, cx + cw / 2, 162);
+}
+/* Logo: the uploaded image when there is one, otherwise a drawn CodeLens mark (magnifier + </>). */
+const logoState = { corner: "left", img: null, assetId: "" };
+function drawLogo(c, x, y, alignRight, t) {
+  const size = 132;
+  c.save();
+  if (logoState.img) {
+    const im = logoState.img; const ar = (im.width || 1) / (im.height || 1);
+    const h = size, w = Math.min(size * ar, 420);
+    const lx = alignRight ? x - w : x;
+    c.globalAlpha = 0.96; c.drawImage(im, lx, y, w, h);
+    c.restore(); return;
+  }
+  const cy = y + size / 2; const r = 46;
+  const ox = alignRight ? x - 300 : x; const mx = ox + r + 8;
+  c.shadowColor = COL.cyan; c.shadowBlur = 22 + Math.sin(t * 3) * 6;
+  c.strokeStyle = COL.cyan; c.lineWidth = 7; c.lineCap = "round";
+  c.beginPath(); c.arc(mx, cy - 6, r, 0, Math.PI * 2); c.stroke();
+  c.lineWidth = 12; c.beginPath(); c.moveTo(mx + r * 0.72, cy - 6 + r * 0.72); c.lineTo(mx + r * 1.25, cy - 6 + r * 1.25); c.stroke();
+  c.lineWidth = 6; c.beginPath();
+  c.moveTo(mx - 12, cy - 22); c.lineTo(mx - 28, cy - 6); c.lineTo(mx - 12, cy + 10);
+  c.moveTo(mx + 12, cy - 22); c.lineTo(mx + 28, cy - 6); c.lineTo(mx + 12, cy + 10);
+  c.moveTo(mx + 5, cy - 26); c.lineTo(mx - 5, cy + 14); c.stroke();
+  c.shadowBlur = 14; c.font = `800 44px ${FONT}`; c.textAlign = "left"; c.textBaseline = "middle"; c.fillStyle = COL.cyan;
+  c.fillText("CODELENS", mx + r + 26, cy - 14);
+  c.shadowBlur = 0; c.font = `600 19px ${FONT}`; c.fillStyle = "rgba(190,240,255,0.85)";
+  c.fillText("DEV INSIDER · SYSTEM", mx + r + 28, cy + 22);
+  c.restore();
+}
+async function loadLogo(assetId, blob) {
+  try {
+    if (blob) { logoState.img = await createImageBitmap(blob); logoState.assetId = assetId || "local"; }
+    else if (assetId) { if (assetId === logoState.assetId && logoState.img) return; const r = await fetch("/_blob/" + assetId); if (!r.ok) throw new Error(r.status); logoState.img = await createImageBitmap(await r.blob()); logoState.assetId = assetId; }
+    else { logoState.img = null; logoState.assetId = ""; }
+  } catch (e) { logoState.img = null; }
+  if (typeof renderLogoPanel === "function") renderLogoPanel();
+  pv && pv.draw();
+}
+function drawActor(c, a, p, k, emph, t) {
+  if (k <= 0) return;
+  const s = easeBack(k); const icon = ICONS[a.icon] || ICONS.gear; const col = colorOf(icon.col);
+  c.save(); c.globalAlpha *= clamp(k * 1.6, 0, 1); c.translate(p.x, p.y);
+  if (p.bar) {
+    c.scale(1, 1); c.translate((1 - easeOut(k)) * 80, 0);
+    c.beginPath(); c.roundRect(-380, -p.r, 760, p.r * 2, 22); c.fillStyle = COL.disk; c.fill();
+    c.lineWidth = emph ? 6 : 3; c.strokeStyle = emph ? COL.orange : "rgba(77,184,255,0.45)"; c.stroke();
+    c.save(); c.translate(-290, 0); c.scale(0.9, 0.9); icon.d(c, col); c.restore();
+    c.font = `700 44px ${FONT}`; c.fillStyle = COL.white; c.textAlign = "left"; c.textBaseline = "middle";
+    c.fillText(a.label.toLocaleUpperCase("vi"), -210, 2, 560);
+  } else {
+    c.scale(s, s);
+    if (emph) { const pr = p.r + 18 + Math.sin(t * 6) * 8; c.beginPath(); c.arc(0, 0, pr, 0, Math.PI * 2); c.strokeStyle = "rgba(255,138,31,0.55)"; c.lineWidth = 8; c.stroke(); }
+    c.beginPath(); c.arc(0, 0, p.r, 0, Math.PI * 2); c.fillStyle = COL.disk; c.fill();
+    c.lineWidth = 5; c.strokeStyle = emph ? COL.orange : "rgba(77,184,255,0.5)"; c.stroke();
+    const sc = (p.r * 1.12) / 100; c.save(); c.scale(sc, sc); icon.d(c, col); c.restore();
+    if (a.label) {
+      c.font = `700 36px ${FONT}`; drawTokens(c, parseAccent(a.label), 0, p.labelAbove ? -(p.r + 50) : p.r + 52, 300, 42, { maxLines: 2, base: COL.white });
+    }
+  }
+  c.restore();
+}
+function edgePoint(from, to, pad) {
+  const dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy) || 1;
+  if (from.bar) { const sy = Math.sign(dy) || 1; return { x: from.x + (Math.abs(dy) < 5 ? Math.sign(dx) * 390 : 0), y: from.y + (Math.abs(dy) < 5 ? 0 : sy * (from.r + 10)) }; }
+  return { x: from.x + (dx / d) * (from.r + pad), y: from.y + (dy / d) * (from.r + pad) };
+}
+function drawLink(c, A, B, label, k, t, mode) {
+  if (k <= 0) return;
+  let a = edgePoint(A, B, 22), b = edgePoint(B, A, 22);
+  if (A.bar && B.bar) { const off = 300; a = { x: A.x + off, y: A.y + Math.sign(B.y - A.y) * (A.r + 6) }; b = { x: B.x + off, y: B.y - Math.sign(B.y - A.y) * (B.r + 6) }; }
+  const e = easeInOut(k); const ex = a.x + (b.x - a.x) * e, ey = a.y + (b.y - a.y) * e;
+  c.save();
+  const ang = Math.atan2(b.y - a.y, b.x - a.x);
+  if (mode !== "label") {
+  c.strokeStyle = COL.orange; c.lineWidth = 9; c.lineCap = "round";
+  c.setLineDash([22, 16]); c.lineDashOffset = -t * 60;
+  c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(ex, ey); c.stroke(); c.setLineDash([]);
+  if (k > 0.85) {
+    c.fillStyle = COL.orange; c.beginPath(); c.moveTo(ex, ey);
+    c.lineTo(ex - Math.cos(ang - 0.45) * 34, ey - Math.sin(ang - 0.45) * 34);
+    c.lineTo(ex - Math.cos(ang + 0.45) * 34, ey - Math.sin(ang + 0.45) * 34); c.closePath(); c.fill();
+    const q = (t * 0.9) % 1; const px = a.x + (b.x - a.x) * q, py = a.y + (b.y - a.y) * q;
+    c.shadowColor = COL.orange; c.shadowBlur = 24; c.fillStyle = "#FFD2A6"; c.beginPath(); c.arc(px, py, 11, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+  }
+  }
+  if (mode !== "line" && label && k > 0.6) {
+    c.globalAlpha *= clamp((k - 0.6) / 0.4, 0, 1);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; const nx = -Math.sin(ang), ny = Math.cos(ang);
+    const off = Math.abs(Math.cos(ang)) > 0.7 ? -46 : 0; const lx = mx + nx * off * (ny < 0 ? -1 : 1), ly = my + ny * off * (ny < 0 ? -1 : 1);
+    // labels draw on top of the icons and shrink to fit short links
+    const span = Math.hypot(b.x - a.x, b.y - a.y) + 90; let fs = 30; c.font = `700 ${fs}px ${FONT}`;
+    while (fs > 20 && c.measureText(label).width + 28 > span) { fs -= 2; c.font = `700 ${fs}px ${FONT}`; }
+    const tw = c.measureText(label).width + 28;
+    c.beginPath(); c.roundRect(lx - tw / 2, ly - 24, tw, 48, 24); c.fillStyle = COL.orange; c.fill();
+    c.fillStyle = COL.ink; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(label, lx, ly + 1);
+  }
+  c.restore();
+}
+function drawMark(c, p, type, k) {
+  if (k <= 0) return; const s = easeBack(k);
+  c.save(); c.translate(p.x + p.r * 0.72, p.y - p.r * 0.72); c.scale(s * 0.62, s * 0.62);
+  ICONS[type].d(c, type === "check" ? COL.green : COL.red); c.restore();
+}
+function drawScene(c, s, sc, tl, t) {
+  const tm = sceneTimes(sc); const pts = positions(sc);
+  const isCompare = sc.layout === "compare" || sc.layout === "before-after";
+  if (sc.layout === "title") {
+    c.font = `800 118px ${FONT}`;
+    drawTokens(c, parseAccent(sc.heading || s.title), 540, 720, 940, 128, { upper: true, base: COL.blue, reveal: easeOut(tl / 0.9), maxLines: 3 });
+    c.fillStyle = COL.orange; c.fillRect(540 - 90 * easeOut((tl - 0.3) / 0.5), 930, 180 * easeOut((tl - 0.3) / 0.5), 10);
+  } else {
+    c.font = `800 82px ${FONT}`;
+    drawTokens(c, parseAccent(sc.heading), 540, 345, 960, 94, { upper: true, base: COL.blue, reveal: easeOut(tl / 0.7), maxLines: 2 });
+  }
+  if (isCompare) {
+    const k = easeOut((tl - 0.15) / 0.5);
+    c.save(); c.globalAlpha *= k;
+    c.strokeStyle = "rgba(255,255,255,0.18)"; c.lineWidth = 4; c.setLineDash([16, 14]);
+    c.beginPath(); c.moveTo(540, 620); c.lineTo(540, 1440); c.stroke(); c.setLineDash([]);
+    c.beginPath(); c.arc(540, 1030, 52, 0, Math.PI * 2); c.fillStyle = COL.orange; c.fill();
+    c.fillStyle = COL.ink; c.font = `800 40px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("VS", 540, 1032);
+    const ba = sc.layout === "before-after";
+    const lt = (sc.left || (ba ? "TRƯỚC" : "A")).toLocaleUpperCase("vi"), rt = (sc.right || (ba ? "SAU" : "B")).toLocaleUpperCase("vi");
+    [[290, lt, COL.blue], [790, rt, COL.orange]].forEach(([x, txt, col]) => {
+      c.font = `800 46px ${FONT}`; const tw = Math.min(440, c.measureText(txt).width + 56);
+      c.beginPath(); c.roundRect(x - tw / 2, 600, tw, 76, 38); c.fillStyle = col; c.fill();
+      c.fillStyle = COL.ink; c.fillText(txt, x, 640, tw - 30);
+    });
+    if (ba) { drawMark(c, { x: 290 + 150, y: 590 + 70, r: 30 }, "cross", easeOut((tl - 0.6) / 0.4)); drawMark(c, { x: 790 + 110, y: 590 + 70, r: 30 }, "check", easeOut((tl - 0.8) / 0.4)); }
+    c.restore();
+  }
+  sc.links.forEach((l, j) => { if (pts[l.from] && pts[l.to]) drawLink(c, pts[l.from], pts[l.to], l.label, (tl - tm.linkAt(j)) / 0.45, t, "line"); });
+  sc.actors.forEach((a, i) => { if (pts[i]) drawActor(c, a, pts[i], (tl - tm.actorAt(i)) / 0.45, i === sc.focus && tl > tm.linksEnd, t); });
+  sc.links.forEach((l, j) => { if (pts[l.from] && pts[l.to]) drawLink(c, pts[l.from], pts[l.to], l.label, (tl - tm.linkAt(j)) / 0.45, t, "label"); });
+  if (sc.mark && pts[sc.mark.index]) drawMark(c, pts[sc.mark.index], sc.mark.type, (tl - tm.markAt) / 0.35);
+  if (sc.layout === "title" && s.hook && !sc.subtitle) { /* hook is shown via subtitle */ }
+}
+function drawSubtitle(c, text, tl, d) {
+  if (!text) return;
+  const k = easeOut(tl / 0.25) * (1 - easeOut((tl - (d - 0.18)) / 0.18));
+  if (k <= 0) return;
+  c.save(); c.globalAlpha *= k;
+  c.font = `600 50px ${FONT}`;
+  const toks = parseAccent(text); const { lines } = wrapTokens(c, toks, 900);
+  const nl = Math.min(lines.length, 3); const bh = 70 + nl * 64; const y = 1660;
+  c.beginPath(); c.roundRect(60, y - bh / 2, W - 120, bh, 26); c.fillStyle = "rgba(4,8,18,0.82)"; c.fill();
+  c.strokeStyle = "rgba(255,255,255,0.08)"; c.lineWidth = 2; c.stroke();
+  drawTokens(c, toks, 540, y, 900, 64, { base: COL.white, acc: COL.orange, reveal: easeOut((tl - 0.1) / Math.min(1.1, d * 0.45)), maxLines: 3 });
+  c.restore();
+}
+function drawFrame(c, s, t) {
+  const total = totalDur(s);
+  t = clamp(t, 0, Math.max(0, total - 1e-4));
+  let acc = 0, idx = 0;
+  for (; idx < s.scenes.length - 1; idx++) { if (t < acc + s.scenes[idx].duration) break; acc += s.scenes[idx].duration; }
+  const sc = s.scenes[idx]; const tl = t - acc; const d = sc.duration;
+  drawBg(c, t); drawChrome(c, s, t, total);
+  const inK = easeOut(tl / 0.35); const outK = idx === s.scenes.length - 1 ? 1 : 1 - easeInOut((tl - (d - 0.25)) / 0.25);
+  c.save(); c.globalAlpha = clamp(inK, 0, 1) * clamp(outK, 0, 1);
+  c.translate((1 - inK) * 70 - (1 - outK) * 70, 0);
+  drawScene(c, s, sc, tl, t);
+  c.restore();
+  drawSubtitle(c, sc.subtitle, tl, d);
+}
+
+/* ================= audio (generated) ================= */
+async function renderAudio(s, sampleRate = 48000) {
+  const total = totalDur(s); const len = Math.ceil((total + 0.3) * sampleRate);
+  const ctx = new OfflineAudioContext(2, len, sampleRate);
+  const master = ctx.createGain(); master.gain.value = 2.2; /* louder mix: peaks near -5 dB */ master.connect(ctx.destination);
+  const noiseBuf = ctx.createBuffer(1, sampleRate, sampleRate); const nd = noiseBuf.getChannelData(0);
+  let seed = 7; for (let i = 0; i < nd.length; i++) { seed = (seed * 16807) % 2147483647; nd[i] = (seed / 2147483647) * 2 - 1; }
+  // pad: Am - F - C - G
+  const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [196, 261.63, 329.63], [196, 246.94, 293.66]];
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1100; lp.connect(master);
+  for (let t0 = 0, ci = 0; t0 < total; t0 += 2, ci++) {
+    for (const f of chords[ci % 4]) for (const det of [-4, 4]) {
+      const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = f; o.detune.value = det;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.022, t0 + 0.4); g.gain.linearRampToValueAtTime(0.0, t0 + 2.2);
+      o.connect(g); g.connect(lp); o.start(t0); o.stop(t0 + 2.3);
+    }
+  }
+  // soft beat: kick each 0.5s, hat on off-beats
+  for (let t0 = 0; t0 < total; t0 += 0.5) {
+    const o = ctx.createOscillator(); o.frequency.setValueAtTime(120, t0); o.frequency.exponentialRampToValueAtTime(45, t0 + 0.18);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.25);
+    const h = ctx.createBufferSource(); h.buffer = noiseBuf; const hf = ctx.createBiquadFilter(); hf.type = "highpass"; hf.frequency.value = 7000;
+    const hg = ctx.createGain(); hg.gain.setValueAtTime(0.035, t0 + 0.25); hg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.3);
+    h.connect(hf); hf.connect(hg); hg.connect(master); h.start(t0 + 0.25, Math.random() * 0.5, 0.06);
+  }
+  const whoosh = (t0) => {
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(400, t0); bp.frequency.exponentialRampToValueAtTime(3200, t0 + 0.3);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+    src.connect(bp); bp.connect(g); g.connect(master); src.start(t0, 0.1, 0.45);
+  };
+  const blip = (t0, f, v = 0.12) => {
+    const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(f, t0); o.frequency.exponentialRampToValueAtTime(f * 1.6, t0 + 0.06);
+    const g = ctx.createGain(); g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.16);
+  };
+  let acc = 0;
+  s.scenes.forEach((sc, si) => {
+    const tm = sceneTimes(sc);
+    whoosh(acc + (si === 0 ? 0.02 : -0.1 + 0.1));
+    sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
+    sc.links.forEach((_, j) => blip(acc + tm.linkAt(j) + 0.4, 1200, 0.06));
+    if (sc.mark) blip(acc + tm.markAt, sc.mark.type === "check" ? 1320 : 300, 0.16);
+    acc += sc.duration;
+  });
+  // fade out at end
+  master.gain.setValueAtTime(2.2, Math.max(0, total - 0.6)); master.gain.linearRampToValueAtTime(0, total + 0.2);
+  return await ctx.startRendering();
+}
+
+/* ================= encoder ================= */
+let encoderPlan = null; // {video:{codec, muxCodec}, audio:{codec, muxCodec}|null} or {fallback:true}
+async function pickEncoder() {
+  if (encoderPlan) return encoderPlan;
+  const hasWC = typeof VideoEncoder !== "undefined" && typeof window.Mp4Muxer !== "undefined";
+  if (hasWC) {
+    const vids = [["avc1.640028", "avc"], ["avc1.4d0028", "avc"], ["vp09.00.40.08", "vp9"], ["av01.0.08M.08", "av1"]];
+    for (const [codec, mux] of vids) {
+      try {
+        const cfg = { codec, width: W, height: H, bitrate: 5_000_000, framerate: FPS };
+        if (mux === "avc") cfg.avc = { format: "avc" };
+        const r = await VideoEncoder.isConfigSupported(cfg);
+        if (r.supported) { encoderPlan = { video: { cfg, mux } }; break; }
+      } catch (e) {}
+    }
+    if (encoderPlan && typeof AudioEncoder !== "undefined") {
+      for (const [codec, mux] of [["mp4a.40.2", "aac"], ["opus", "opus"]]) {
+        try {
+          const cfg = { codec, sampleRate: 48000, numberOfChannels: 2, bitrate: 128000 };
+          const r = await AudioEncoder.isConfigSupported(cfg);
+          if (r.supported) { encoderPlan.audio = { cfg, mux }; break; }
+        } catch (e) {}
+      }
+    }
+  }
+  if (!encoderPlan) encoderPlan = { fallback: typeof MediaRecorder !== "undefined" };
+  return encoderPlan;
+}
+const nextTick = () => new Promise(r => setTimeout(r, 0));
+async function renderMp4(s, job) {
+  const plan = await pickEncoder();
+  if (plan.fallback) return renderWebm(s, job);
+  if (!plan.video) throw new Error("Trình duyệt này không xuất được video.");
+  await ensureFonts();
+  const total = totalDur(s); const nFrames = Math.ceil(total * FPS);
+  const audioBuf = plan.audio ? await renderAudio(s) : null;
+  const target = new Mp4Muxer.ArrayBufferTarget();
+  const muxOpts = { target, video: { codec: plan.video.mux, width: W, height: H, frameRate: FPS }, fastStart: "in-memory", firstTimestampBehavior: "offset" };
+  if (plan.audio) muxOpts.audio = { codec: plan.audio.mux, numberOfChannels: 2, sampleRate: 48000 };
+  const muxer = new Mp4Muxer.Muxer(muxOpts);
+  let encErr = null;
+  const venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: (e) => { encErr = e; } });
+  // Keep clips under ~19 MB so they fit the library (20 MB per file); long clips use a lower bitrate, never below 1.2 Mbps.
+  const vbr = LOCAL ? 5_000_000 : Math.round(clamp((17 * 8 * 1048576) / Math.max(1, total) - 160000, 1_200_000, 5_000_000));
+  venc.configure({ ...plan.video.cfg, bitrate: vbr });
+  const canvas = new OffscreenCanvas(W, H); const c = canvas.getContext("2d");
+  for (let i = 0; i < nFrames; i++) {
+    if (job.cancelled) { try { venc.close(); } catch (e) {} throw new Error("Đã hủy"); }
+    if (encErr) throw encErr;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
+    drawFrame(c, s, i / FPS);
+    const vf = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+    while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+    if (i % 6 === 0) { job.progress = (i / nFrames) * (plan.audio ? 0.92 : 0.98); onJobProgress(job); await nextTick(); }
+  }
+  await venc.flush(); venc.close();
+  if (encErr) throw encErr;
+  if (plan.audio && audioBuf) {
+    const aenc = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: (e) => { encErr = e; } });
+    aenc.configure(plan.audio.cfg);
+    const L = audioBuf.getChannelData(0), R = audioBuf.getChannelData(1); const usable = Math.min(L.length, Math.ceil(total * 48000));
+    const block = 4800;
+    for (let off = 0; off < usable; off += block) {
+      const n = Math.min(block, usable - off); const data = new Float32Array(n * 2);
+      data.set(L.subarray(off, off + n), 0); data.set(R.subarray(off, off + n), n);
+      const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((off / 48000) * 1e6), data });
+      aenc.encode(ad); ad.close();
+      if (aenc.encodeQueueSize > 20) await new Promise(r => setTimeout(r, 2));
+    }
+    await aenc.flush(); aenc.close();
+    if (encErr) throw encErr;
+  }
+  muxer.finalize();
+  job.progress = 1; onJobProgress(job);
+  return { blob: new Blob([target.buffer], { type: "video/mp4" }), ext: "mp4", mime: "video/mp4", duration: total };
+}
+async function renderWebm(s, job) {
+  await ensureFonts();
+  const total = totalDur(s);
+  const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H; const c = canvas.getContext("2d");
+  drawFrame(c, s, 0);
+  const vstream = canvas.captureStream(FPS);
+  let tracks = [...vstream.getVideoTracks()]; let actx = null;
+  try {
+    const buf = await renderAudio(s); actx = new AudioContext(); const dest = actx.createMediaStreamDestination();
+    const src = actx.createBufferSource(); src.buffer = buf; src.connect(dest); tracks.push(...dest.stream.getAudioTracks()); src.start();
+  } catch (e) {}
+  const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm", videoBitsPerSecond: 5_000_000 });
+  const parts = []; rec.ondataavailable = (e) => { if (e.data.size) parts.push(e.data); };
+  const done = new Promise(r => { rec.onstop = r; });
+  rec.start(500); const t0 = performance.now();
+  await new Promise((resolve) => {
+    const iv = setInterval(() => {
+      const t = (performance.now() - t0) / 1000;
+      if (job.cancelled || t >= total) { clearInterval(iv); resolve(); return; }
+      drawFrame(c, s, t); job.progress = t / total; onJobProgress(job);
+    }, 1000 / FPS);
+  });
+  rec.stop(); await done; if (actx) actx.close();
+  if (job.cancelled) throw new Error("Đã hủy");
+  return { blob: new Blob(parts, { type: "video/webm" }), ext: "webm", mime: "video/webm", duration: total };
+}
+let fontsReady = null;
+function ensureFonts() {
+  if (!fontsReady) fontsReady = Promise.all(["600 50px", "700 36px", "800 82px"].map(f => document.fonts.load(`${f} "Be Vietnam Pro"`, "Ăâêôơư"))).catch(() => {}).then(() => document.fonts.ready);
+  return fontsReady;
+}
+
+/* ================= capabilities & data ================= */
+const cap = { db: null, sample: null, assets: null, downloads: null, user: null };
+const state = {
+  scripts: new Map(), clips: new Map(), settings: defaultSettings(),
+  selected: new Set(), editingId: null, draft: null, dirty: false,
+  jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
+  aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
+};
+function defaultSettings() { return { enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+
+async function initCaps() {
+  const C = window.claude;
+  if (!C || typeof C.use !== "function") { goLocal("Trang đang chạy ngoài claude.ai: kịch bản chỉ lưu tạm trong tab này."); return; }
+  const get = (n) => C.use(n).catch(() => null);
+  const [db, sample, assets, downloads, user] = await Promise.all([get("db"), get("sample"), get("assets"), get("downloads"), get("user")]);
+  Object.assign(cap, { db, sample, assets, downloads, user });
+  if (!sample) { $("ai-box").querySelectorAll("button, input, select").forEach(el => el.disabled = true); $("ai-status").textContent = "AI viết kịch bản không khả dụng ở chế độ xem này. Bạn vẫn có thể tự soạn kịch bản."; }
+  if (!db) { goLocal("Không kết nối được bộ nhớ chung (cần đăng nhập claude.ai). Kịch bản chỉ lưu tạm trong tab này."); return; }
+  const loadTimer = setTimeout(() => { if (!state.loaded.scripts) banner("Đang chờ dữ liệu lâu hơn bình thường… Kiểm tra kết nối mạng.", true); }, 10000);
+  db.collection("scripts").onSnapshot((snap) => {
+    clearTimeout(loadTimer);
+    const m = new Map(); snap.docs.forEach(d => { const v = d.data(); if (v) m.set(d.id, { ...normScript(v), id: d.id }); });
+    state.scripts = m; state.loaded.scripts = true;
+    if (state.editingId && !state.dirty) { const s = m.get(state.editingId); if (s) { state.draft = clone(s); renderEditor(); } }
+    renderList(); maybeAutoRender();
+  }, (e) => banner("Không đọc được kịch bản: " + (e && e.message || "lỗi không rõ"), true));
+  db.collection("clips").onSnapshot((snap) => {
+    const m = new Map(); snap.docs.forEach(d => { const v = d.data(); if (v) m.set(d.id, { ...v, id: d.id }); });
+    state.clips = m; renderLibrary();
+  }, () => {});
+  db.doc("settings/schedule").onSnapshot((snap) => {
+    state.settings = { ...defaultSettings(), ...(snap.exists ? snap.data() : {}) }; state.loaded.settings = true;
+    logoState.corner = state.settings.logoCorner === "right" ? "right" : "left";
+    if ((state.settings.logoAssetId || "") !== logoState.assetId) loadLogo(state.settings.logoAssetId || "");
+    renderSchedule(); renderLogoPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
+  }, () => { state.loaded.settings = true; });
+}
+function goLocal(msg) { state.localMode = true; state.loaded.scripts = state.loaded.settings = true; banner(msg, true); renderList(); renderSchedule(); }
+function banner(msg, warn) { const b = $("banners"); b.innerHTML = `<div class="banner${warn ? " warn" : ""}">${esc(msg)}</div>`; }
+function toast(msg, ms = 3200) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, ms); }
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function stripForDb(s) { const { id, ...rest } = s; return rest; }
+async function putScript(s) {
+  s = { ...normScript(s), id: s.id || uid() };
+  if (cap.db) await cap.db.doc("scripts/" + s.id).set(stripForDb(s));
+  else { state.scripts.set(s.id, s); renderList(); }
+  return s;
+}
+async function patchScript(id, patch) {
+  const cur = state.scripts.get(id); if (!cur) return;
+  if (cap.db) { try { await cap.db.doc("scripts/" + id).update(patch); } catch (e) {} }
+  else { state.scripts.set(id, { ...cur, ...patch }); renderList(); }
+}
+async function removeScript(id) {
+  if (cap.db) await cap.db.doc("scripts/" + id).delete(); else { state.scripts.delete(id); renderList(); }
+}
+
+/* ================= UI: tabs ================= */
+$("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-tab]"); if (!b) return; setTab(b.dataset.tab);
+});
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  ["scripts", "queue", "library", "schedule"].forEach(t => { $("view-" + t).hidden = t !== tab; });
+  if (tab === "scripts") pv.draw();
+}
+
+/* ================= UI: list ================= */
+function fillSelects() {
+  const opts = (all) => `<option value="all">${all}</option>` + CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("");
+  $("ai-cat").innerHTML = opts("Mọi lĩnh vực"); $("f-cat").innerHTML = opts("Mọi lĩnh vực");
+  $("sch-cats").innerHTML = CATEGORIES.map(c => `<label><input type="checkbox" value="${c}" id="sch-cat-${c}"> ${c}</label>`).join("");
+}
+function visibleScripts() {
+  return [...state.scripts.values()]
+    .filter(s => state.filterCat === "all" || s.category === state.filterCat)
+    .filter(s => state.filterStatus === "all" || s.status === state.filterStatus || (state.filterStatus === "queued" && s.status === "rendering"))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+function renderList() {
+  const list = visibleScripts(); const el = $("slist");
+  $("cnt-scripts").textContent = state.scripts.size || "";
+  for (const id of [...state.selected]) if (!state.scripts.has(id)) state.selected.delete(id);
+  if (!state.loaded.scripts) { el.innerHTML = `<div class="empty"><span class="spin"></span> Đang tải kịch bản…</div>`; }
+  else if (!state.scripts.size) el.innerHTML = `<div class="empty"><strong>Chưa có kịch bản nào</strong>Bấm “Gợi ý chủ đề” để AI đề xuất, gõ một chủ đề rồi bấm “AI viết”, hoặc bấm “+ Từ bài viết” để dán bài bạn đã research.</div>`;
+  else if (!list.length) el.innerHTML = `<div class="empty">Không có kịch bản khớp bộ lọc.</div>`;
+  else el.innerHTML = list.map(s => `
+    <div class="sitem${s.id === state.editingId ? " active" : ""}">
+      <input type="checkbox" data-sel="${s.id}" id="sel-${s.id}" ${state.selected.has(s.id) ? "checked" : ""} aria-label="Chọn ${esc(s.title)}">
+      <div>
+        <button class="t" data-open="${s.id}">${esc(s.title)}</button>
+        <div class="meta"><span class="chip cat">${esc(s.category)}</span><span class="chip st-${s.status}">${STATUS_LABEL[s.status]}</span>
+        <span>${totalDur(s).toFixed(1)}s · ${s.scenes.length} cảnh</span>${s.sample ? "<span>mẫu</span>" : s.createdBy === "ai" ? "<span>AI</span>" : ""}</div>
+      </div>
+    </div>`).join("");
+  const n = state.selected.size; const b = $("btn-render-sel");
+  b.disabled = !n; b.textContent = n ? `Render đã chọn (${n})` : "Render đã chọn";
+  $("sel-all").checked = list.length > 0 && list.every(s => state.selected.has(s.id));
+  if (!state.editingId && !state.draft) renderEditor();
+}
+$("slist").addEventListener("click", (e) => {
+  const o = e.target.closest("[data-open]"); if (o) openScript(o.dataset.open);
+});
+$("slist").addEventListener("change", (e) => {
+  const c = e.target.closest("[data-sel]"); if (!c) return;
+  c.checked ? state.selected.add(c.dataset.sel) : state.selected.delete(c.dataset.sel); renderList();
+});
+$("sel-all").addEventListener("change", (e) => { visibleScripts().forEach(s => e.target.checked ? state.selected.add(s.id) : state.selected.delete(s.id)); renderList(); });
+$("f-cat").addEventListener("change", (e) => { state.filterCat = e.target.value; renderList(); });
+$("f-status").addEventListener("change", (e) => { state.filterStatus = e.target.value; renderList(); });
+$("btn-render-sel").addEventListener("click", () => { const ids = [...state.selected]; enqueue(ids); state.selected.clear(); renderList(); });
+$("btn-new").addEventListener("click", () => {
+  if (state.dirty && state.draft) toast("Đã bỏ các thay đổi chưa lưu.");
+  state.editingId = null; state.draft = null; state.dirty = false; state.articleMode = true;
+  renderEditor(); renderList(); pv.reset();
+  const ta = $("art-text"); if (ta) ta.focus();
+  if (window.innerWidth < 760) $("editor").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+function openScript(id) {
+  if (state.dirty && state.draft && state.editingId !== id) toast("Đã bỏ các thay đổi chưa lưu.");
+  const s = state.scripts.get(id); if (!s) return;
+  state.editingId = id; state.draft = clone(s); state.dirty = false; renderEditor(); renderList(); pv.reset();
+  if (window.innerWidth < 760) $("editor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ================= UI: editor ================= */
+function iconOptions(sel) { return ICON_NAMES.map(n => `<option value="${n}"${n === sel ? " selected" : ""}>${n}</option>`).join(""); }
+const ARTICLE_MAX = 60000;
+function loadArticleDraft() { try { return JSON.parse(localStorage.getItem("codelens-article") || "{}"); } catch (e) { return {}; } }
+function saveArticleDraft(v) { try { localStorage.setItem("codelens-article", JSON.stringify(v)); } catch (e) {} }
+function renderArticleForm(el) {
+  const a = loadArticleDraft();
+  el.innerHTML = `
+    <div class="panel-head"><h2>Tạo kịch bản từ bài viết</h2><button class="btn small ghost" data-art="close">Đóng</button></div>
+    <p class="hint">Dán bài viết hoặc ghi chú bạn đã research. AI đọc bài, chắt lọc ý chính và tự tạo kịch bản (tối đa khoảng 2 phút), rồi đối chiếu lại với bài để kiểm tra độ chính xác.</p>
+    <div class="meta-grid">
+      <label class="f"><span>Tiêu đề clip (không bắt buộc)</span><input type="text" id="art-title" value="${esc(a.title || "")}" placeholder="Để trống để AI tự đặt"></label>
+      <label class="f"><span>Lĩnh vực</span><select id="art-cat"><option value="auto">AI tự chọn</option>${CATEGORIES.map(c => `<option value="${c}"${a.cat === c ? " selected" : ""}>${c}</option>`).join("")}</select></label>
+    </div>
+    <label class="f"><span>Nội dung bài viết</span><textarea id="art-text" rows="16" placeholder="Dán nội dung bài viết, tài liệu hoặc ghi chú research ở đây…">${esc(a.text || "")}</textarea></label>
+    <label class="f"><span>Ghi chú cho AI (không bắt buộc)</span><input type="text" id="art-note" value="${esc(a.note || "")}" placeholder="Ví dụ: tập trung phần trade-off, bỏ phần lịch sử"></label>
+    <div class="row"><button class="btn primary" id="art-go" ${cap.sample ? "" : "disabled"}>AI tạo kịch bản</button><span class="hint" id="art-count"></span></div>
+    <div class="hint" id="art-status">${cap.sample ? "" : "AI không khả dụng ở chế độ xem này. Mở artifact trên claude.ai khi đã đăng nhập."}</div>`;
+  updateArticleCount();
+}
+function updateArticleCount() {
+  const t = $("art-text"); if (!t) return; const n = t.value.length;
+  $("art-count").textContent = n ? `${n.toLocaleString("vi-VN")} ký tự` + (n > ARTICLE_MAX ? ` · quá dài, AI chỉ đọc ${ARTICLE_MAX.toLocaleString("vi-VN")} ký tự đầu` : "") : "";
+}
+function renderEditor() {
+  const el = $("editor"); const d = state.draft;
+  if (!d && state.articleMode) { renderArticleForm(el); return; }
+  if (!d) {
+    el.innerHTML = `<div class="panel-head"><h2>Trình soạn</h2></div><div class="empty"><strong>Chọn một kịch bản để sửa</strong>Mỗi clip dài tối đa khoảng 2 phút, số cảnh tùy kịch bản. Mỗi cảnh có tiêu đề in hoa, phụ đề tiếng Việt và các icon được nối bằng mũi tên cam. Bao một từ trong dấu <code style="color:var(--orange)">*sao*</code> để tô cam.</div>`;
+    return;
+  }
+  const sel = (path, options, val, extra = "") => `<select data-f="${path}" ${extra}>${options.map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(val) ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+  el.innerHTML = `
+    <div class="panel-head">
+      <h2>Trình soạn</h2>
+      <div class="row">
+        <span class="save-state${state.dirty ? " dirty" : ""}" id="save-state">${state.dirty ? "Chưa lưu" : "Đã lưu"}</span>
+        <button class="btn primary" data-act="save">Lưu</button>
+        <button class="btn blue" data-act="review" ${cap.sample ? "" : "disabled"}>AI kiểm tra kỹ thuật</button>
+        <button class="btn" data-act="render" ${d.id ? "" : "disabled"}>Render clip này</button>
+        <button class="btn ghost danger" data-act="delete" ${d.id ? "" : "disabled"}>Xóa</button>
+      </div>
+    </div>
+    <div class="meta-grid">
+      <label class="f"><span>Tiêu đề clip</span><input type="text" data-f="title" id="ed-title" value="${esc(d.title)}"></label>
+      <label class="f"><span>Lĩnh vực</span>${sel("category", CATEGORIES.map(c => [c, c]), d.category, 'id="ed-cat"')}</label>
+      <label class="f"><span>Ví dụ kỹ thuật</span><input type="text" data-f="metaphor" id="ed-metaphor" value="${esc(d.metaphor)}" placeholder="Ví dụ: Nginx đứng trước 3 instance API"></label>
+    </div>
+    ${d.source === "article" ? `<p class="hint">Tạo từ bài viết (${(d.sourceText || "").length.toLocaleString("vi-VN")} ký tự). “AI kiểm tra kỹ thuật” sẽ đối chiếu lại với bài này.</p>` : ""}
+    ${d.reviewed ? `<div class="banner"><b style="color:var(--ok)">Đã kiểm tra kỹ thuật.</b> ${d.reviewNotes && d.reviewNotes.length ? "Đã sửa: " + d.reviewNotes.map(esc).join(" · ") : "Không phát hiện lỗi."}</div>` : `<div class="banner warn">Kịch bản chưa được kiểm tra kỹ thuật. Bấm “AI kiểm tra kỹ thuật” trước khi render.</div>`}
+    <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (tối đa khoảng 120s): <b id="ed-total">${totalDur(normScript(d)).toFixed(1)}s</b></p>
+    ${d.scenes.map((sc, i) => renderSceneCard(sc, i, d.scenes.length, sel)).join("")}
+    <div class="row"><button class="btn" data-act="add-scene">+ Thêm cảnh</button></div>`;
+}
+function renderSceneCard(sc, i, n, sel) {
+  const p = `scenes.${i}`; const actorOpts = [["-1", "Không"]].concat(sc.actors.map((a, k) => [k, `${k + 1}. ${a.label || a.icon}`]));
+  const markOpts = [["", "Không"]].concat(sc.actors.flatMap((a, k) => [[`${k}:check`, `✓ ${k + 1}. ${a.label || a.icon}`], [`${k}:cross`, `✗ ${k + 1}. ${a.label || a.icon}`]]));
+  const isCmp = sc.layout === "compare" || sc.layout === "before-after";
+  const idxOpts = sc.actors.map((a, k) => [k, String(k + 1)]);
+  return `<div class="scene">
+    <div class="scene-head"><span class="n">CẢNH ${i + 1}</span><span class="grow"></span>
+      <button class="btn small ghost" data-act="preview-scene" data-i="${i}">Xem cảnh</button>
+      <button class="btn small ghost" data-act="up" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="Lên">↑</button>
+      <button class="btn small ghost" data-act="down" data-i="${i}" ${i === n - 1 ? "disabled" : ""} aria-label="Xuống">↓</button>
+      <button class="btn small ghost danger" data-act="del-scene" data-i="${i}" ${n <= 1 ? "disabled" : ""} aria-label="Xóa cảnh">✕</button></div>
+    <div class="scene-grid">
+      <label class="f"><span>Bố cục</span>${sel(p + ".layout", Object.entries(LAYOUTS), sc.layout, `data-rerender="1" id="ed-${i}-layout"`)}</label>
+      <label class="f"><span>Thời lượng (giây)</span><input type="number" step="0.1" min="1.2" max="12" data-f="${p}.duration" data-type="num" id="ed-${i}-dur" value="${sc.duration}"></label>
+      <label class="f"><span>Nhấn mạnh</span>${sel(p + ".focus", actorOpts, sc.focus, `data-type="num" id="ed-${i}-focus"`)}</label>
+      <label class="f"><span>Dấu ✓ / ✗</span>${sel(p + ".mark", markOpts, sc.mark ? `${sc.mark.index}:${sc.mark.type}` : "", `data-type="mark" id="ed-${i}-mark"`)}</label>
+    </div>
+    <label class="f"><span>Tiêu đề (in hoa)</span><input type="text" data-f="${p}.heading" id="ed-${i}-heading" value="${esc(sc.heading)}"></label>
+    <label class="f"><span>Phụ đề tiếng Việt</span><textarea rows="2" data-f="${p}.subtitle" id="ed-${i}-sub">${esc(sc.subtitle)}</textarea></label>
+    ${isCmp ? `<div class="scene-grid"><label class="f"><span>Nhãn cột trái</span><input type="text" data-f="${p}.left" id="ed-${i}-left" value="${esc(sc.left)}" placeholder="${sc.layout === "before-after" ? "TRƯỚC" : "A"}"></label><label class="f"><span>Nhãn cột phải</span><input type="text" data-f="${p}.right" id="ed-${i}-right" value="${esc(sc.right)}" placeholder="${sc.layout === "before-after" ? "SAU" : "B"}"></label></div>` : ""}
+    <div class="f"><span class="hint" style="font-weight:600">Đối tượng (tối đa 6)</span>
+      <div class="sub-list">${sc.actors.map((a, k) => `<div class="sub-row">
+        <select data-f="${p}.actors.${k}.icon" id="ed-${i}-a${k}-icon" data-rerender-soft="1">${iconOptions(a.icon)}</select>
+        <input type="text" data-f="${p}.actors.${k}.label" id="ed-${i}-a${k}-label" value="${esc(a.label)}" placeholder="Nhãn">
+        ${isCmp ? sel(`${p}.actors.${k}.side`, [["", "Tự động"], ["L", "Trái"], ["R", "Phải"]], a.side, `class="side" id="ed-${i}-a${k}-side"`) : "<span></span>"}
+        <button class="btn small ghost danger" data-act="del-actor" data-i="${i}" data-k="${k}" aria-label="Xóa đối tượng">✕</button></div>`).join("")}</div>
+      <div><button class="btn small" data-act="add-actor" data-i="${i}" ${sc.actors.length >= 6 ? "disabled" : ""}>+ Đối tượng</button></div>
+    </div>
+    <div class="f"><span class="hint" style="font-weight:600">Mũi tên</span>
+      <div class="sub-list">${sc.links.map((l, k) => `<div class="sub-row link">
+        ${sel(`${p}.links.${k}.from`, idxOpts, l.from, `data-type="num" id="ed-${i}-l${k}-from"`)}<span class="arrow">→</span>
+        ${sel(`${p}.links.${k}.to`, idxOpts, l.to, `data-type="num" id="ed-${i}-l${k}-to"`)}
+        <input type="text" data-f="${p}.links.${k}.label" id="ed-${i}-l${k}-label" value="${esc(l.label)}" placeholder="Nhãn mũi tên">
+        <button class="btn small ghost danger" data-act="del-link" data-i="${i}" data-k="${k}" aria-label="Xóa mũi tên">✕</button></div>`).join("")}</div>
+      <div><button class="btn small" data-act="add-link" data-i="${i}" ${sc.actors.length < 2 || sc.links.length >= 6 ? "disabled" : ""}>+ Mũi tên</button></div>
+    </div>
+  </div>`;
+}
+function setPath(obj, path, val) {
+  const ks = path.split("."); let o = obj;
+  for (let i = 0; i < ks.length - 1; i++) o = o[isNaN(ks[i]) ? ks[i] : +ks[i]];
+  o[ks[ks.length - 1]] = val;
+}
+function markDirty() { state.dirty = true; const s = $("save-state"); if (s) { s.textContent = "Chưa lưu"; s.className = "save-state dirty"; } const t = $("ed-total"); if (t) t.textContent = totalDur(normScript(state.draft)).toFixed(1) + "s"; pv.draw(); }
+$("editor").addEventListener("input", (e) => {
+  const f = e.target.dataset.f; if (!f || !state.draft) return;
+  let v = e.target.value; const ty = e.target.dataset.type;
+  if (ty === "num") v = v === "" ? 0 : +v;
+  if (ty === "mark") { if (!v) v = null; else { const [i, t] = v.split(":"); v = { index: +i, type: t }; } }
+  setPath(state.draft, f, v); markDirty();
+  if (e.target.dataset.rerender || e.target.dataset.rerenderSoft) { if (e.type === "input" && e.target.tagName === "SELECT") renderEditor(); }
+});
+$("editor").addEventListener("change", (e) => { if (e.target.tagName === "SELECT" && (e.target.dataset.rerender || e.target.dataset.rerenderSoft)) renderEditor(); });
+$("editor").addEventListener("input", (e) => {
+  if (!["art-title", "art-cat", "art-text", "art-note"].includes(e.target.id)) return;
+  saveArticleDraft({ title: $("art-title").value, cat: $("art-cat").value, text: $("art-text").value, note: $("art-note").value });
+  if (e.target.id === "art-text") updateArticleCount();
+});
+$("editor").addEventListener("click", async (e) => {
+  if (e.target.closest('[data-art="close"]')) { state.articleMode = false; renderEditor(); return; }
+  if (e.target.closest("#art-go")) { await aiFromArticle(); return; }
+});
+$("editor").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-act]"); if (!b || !state.draft) return;
+  const d = state.draft; const i = +b.dataset.i; const k = +b.dataset.k; const act = b.dataset.act;
+  const re = () => { markDirty(); renderEditor(); };
+  if (act === "add-scene") { d.scenes.push(normScene({ layout: "flow", heading: "CẢNH MỚI", subtitle: "", actors: [{ icon: "person", label: "" }] })); re(); }
+  else if (act === "del-scene") { d.scenes.splice(i, 1); re(); }
+  else if (act === "up" && i > 0) { [d.scenes[i - 1], d.scenes[i]] = [d.scenes[i], d.scenes[i - 1]]; re(); }
+  else if (act === "down" && i < d.scenes.length - 1) { [d.scenes[i + 1], d.scenes[i]] = [d.scenes[i], d.scenes[i + 1]]; re(); }
+  else if (act === "add-actor") { d.scenes[i].actors.push({ icon: "server", label: "", side: "" }); re(); }
+  else if (act === "del-actor") { const sc = d.scenes[i]; sc.actors.splice(k, 1); sc.links = sc.links.filter(l => l.from !== k && l.to !== k).map(l => ({ ...l, from: l.from > k ? l.from - 1 : l.from, to: l.to > k ? l.to - 1 : l.to })); if (sc.focus === k) sc.focus = -1; else if (sc.focus > k) sc.focus--; if (sc.mark && sc.mark.index === k) sc.mark = null; else if (sc.mark && sc.mark.index > k) sc.mark.index--; re(); }
+  else if (act === "add-link") { const sc = d.scenes[i]; sc.links.push({ from: 0, to: Math.min(1, sc.actors.length - 1), label: "" }); re(); }
+  else if (act === "del-link") { d.scenes[i].links.splice(k, 1); re(); }
+  else if (act === "preview-scene") { let acc = 0; for (let j = 0; j < i; j++) acc += +d.scenes[j].duration || 0; pv.seek(acc + 0.01); pv.play(); }
+  else if (act === "save") await saveDraft();
+  else if (act === "review") {
+    if (!cap.sample || state.aiBusy) return;
+    b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang kiểm tra…'; state.aiBusy = true;
+    try {
+      const { fixed, issues } = await aiReview(normScript(d));
+      const n = normScript({ ...d, ...fixed, reviewed: true, reviewNotes: issues });
+      state.draft = { ...n, id: d.id }; state.dirty = true; renderEditor(); pv.draw();
+      toast(issues.length ? `AI đã sửa ${issues.length} điểm. Xem lại rồi bấm Lưu.` : "AI không thấy lỗi kỹ thuật. Bấm Lưu để ghi nhận.", 5000);
+    } catch (err) { toast(aiError(err), 5000); renderEditor(); }
+    state.aiBusy = false;
+  }
+  else if (act === "render") { if (state.dirty) { const ok = await saveDraft(); if (!ok) return; } enqueue([state.editingId]); }
+  else if (act === "delete") {
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Bấm lần nữa để xóa"; setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ""; b.textContent = "Xóa"; } }, 3500); return; }
+    const id = state.editingId; state.editingId = null; state.draft = null; state.dirty = false;
+    try { await removeScript(id); toast("Đã xóa kịch bản."); } catch (err) { toast("Không xóa được: " + (err.message || err.code)); }
+    renderEditor(); renderList(); pv.reset();
+  }
+});
+async function saveDraft() {
+  const d = state.draft; if (!d) return false;
+  try {
+    const keepStatus = d.id && state.scripts.get(d.id) ? state.scripts.get(d.id).status : "draft";
+    const s = await putScript({ ...d, status: keepStatus === "rendering" ? "draft" : keepStatus, id: d.id || uid() });
+    state.editingId = s.id; state.draft = clone(s); state.dirty = false; renderEditor(); renderList(); toast("Đã lưu kịch bản.");
+    return true;
+  } catch (err) { toast("Không lưu được: " + (err.message || err.code || "lỗi")); return false; }
+}
+
+/* ================= preview ================= */
+const pv = (() => {
+  const canvas = $("pv"); const c = canvas.getContext("2d"); let t = 0, playing = false, last = 0, raf = 0;
+  const cur = () => { const d = state.draft || (state.editingId && state.scripts.get(state.editingId)); return d ? normScript(d) : null; };
+  function draw() {
+    const s = cur(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
+    if (!s) { drawBg(c, 0); c.font = `700 44px ${FONT}`; c.fillStyle = COL.muted; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("Chọn một kịch bản", 540, 960); $("pv-info").textContent = ""; $("pv-time").textContent = "0:00.0"; return; }
+    const total = totalDur(s); if (t > total) t = total;
+    drawFrame(c, s, t);
+    $("pv-scrub").value = String(Math.round((t / total) * 1000));
+    $("pv-time").textContent = fmtT(t) + " / " + fmtT(total); $("pv-info").textContent = "1080×1920 · 30fps";
+  }
+  function loop(now) {
+    if (!playing) return; const s = cur(); if (!s) { stop(); return; }
+    t += (now - last) / 1000; last = now; const total = totalDur(s);
+    if (t >= total) { t = total; draw(); stop(); return; }
+    draw(); raf = requestAnimationFrame(loop);
+  }
+  function play() { const s = cur(); if (!s) return; if (t >= totalDur(s) - 0.05) t = 0; playing = true; last = performance.now(); $("pv-play").textContent = "❚❚"; $("pv-play").setAttribute("aria-label", "Tạm dừng"); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); }
+  function stop() { playing = false; cancelAnimationFrame(raf); $("pv-play").textContent = "▶"; $("pv-play").setAttribute("aria-label", "Phát"); }
+  $("pv-play").addEventListener("click", () => playing ? stop() : play());
+  $("pv-scrub").addEventListener("input", (e) => { const s = cur(); if (!s) return; stop(); t = (+e.target.value / 1000) * totalDur(s); draw(); });
+  return { draw, play, stop, seek(v) { t = v; draw(); }, reset() { stop(); const s = cur(); t = s ? Math.min(1.2, totalDur(s) * 0.3) : 0; draw(); } };
+})();
+const fmtT = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+
+/* ================= AI ================= */
+const STYLE_RULES = `Bạn là biên kịch kỹ thuật cho kênh video ngắn "CodeLens" dành cho lập trình viên Việt Nam (kênh tech: network, backend, frontend, database, cloud, AI, system architecture).
+Giải thích TRỰC TIẾP bằng thành phần kỹ thuật thật: client, server, service, database, cache, queue, load balancer, request, response, thread, node... và thuật ngữ chuẩn (giữ nguyên tiếng Anh khi đó là cách dev thường gọi).
+TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường hay tình huống công sở (lễ tân, thư ký, HR, nhân viên, quán ăn, ngân hàng...). Nếu cần ví dụ thì dùng tình huống kỹ thuật cụ thể (ví dụ: "Nginx đứng trước 3 instance API", "bảng users 10 triệu dòng").
+Nội dung phải CHÍNH XÁC về kỹ thuật: định nghĩa đúng, thứ tự các bước đúng, tên trạng thái/thuật toán đúng, nêu đúng đánh đổi (trade-off). Không bịa số liệu, benchmark hay phiên bản; nếu không chắc một chi tiết thì bỏ chi tiết đó.
+Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.`;
+function scriptPrompt(topic, category, article, note) {
+  const existing = [...state.scripts.values()].map(s => s.title).slice(0, 80).join("; ");
+  const head = article
+    ? `Viết kịch bản cho clip dọc 9:16 dựa trên BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}${category && category !== "auto" && category !== "all" ? ` (lĩnh vực ${category})` : ""}.
+Bài viết là nguồn chính: chắt lọc những ý hay và quan trọng nhất của bài, giữ đúng nội dung và thuật ngữ của bài. Không thêm thông tin không có trong bài, trừ kiến thức kỹ thuật nền tảng chắc chắn cần để hiểu. Nếu bài có chỗ sai rõ ràng về kỹ thuật thì sửa theo kiến thức chuẩn.${note ? `\nYêu cầu thêm của người dùng: ${note}` : ""}
+
+=== BÀI VIẾT NGUỒN ===
+${article}
+=== HẾT BÀI VIẾT ===`
+    : `Viết kịch bản cho clip dọc 9:16 về chủ đề: "${topic}"${category && category !== "all" ? ` (lĩnh vực ${category})` : ""}.`;
+  return `${STYLE_RULES}
+
+${head}
+Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
+
+Quy tắc:
+- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn, không phải vài câu điểm danh. Độ dài theo nội dung: thường 60–100 giây (12–25 cảnh), tối thiểu khoảng 45 giây, tối đa 120 giây (30 cảnh).
+- Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất mà dev cần biết (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Không lặp ý, không độn cho đủ thời lượng, nhưng cũng không bỏ bước quan trọng khiến người xem thiếu thông tin.
+- Cảnh 1 dùng layout "title" với câu hook gây tò mò ở phụ đề. Cảnh cuối tóm tắt (thường dùng "compare" hoặc "before-after").
+- Cấu trúc gợi ý: hook → bối cảnh / vì sao quan trọng → vấn đề → cơ chế hoạt động từng bước (đúng thứ tự) → ví dụ cụ thể → lỗi hay gặp / trade-off → cách xử lý, công cụ phổ biến → tóm tắt + mẹo nhớ. Mỗi cảnh một ý.
+- "heading": tiếng Việt hoặc thuật ngữ tiếng Anh, ngắn (tối đa 5 từ), sẽ được in hoa. Bao 1 từ quan trọng trong *dấu sao* để tô cam.
+- "subtitle": phụ đề tiếng Việt tự nhiên, một câu đầy đủ ý, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*.
+- "duration": đủ để đọc phụ đề, khoảng 1.4 + (số ký tự ÷ 13) giây; thường 3–6 giây mỗi cảnh.
+- "actors": 1–6 đối tượng, mỗi đối tượng {"icon", "label", "side"}. label ngắn (tối đa 3 từ). "side" chỉ dùng cho compare/before-after: "L" hoặc "R".
+- icon CHỈ được chọn trong: ${ICON_NAMES.join(", ")}.
+- "layout" CHỈ được chọn trong: title, flow, hub, compare, before-after, stack, grid. hub: đối tượng 0 ở giữa, các đối tượng khác bao quanh. stack: các tầng từ trên xuống.
+- "links": mũi tên [{"from": chỉ số, "to": chỉ số, "label": tối đa 2 từ}], chỉ số bắt đầu từ 0.
+- "focus": chỉ số đối tượng cần nhấn mạnh, hoặc -1. "mark": {"index": chỉ số, "type": "check"|"cross"} hoặc null.
+- "left"/"right": nhãn cột cho compare/before-after (tối đa 2 từ).
+
+Chỉ trả về JSON đúng dạng:
+{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "subtitle": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
+}
+function reviewPrompt(sc) {
+  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = sc;
+  return `${STYLE_RULES}
+
+Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch bản clip dưới đây:
+1. Độ chính xác kỹ thuật: định nghĩa, thứ tự các bước, tên trạng thái/thuật toán, trade-off, ví dụ công cụ/sản phẩm. Sửa mọi chỗ sai hoặc gây hiểu nhầm. Bỏ số liệu không chắc chắn.
+2. Bỏ mọi ẩn dụ đời thường/công sở, thay bằng thành phần kỹ thuật thật.
+2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (thường 60–100 giây). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
+3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
+${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
+
+=== BÀI VIẾT NGUỒN ===
+${sourceText}
+=== HẾT BÀI VIẾT ===
+` : ""}Kịch bản:
+${JSON.stringify(body)}
+
+Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc: title, category, hook, metaphor, scenes}}`;
+}
+async function aiReview(script) {
+  const r = await cap.sample.json(reviewPrompt(script), { modelTier: "complex" });
+  const fixed = r && r.script && Array.isArray(r.script.scenes) && r.script.scenes.length ? r.script : script;
+  const issues = r && Array.isArray(r.issues) ? r.issues.filter(Boolean).map(String) : [];
+  return { fixed, issues };
+}
+function topicsPrompt(category) {
+  const existing = [...state.scripts.values()].map(s => s.title).slice(0, 120).join("; ");
+  return `${STYLE_RULES}
+
+Đề xuất 10 chủ đề clip mới${category && category !== "all" ? ` trong lĩnh vực ${category}` : ", trải đều các lĩnh vực " + CATEGORIES.join(", ")}.
+Ưu tiên chủ đề ĐANG HOT và THIẾT YẾU cho developer hiện nay: kiến thức dev gặp hằng ngày, câu hỏi phỏng vấn system design phổ biến, công nghệ đang được dùng nhiều. Ví dụ hướng chủ đề: AI agent & tool calling, MCP (Model Context Protocol), RAG, embedding & vector search, context window & prompt caching, LLM evals; Kubernetes, HPA, service mesh, OpenTelemetry; OAuth 2.0/OIDC, JWT, passkeys; rate limiting, idempotency key, outbox pattern, CDC, saga; isolation level & MVCC, sharding, replication lag, N+1 query, connection pool; HTTP/3 & QUIC, TLS handshake, CORS, WebSocket vs SSE, gRPC; React Server Components, hydration, edge functions; blue-green/canary deploy, feature flag.
+Chủ đề phải là khái niệm có định nghĩa rõ ràng, đã được công nhận rộng rãi (không phải tin đồn hay sản phẩm chưa phát hành).
+Không trùng với các chủ đề đã có: ${existing || "chưa có"}.
+Chỉ trả về JSON: {"topics": [{"topic": "tên chủ đề ngắn", "category": "một trong ${CATEGORIES.join("|")}", "angle": "vì sao dev cần biết hoặc góc giải thích kỹ thuật, tiếng Việt, tối đa 12 từ"}]}`;
+}
+function aiError(err) {
+  const code = err && err.code;
+  if (code === "no_api_key" || code === "bad_api_key" || code === "permission_denied") return err.message;
+  if (code === "not_granted") return "Bạn chưa cho phép trang dùng Claude. Mở menu Quyền của artifact để bật lại.";
+  if (code === "rate_limited") return "Claude đang bận vì quá nhiều yêu cầu. Thử lại sau ít phút.";
+  if (code === "invalid_json" || code === "empty_completion") return "AI trả về kết quả không đọc được. Thử lại một lần nữa.";
+  return "AI gặp lỗi: " + ((err && (err.message || code)) || "không rõ");
+}
+function setAiBusy(on, msg) {
+  state.aiBusy = on; ["btn-suggest", "btn-write"].forEach(id => $(id).disabled = on || !cap.sample);
+  $("suggest").querySelectorAll("button").forEach(b => b.disabled = on);
+  $("ai-status").innerHTML = on ? `<span class="spin"></span> ${esc(msg)}` : esc(msg || "");
+}
+$("btn-suggest").addEventListener("click", async () => {
+  if (!cap.sample || state.aiBusy) return;
+  const cat = $("ai-cat").value; setAiBusy(true, "Đang nghĩ chủ đề…");
+  try {
+    const r = await cap.sample.json(topicsPrompt(cat), { modelTier: "default" });
+    state.suggestions = (r && Array.isArray(r.topics) ? r.topics : []).slice(0, 10).filter(x => x && x.topic);
+    renderSuggestions(); setAiBusy(false, state.suggestions.length ? "Bấm một chủ đề để AI viết kịch bản." : "Không có gợi ý nào. Thử lại.");
+  } catch (err) { setAiBusy(false, aiError(err)); }
+});
+function renderSuggestions() {
+  $("suggest").innerHTML = state.suggestions.map((s, i) => `<button data-sug="${i}"><span><b>${esc(s.topic)}</b><br><span class="hint">${esc(s.angle || "")}</span></span><em>${esc(s.category || "")}</em></button>`).join("");
+}
+$("suggest").addEventListener("click", (e) => { const b = e.target.closest("[data-sug]"); if (!b) return; const s = state.suggestions[+b.dataset.sug]; if (s) aiWrite(s.topic + (s.angle ? ` — gợi ý: ${s.angle}` : ""), s.category, +b.dataset.sug); });
+$("btn-write").addEventListener("click", () => { const t = $("ai-topic").value.trim(); if (!t) { toast("Gõ một chủ đề trước, ví dụ: Idempotency key."); $("ai-topic").focus(); return; } aiWrite(t, $("ai-cat").value); });
+$("ai-topic").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-write").click(); });
+async function aiWrite(topic, category, sugIdx) {
+  if (!cap.sample || state.aiBusy) return;
+  setAiBusy(true, "Claude đang viết kịch bản…");
+  try {
+    const r0 = await cap.sample.json(scriptPrompt(topic, category), { modelTier: "default" });
+    setAiBusy(true, "Claude đang kiểm tra lại độ chính xác kỹ thuật…");
+    let r = r0, issues = [], reviewed = false;
+    try { const rv = await aiReview(normScript(r0)); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
+    const s = normScript({ ...r, topic, createdBy: "ai", status: "draft", reviewed, reviewNotes: issues, category: CATEGORIES.includes(r && r.category) ? r.category : (CATEGORIES.includes(category) ? category : undefined) });
+    const saved = await putScript(s);
+    if (sugIdx !== undefined) { state.suggestions.splice(sugIdx, 1); renderSuggestions(); }
+    $("ai-topic").value = "";
+    setAiBusy(false, `Đã viết “${saved.title}”` + (reviewed ? (issues.length ? `, AI đã tự sửa ${issues.length} điểm kỹ thuật.` : ", AI đã kiểm tra và không thấy lỗi kỹ thuật.") : ". Chưa kiểm tra lại được, hãy bấm “AI kiểm tra kỹ thuật”.") + " Xem trước và sửa nếu cần.");
+    state.editingId = saved.id; state.draft = clone(saved); state.dirty = false; renderEditor(); renderList(); pv.reset(); pv.play();
+  } catch (err) { setAiBusy(false, aiError(err)); }
+}
+
+async function aiFromArticle() {
+  if (!cap.sample || state.aiBusy) return;
+  const text = $("art-text").value.trim().slice(0, ARTICLE_MAX);
+  const st = $("art-status"); const btn = $("art-go");
+  if (text.length < 200) { st.textContent = "Bài viết quá ngắn. Dán ít nhất vài đoạn để AI có đủ thông tin."; $("art-text").focus(); return; }
+  const title = $("art-title").value.trim(), cat = $("art-cat").value, note = $("art-note").value.trim();
+  state.aiBusy = true; btn.disabled = true;
+  st.innerHTML = '<span class="spin"></span> Claude đang đọc bài và viết kịch bản…';
+  try {
+    const r0 = await cap.sample.json(scriptPrompt(title, cat, text, note), { modelTier: "complex" });
+    st.innerHTML = '<span class="spin"></span> Đang đối chiếu kịch bản với bài viết…';
+    let r = r0, issues = [], reviewed = false;
+    try { const rv = await aiReview(normScript({ ...r0, sourceText: text })); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
+    const category = CATEGORIES.includes(cat) ? cat : (CATEGORIES.includes(r && r.category) ? r.category : undefined);
+    const s = normScript({ ...r, title: title || (r && r.title), topic: title || (r && r.title), category, createdBy: "ai", status: "draft", source: "article", sourceText: text, reviewed, reviewNotes: issues });
+    const saved = await putScript(s);
+    saveArticleDraft({});
+    state.articleMode = false; state.aiBusy = false;
+    state.editingId = saved.id; state.draft = clone(saved); state.dirty = false; renderEditor(); renderList(); pv.reset(); pv.play();
+    toast(`Đã tạo “${saved.title}” (${totalDur(saved).toFixed(0)} giây)` + (reviewed ? (issues.length ? `, AI đã sửa ${issues.length} điểm khi đối chiếu.` : ", khớp với bài viết.") : ". Chưa đối chiếu được, hãy bấm “AI kiểm tra kỹ thuật”."), 6000);
+  } catch (err) {
+    state.aiBusy = false; btn.disabled = false;
+    st.textContent = err && err.code === "prompt_too_large" ? "Bài viết quá dài cho một lần xử lý. Hãy rút gọn hoặc chia thành nhiều bài." : aiError(err);
+  }
+}
+
+/* ================= queue ================= */
+function enqueue(ids) {
+  let added = 0;
+  for (const id of ids) {
+    const s = state.scripts.get(id); if (!s) continue;
+    if (state.jobs.some(j => j.scriptId === id && (j.status === "waiting" || j.status === "running"))) continue;
+    state.jobs.push({ id: uid(), scriptId: id, title: s.title, status: "waiting", progress: 0, error: "", result: null });
+    if (s.status !== "queued") patchScript(id, { status: "queued" });
+    added++;
+  }
+  if (added) { toast(`Đã thêm ${added} clip vào hàng đợi render.`); renderJobs(); pump(); }
+  else if (ids.length) toast("Các kịch bản này đã có trong hàng đợi.");
+}
+function running() { return state.jobs.filter(j => j.status === "running").length; }
+function pump() {
+  const conc = +$("q-conc").value || 2;
+  while (running() < conc) { const j = state.jobs.find(x => x.status === "waiting"); if (!j) break; runJob(j); }
+  renderJobs();
+}
+async function runJob(job) {
+  const s = state.scripts.get(job.scriptId);
+  if (!s) { job.status = "failed"; job.error = "Kịch bản đã bị xóa."; renderJobs(); return; }
+  job.status = "running"; job.progress = 0; renderJobs();
+  patchScript(job.scriptId, { status: "rendering" });
+  const snapshot = normScript(s);
+  try {
+    const r = await renderMp4(snapshot, job);
+    job.result = r; job.status = "done"; job.progress = 1; renderJobs();
+    const fname = slug(snapshot.title) + "." + r.ext;
+    let clipId = uid(); let assetId = "";
+    if (cap.assets && cap.db) {
+      try { const up = await cap.assets.upload(r.blob, { type: r.mime }); assetId = up.id; }
+      catch (e) { job.note = e && e.code === "too_large" ? "Clip lớn hơn 20 MB nên chỉ tải về được, không lưu vào thư viện." : "Không lưu được vào thư viện: " + (e.message || e.code); }
+    }
+    const clip = { scriptId: job.scriptId, title: snapshot.title, category: snapshot.category, assetId, filename: fname, mime: r.mime, sizeBytes: r.blob.size, durationSec: Math.round(r.duration * 10) / 10, renderedAt: new Date().toISOString() };
+    state.sessionBlobs.set(clipId, r.blob);
+    if (cap.db && assetId) { try { await cap.db.doc("clips/" + clipId).set(clip); } catch (e) {} }
+    else { state.clips.set(clipId, { ...clip, id: clipId, sessionOnly: true }); renderLibrary(); }
+    job.clipId = clipId;
+    patchScript(job.scriptId, { status: "done" });
+  } catch (err) {
+    job.status = job.cancelled ? "cancelled" : "failed"; job.error = (err && err.message) || String(err);
+    patchScript(job.scriptId, { status: job.cancelled ? "queued" : "failed" });
+  }
+  renderJobs(); pump();
+}
+let progressRaf = 0;
+function onJobProgress() { if (progressRaf) return; progressRaf = requestAnimationFrame(() => { progressRaf = 0; renderJobs(); }); }
+const JOB_LABEL = { waiting: "Đang chờ", running: "Đang render", done: "Xong", failed: "Lỗi", cancelled: "Đã hủy" };
+function renderJobs() {
+  const el = $("jobs"); const active = state.jobs.filter(j => j.status === "waiting" || j.status === "running").length;
+  $("cnt-queue").textContent = active || "";
+  if (!state.jobs.length) { el.innerHTML = `<div class="empty"><strong>Hàng đợi trống</strong>Chọn kịch bản ở tab Kịch bản rồi bấm “Render đã chọn”.</div>`; return; }
+  el.innerHTML = state.jobs.map(j => `<div class="job ${j.status}">
+    <div><div class="name">${esc(j.title)}</div><div class="meta"><span>${JOB_LABEL[j.status]}${j.status === "running" ? " · " + Math.round(j.progress * 100) + "%" : ""}</span>${j.result ? `<span>${(j.result.blob.size / 1048576).toFixed(1)} MB · ${j.result.ext.toUpperCase()}</span>` : ""}${j.error ? `<span style="color:var(--bad)">${esc(j.error)}</span>` : ""}${j.note ? `<span style="color:var(--orange)">${esc(j.note)}</span>` : ""}</div></div>
+    <div class="row">${j.status === "done" ? `<button class="btn small primary" data-jdl="${j.id}">Tải về</button>` : ""}${j.status === "running" || j.status === "waiting" ? `<button class="btn small ghost" data-jcancel="${j.id}">Hủy</button>` : ""}${j.status === "failed" || j.status === "cancelled" ? `<button class="btn small" data-jretry="${j.id}">Thử lại</button>` : ""}</div>
+    <div class="bar"><i style="width:${Math.round(j.progress * 100)}%"></i></div></div>`).join("");
+}
+$("jobs").addEventListener("click", (e) => {
+  const dl = e.target.closest("[data-jdl]"), cc = e.target.closest("[data-jcancel]"), rt = e.target.closest("[data-jretry]");
+  if (dl) { const j = state.jobs.find(x => x.id === dl.dataset.jdl); if (j && j.result) saveFile(slug(j.title) + "." + j.result.ext, j.result.blob); }
+  if (cc) { const j = state.jobs.find(x => x.id === cc.dataset.jcancel); if (j) { if (j.status === "waiting") { j.status = "cancelled"; patchScript(j.scriptId, { status: "queued" }); renderJobs(); } else j.cancelled = true; } }
+  if (rt) { const j = state.jobs.find(x => x.id === rt.dataset.jretry); if (j) { state.jobs = state.jobs.filter(x => x !== j); enqueue([j.scriptId]); } }
+});
+$("q-conc").addEventListener("change", pump);
+$("btn-clear-jobs").addEventListener("click", () => { state.jobs = state.jobs.filter(j => j.status === "waiting" || j.status === "running"); renderJobs(); });
+$("btn-render-queued").addEventListener("click", () => { const ids = [...state.scripts.values()].filter(s => s.status === "queued").map(s => s.id); if (!ids.length) toast("Không có kịch bản nào đang chờ render."); else enqueue(ids); });
+
+let autoDone = false;
+function maybeAutoRender() {
+  if (autoDone || !state.loaded.scripts || !state.loaded.settings) return;
+  autoDone = true;
+  // Scripts stuck in "rendering" from a closed tab go back to the queue.
+  [...state.scripts.values()].filter(s => s.status === "rendering").forEach(s => patchScript(s.id, { status: "queued" }));
+  if (!state.settings.autoRenderOnOpen) return;
+  const ids = [...state.scripts.values()].filter(s => s.status === "queued" || s.status === "rendering").map(s => s.id);
+  if (ids.length) { enqueue(ids); toast(`Tự render ${ids.length} kịch bản đang chờ. Xem tab Hàng đợi render.`, 5000); }
+}
+setInterval(() => {
+  const st = state.settings; if (!st.timerEnabled || !st.renderTime) return;
+  const now = new Date(); const hm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  const day = now.toDateString();
+  if (hm === st.renderTime && setInterval._day !== day) {
+    setInterval._day = day;
+    const renderNow = () => {
+      const ids = [...state.scripts.values()].filter(s => s.status === "queued").map(s => s.id).concat([...state.selected]);
+      if (ids.length) enqueue([...new Set(ids)]);
+    };
+    if (LOCAL && st.enabled && cap.sample) autoWriteScripts(clamp(+st.count || 3, 1, 10), st.categories || CATEGORIES).finally(renderNow);
+    else renderNow();
+  }
+}, 20000);
+
+// Local version: write new scripts on schedule with the API key (the claude.ai version uses a scheduled Claude task instead).
+async function autoWriteScripts(n, cats) {
+  if (state.aiBusy) return;
+  try {
+    setAiBusy(true, "Lịch chạy: Claude đang chọn chủ đề…");
+    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all"), { modelTier: "default" });
+    const topics = (r && Array.isArray(r.topics) ? r.topics : []).filter(t => t && t.topic && (!cats.length || cats.includes(t.category))).slice(0, n);
+    setAiBusy(false, "");
+    let done = 0;
+    for (const t of topics) {
+      setAiBusy(true, `Lịch chạy: đang viết “${t.topic}” (${done + 1}/${topics.length})…`);
+      try {
+        const r0 = await cap.sample.json(scriptPrompt(t.topic + (t.angle ? ` — gợi ý: ${t.angle}` : ""), t.category), { modelTier: "default" });
+        let fixed = r0, issues = [], reviewed = false;
+        try { const rv = await aiReview(normScript(r0)); fixed = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
+        await putScript(normScript({ ...fixed, topic: t.topic, category: CATEGORIES.includes(t.category) ? t.category : fixed.category, createdBy: "ai", status: "queued", reviewed, reviewNotes: issues }));
+        done++;
+      } catch (e) { /* skip this topic, keep going */ }
+      setAiBusy(false, "");
+    }
+    await saveLogoSettings({ lastClaudeRun: new Date().toISOString() });
+    setAiBusy(false, done ? `Lịch chạy: đã viết ${done} kịch bản mới và đưa vào hàng chờ.` : "Lịch chạy: không viết được kịch bản nào.");
+  } catch (err) { setAiBusy(false, aiError(err)); }
+}
+
+/* ================= library ================= */
+function renderLibrary() {
+  const el = $("clips"); const list = [...state.clips.values()].sort((a, b) => String(b.renderedAt).localeCompare(String(a.renderedAt)));
+  $("cnt-clips").textContent = list.length || "";
+  if (!list.length) { el.innerHTML = `<div class="empty" style="grid-column:1/-1"><strong>Chưa có clip nào</strong>Clip render xong sẽ xuất hiện ở đây để xem lại và tải về.</div>`; return; }
+  el.innerHTML = list.map(c => {
+    const blob = state.sessionBlobs.get(c.id); let src = c.assetId ? "/_blob/" + c.assetId : "";
+    if (blob) { if (!c._url) c._url = URL.createObjectURL(blob); src = c._url; }
+    return `<div class="clip">
+      ${src ? `<video src="${esc(src)}" controls playsinline preload="metadata"></video>` : `<div class="empty">Không còn bản xem trước</div>`}
+      <div class="name">${esc(c.title)}</div>
+      <div class="meta"><span class="chip cat">${esc(c.category || "")}</span><span>${(+c.durationSec || 0).toFixed(1)}s · ${((+c.sizeBytes || 0) / 1048576).toFixed(1)} MB</span><span>${esc(fmtDate(c.renderedAt))}</span>${c.sessionOnly ? "<span>chỉ trong tab này</span>" : ""}</div>
+      <div class="row"><button class="btn small primary" data-cdl="${c.id}">Tải về</button><button class="btn small ghost danger" data-cdel="${c.id}">Xóa</button></div>
+    </div>`;
+  }).join("");
+  refreshUsage();
+}
+async function refreshUsage() {
+  if (!cap.assets) { $("lib-usage").textContent = ""; return; }
+  try { const r = await cap.assets.list(); const u = r.usage; $("lib-usage").textContent = `Đã dùng ${(u.bytes / 1048576).toFixed(0)} / ${(u.maxBytes / 1048576).toFixed(0)} MB`; } catch (e) {}
+}
+const fmtDate = (iso) => { try { return new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }); } catch (e) { return ""; } };
+$("clips").addEventListener("click", async (e) => {
+  const dl = e.target.closest("[data-cdl]"), del = e.target.closest("[data-cdel]");
+  if (dl) {
+    const c = state.clips.get(dl.dataset.cdl); if (!c) return;
+    let blob = state.sessionBlobs.get(c.id);
+    if (!blob && c.assetId) { try { dl.disabled = true; const r = await fetch("/_blob/" + c.assetId); if (!r.ok) throw new Error(r.status); blob = await r.blob(); } catch (err) { toast("Không tải được clip từ thư viện."); dl.disabled = false; return; } dl.disabled = false; }
+    if (blob) saveFile(c.filename || slug(c.title) + ".mp4", blob);
+  }
+  if (del) {
+    if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = "Bấm lần nữa để xóa"; setTimeout(() => { if (del.isConnected) { del.dataset.confirm = ""; del.textContent = "Xóa"; } }, 3500); return; }
+    const c = state.clips.get(del.dataset.cdel); if (!c) return;
+    try {
+      if (c.assetId && cap.assets) await cap.assets.delete(c.assetId).catch(() => {});
+      if (cap.db && !c.sessionOnly) await cap.db.doc("clips/" + c.id).delete(); else { state.clips.delete(c.id); renderLibrary(); }
+      state.sessionBlobs.delete(c.id); toast("Đã xóa clip.");
+    } catch (err) { toast("Không xóa được clip."); }
+  }
+});
+async function saveFile(filename, blob) {
+  if (!cap.downloads) { toast("Chế độ xem này không cho tải file. Mở artifact trên claude.ai để tải về."); return; }
+  try { await cap.downloads.save({ filename, data: blob }); toast("Đã tải về " + filename); }
+  catch (err) {
+    const code = err && err.code;
+    if (code === "declined") return;
+    if (code === "rate_limited") toast("Đang có một hộp thoại tải về. Hoàn tất nó rồi thử lại.");
+    else toast("Không tải được file: " + ((err && err.message) || code || "lỗi"));
+  }
+}
+function slug(t) { return String(t || "clip").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 60) || "clip"; }
+
+/* ================= schedule ================= */
+function renderSchedule() {
+  const st = state.settings;
+  $("sch-enabled").checked = !!st.enabled; $("sch-count").value = st.count || 3;
+  CATEGORIES.forEach(c => { const el = $("sch-cat-" + c); if (el) el.checked = (st.categories || []).includes(c); });
+  $("sch-autoopen").checked = !!st.autoRenderOnOpen; $("sch-timer").checked = !!st.timerEnabled; $("sch-time").value = st.renderTime || "08:00";
+  $("sch-conc").value = String(st.concurrency || 2);
+  $("sch-claude-time").textContent = LOCAL ? `${st.renderTime || "08:00"} hằng ngày, khi trang đang mở` : (st.claudeTaskLabel || "Chưa thiết lập");
+  $("sch-last").textContent = st.lastClaudeRun ? fmtDate(st.lastClaudeRun) : "Chưa chạy";
+}
+$("btn-save-sched").addEventListener("click", async () => {
+  const next = { ...state.settings,
+    enabled: $("sch-enabled").checked, count: clamp(Math.round(+$("sch-count").value || 3), 1, 10),
+    categories: CATEGORIES.filter(c => $("sch-cat-" + c).checked), autoRenderOnOpen: $("sch-autoopen").checked,
+    timerEnabled: $("sch-timer").checked, renderTime: $("sch-time").value || "08:00", concurrency: +$("sch-conc").value || 2 };
+  if (!next.categories.length) next.categories = CATEGORIES.slice();
+  try {
+    if (cap.db) await cap.db.doc("settings/schedule").set(next); else { state.settings = next; renderSchedule(); }
+    $("q-conc").value = String(next.concurrency); $("sch-msg").textContent = "Đã lưu."; setTimeout(() => $("sch-msg").textContent = "", 2500);
+  } catch (err) { $("sch-msg").textContent = "Không lưu được: " + (err.message || err.code); }
+});
+
+/* ================= logo panel ================= */
+function renderLogoPanel() {
+  const cv = $("logo-prev"); if (!cv) return; const c = cv.getContext("2d");
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = COL.bg; c.fillRect(0, 0, 540, 180);
+  c.setTransform(0.5, 0, 0, 0.5, 0, 0); drawBg(c, 0); drawChrome(c, { category: "NETWORK" }, 0, 10);
+  $("logo-left").checked = logoState.corner !== "right"; $("logo-right").checked = logoState.corner === "right";
+  $("logo-remove").disabled = !logoState.img;
+}
+async function saveLogoSettings(patch) {
+  const next = { ...state.settings, ...patch };
+  if (cap.db) await cap.db.doc("settings/schedule").set(next); else { state.settings = next; }
+}
+$("logo-file").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  if (f.size > 5 * 1048576) { $("logo-msg").textContent = "Ảnh lớn hơn 5 MB. Hãy chọn ảnh nhỏ hơn."; return; }
+  $("logo-msg").textContent = "Đang tải logo lên…";
+  try {
+    let id = "local";
+    if (cap.assets && cap.db) { const up = await cap.assets.upload(f, { type: f.type }); id = up.id; }
+    await loadLogo(id, f);
+    if (id !== "local") await saveLogoSettings({ logoAssetId: id });
+    $("logo-msg").textContent = id === "local" ? "Đã dùng logo cho tab này (chưa lưu được vào bộ nhớ chung)." : "Đã lưu logo. Mọi clip render từ giờ sẽ có logo này.";
+  } catch (err) { $("logo-msg").textContent = "Không tải logo lên được: " + ((err && (err.message || err.code)) || "lỗi"); }
+  e.target.value = "";
+});
+document.querySelectorAll('input[name="logo-corner"]').forEach(r => r.addEventListener("change", async (e) => {
+  logoState.corner = e.target.value === "right" ? "right" : "left"; renderLogoPanel(); pv.draw();
+  try { await saveLogoSettings({ logoCorner: logoState.corner }); $("logo-msg").textContent = "Đã lưu vị trí logo."; } catch (err) { $("logo-msg").textContent = "Không lưu được vị trí."; }
+}));
+$("logo-remove").addEventListener("click", async () => {
+  const old = state.settings.logoAssetId; await loadLogo("");
+  try { await saveLogoSettings({ logoAssetId: "" }); if (old && cap.assets) cap.assets.delete(old).catch(() => {}); $("logo-msg").textContent = "Đang dùng logo vẽ sẵn."; } catch (e) {}
+});
+
+/* ================= boot ================= */
+async function encInfo() {
+  const p = await pickEncoder();
+  $("enc-info").textContent = p.fallback ? "Trình duyệt này không hỗ trợ WebCodecs: clip được ghi theo thời gian thực sang WebM, mỗi lần một clip. Dùng Chrome hoặc Edge để xuất MP4 nhanh hơn."
+    : p.video ? `Xuất MP4 1080×1920, 30 fps, video ${p.video.mux.toUpperCase()}${p.audio ? ", âm thanh " + p.audio.mux.toUpperCase() : ", không có âm thanh (trình duyệt không mã hóa được âm thanh)"}.` : "Trình duyệt này không xuất được video.";
+  if (p.fallback) $("q-conc").value = "1";
+}
+if (LOCAL) {
+  $("brand-sub").textContent = "Bản chạy trên máy · dùng API key · 9:16";
+  $("sch-desc").textContent = "Bản chạy trên máy: vào giờ render bên dưới, nếu trang đang mở, Claude dùng API key của bạn để viết kịch bản mới rồi render luôn.";
+  $("sch-note").hidden = true;
+}
+fillSelects(); renderLogoPanel(); renderList(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
+ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
+encInfo();
+initCaps();
+window.__codelens = { drawFrame, normScript, renderMp4, renderAudio, totalDur, pickEncoder };
+})();
+</script>

@@ -1,0 +1,16 @@
+{
+  "name": "codelens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CodeLens local studio: AI writes Vietnamese tech-explainer scripts and the browser renders 9:16 motion-graphics clips to MP4. Uses your Anthropic API key.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.5.0"
+  }
+}
