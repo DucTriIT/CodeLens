@@ -294,6 +294,7 @@ a.btn { text-decoration: none; color: inherit; }
       <h2>Giọng đọc</h2>
       <p class="hint" id="voice-desc">Mỗi cảnh có lời thuyết minh được đọc bằng giọng tiếng Việt miễn phí (giọng neural của Microsoft Edge). Cảnh tự kéo dài theo độ dài giọng đọc; nhạc nền tự nhỏ lại khi có tiếng nói.</p>
       <div id="voice-controls">
+        <p class="hint" id="v-provider"></p>
         <label class="toggle"><input type="checkbox" id="v-enabled"><span>Thêm giọng đọc khi render</span></label>
         <div class="row" style="margin-top:10px">
           <label class="f"><span>Giọng</span><select id="v-voice"></select></label>
@@ -2047,6 +2048,13 @@ async function renderVoicePanel() {
   $("v-enabled").checked = st.voiceEnabled !== false; $("v-rate").value = st.voiceRate || "+10%";
   try {
     const info = await cap.voice.info();
+    const t = info.tts || {};
+    if (t.provider === "azure") {
+      const used = +t.azureCharsThisMonth || 0, free = +t.azureFreeChars || 500000, pct = Math.round(used / free * 100);
+      $("v-provider").innerHTML = `Nguồn: <b style="color:var(--ok)">Azure AI Speech</b> (chính thức${t.region ? ", " + esc(t.region) : ""})${t.fallback ? ", tự chuyển sang Edge nếu Azure lỗi" : ""}. Tháng này đã dùng <b>${used.toLocaleString("vi-VN")}</b> / ${free.toLocaleString("vi-VN")} ký tự miễn phí (${pct}%).${pct >= 90 ? ' <span style="color:var(--orange)">Sắp hết hạn mức miễn phí.</span>' : ""}`;
+    } else {
+      $("v-provider").innerHTML = `Nguồn: <b>Microsoft Edge</b> (miễn phí, không chính thức, đôi khi từ chối khi gọi nhiều). Thêm <code>AZURE_SPEECH_KEY</code> và <code>AZURE_SPEECH_REGION</code> vào .env để dùng Azure AI Speech chính thức.`;
+    }
     const cur = st.voice || info.defaultVoice;
     $("v-voice").innerHTML = Object.entries(info.voices).map(([k, v]) => `<option value="${esc(k)}"${k === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
   } catch (e) {}

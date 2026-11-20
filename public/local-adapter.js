@@ -86,7 +86,7 @@
   // ---- voice: Vietnamese voice-over generated on the local server (free Edge neural voices) ----
   let status = null;
   const voice = {
-    async info() { if (!status) status = await call("GET", "/api/status"); return { voices: status.voices || {}, defaultVoice: status.defaultVoice }; },
+    async info() { status = await call("GET", "/api/status"); return { voices: status.voices || {}, defaultVoice: status.defaultVoice, tts: status.tts || {} }; },
     async synthesize(text, opts = {}) {
       const res = await fetch("/api/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, voice: opts.voice, rate: opts.rate }) });
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw { code: b.code || "tts_failed", message: b.message || `HTTP ${res.status}` }; }

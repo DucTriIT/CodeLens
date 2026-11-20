@@ -158,25 +158,96 @@ function synthesize(text, voice, rate) {
   return p;
 }
 const TTS_RETRY_WAITS = [1000, 2500, 5000, 10000]; // 5 attempts in total
-async function ttsAudio(text, voice, rate) {
-  const key = crypto.createHash("sha256").update(`${voice}|${rate}|${text}`).digest("hex").slice(0, 32);
-  const file = path.join(DATA, "tts", key + ".mp3");
-  if (existsSync(file)) return fs.readFile(file);
+async function edgeAudio(text, voice, rate) {
   let lastErr;
   for (let attempt = 0; attempt <= TTS_RETRY_WAITS.length; attempt++) {
     try {
       const buf = await synthesize(text, voice, rate);
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(file, buf);
-      if (attempt) console.log(`[tts] ok after ${attempt + 1} attempts`);
+      if (attempt) console.log(`[tts] edge ok after ${attempt + 1} attempts`);
       return buf;
     } catch (err) {
       lastErr = err;
-      console.warn(`[tts] attempt ${attempt + 1} failed: ${err.message || err}`);
+      console.warn(`[tts] edge attempt ${attempt + 1} failed: ${err.message || err}`);
       if (attempt < TTS_RETRY_WAITS.length) await sleep(TTS_RETRY_WAITS[attempt]);
     }
   }
   throw lastErr;
+}
+
+// ---- Azure AI Speech: the official service behind the same neural voices (free tier F0) ----
+const AZURE_KEY = process.env.AZURE_SPEECH_KEY || "";
+const AZURE_REGION = (process.env.AZURE_SPEECH_REGION || "").trim().toLowerCase();
+const AZURE_ENDPOINT = process.env.AZURE_SPEECH_ENDPOINT || (AZURE_REGION ? `https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1` : "");
+const TTS_PROVIDER = ["azure", "edge"].includes(process.env.CODELENS_TTS_PROVIDER) ? process.env.CODELENS_TTS_PROVIDER : "auto";
+const azureReady = Boolean(AZURE_KEY && AZURE_ENDPOINT);
+const AZURE_FREE_CHARS = 500000; // monthly free allowance for neural voices on the F0 tier
+const usageFile = () => path.join(DATA, "tts-usage.json");
+const monthKey = () => new Date().toISOString().slice(0, 7);
+async function readUsage() { try { return JSON.parse(await fs.readFile(usageFile(), "utf8")); } catch { return {}; } }
+async function addUsage(chars) {
+  const u = await readUsage(); const m = monthKey(); u[m] = (u[m] || 0) + chars;
+  await fs.mkdir(DATA, { recursive: true }); await fs.writeFile(usageFile(), JSON.stringify(u));
+}
+let azureChain = Promise.resolve();
+function azureAudio(text, voice, rate) {
+  const run = async () => {
+    const lang = voice.slice(0, 5);
+    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${lang}"><voice name="${voice}"><prosody rate="${rate}">${xmlEscape(text)}</prosody></voice></speak>`;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const res = await fetch(AZURE_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Ocp-Apim-Subscription-Key": AZURE_KEY,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
+          "User-Agent": "codelens",
+        },
+        body: ssml,
+      });
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (!buf.length) throw new Error("Azure trả về âm thanh rỗng.");
+        await addUsage(text.length);
+        return buf;
+      }
+      const detail = (await res.text().catch(() => "")).slice(0, 200);
+      if (res.status === 429 && attempt < 3) { // free tier rate limit: wait as told, then retry
+        const wait = Math.min(30, Number(res.headers.get("retry-after")) || 2 * (attempt + 1)) * 1000;
+        console.warn(`[tts] azure 429, waiting ${wait / 1000}s`);
+        await sleep(wait); continue;
+      }
+      const why = res.status === 401 ? "key Azure không hợp lệ hoặc sai region"
+        : res.status === 403 ? "đã hết hạn mức hoặc tài nguyên Speech bị khóa"
+        : res.status === 400 ? "yêu cầu không hợp lệ (kiểm tra tên giọng)"
+        : `lỗi HTTP ${res.status}`;
+      throw Object.assign(new Error(`Azure: ${why}${detail ? " · " + detail : ""}`), { status: res.status });
+    }
+    throw new Error("Azure: vượt giới hạn tốc độ, thử lại sau.");
+  };
+  const p = azureChain.then(run, run);
+  azureChain = p.catch(() => {});
+  return p;
+}
+
+// Picks the provider: Azure when configured (falls back to Edge if Azure fails), else Edge.
+// Finished audio is cached on disk, so a sentence is synthesized (and billed) only once.
+async function ttsAudio(text, voice, rate) {
+  const key = crypto.createHash("sha256").update(`${voice}|${rate}|${text}`).digest("hex").slice(0, 32);
+  const file = path.join(DATA, "tts", key + ".mp3");
+  if (existsSync(file)) return fs.readFile(file);
+  let buf;
+  if (azureReady && TTS_PROVIDER !== "edge") {
+    try { buf = await azureAudio(text, voice, rate); }
+    catch (err) {
+      console.warn(`[tts] ${err.message}`);
+      if (TTS_PROVIDER === "azure") throw err;
+      console.warn("[tts] falling back to Edge for this sentence");
+    }
+  }
+  if (!buf) buf = await edgeAudio(text, voice, rate);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, buf);
+  return buf;
 }
 
 // ---- Facebook Page publishing (Graph API; personal profiles cannot be posted to by apps) ----
@@ -203,6 +274,12 @@ async function publishToPage(file, caption, title) {
   return body; // { id: <video id> }
 }
 
+async function ttsStatus() {
+  const used = (await readUsage())[monthKey()] || 0;
+  const provider = azureReady && TTS_PROVIDER !== "edge" ? "azure" : "edge";
+  return { provider, region: AZURE_REGION, fallback: provider === "azure" && TTS_PROVIDER !== "azure", azureCharsThisMonth: used, azureFreeChars: AZURE_FREE_CHARS };
+}
+
 // ---- page ----
 const pagePath = path.join(here, "public", "codelens.html");
 const adapterPath = path.join(here, "public", "local-adapter.js");
@@ -217,7 +294,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && url.pathname === "/") return send(res, 200, renderPage(), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname === "/local-adapter.js") return send(res, 200, readFileSync(adapterPath), "text/javascript; charset=utf-8");
-    if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL, voices: TTS_VOICES, defaultVoice: TTS_DEFAULT_VOICE, facebook: { configured: fbConfigured, pageName: FB_PAGE_NAME } });
+    if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL, voices: TTS_VOICES, defaultVoice: TTS_DEFAULT_VOICE, facebook: { configured: fbConfigured, pageName: FB_PAGE_NAME }, tts: await ttsStatus() });
 
     if (req.method === "POST" && url.pathname === "/api/facebook/publish") {
       if (!fbConfigured) return send(res, 400, { code: "fb_not_configured", message: "Chưa cấu hình Fanpage: thêm FB_PAGE_ID và FB_PAGE_TOKEN vào file .env rồi khởi động lại server." });
@@ -339,5 +416,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`CodeLens: http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
   console.log(hasKey ? `Claude: ${MODEL} (API key loaded from environment)` : "Claude: no ANTHROPIC_API_KEY set. AI buttons will show an error until you add one to .env");
+  console.log(azureReady && TTS_PROVIDER !== "edge" ? `Voice: Azure AI Speech (${AZURE_REGION || "custom endpoint"})${TTS_PROVIDER === "azure" ? "" : ", Edge as fallback"}` : "Voice: Microsoft Edge Read Aloud (free, unofficial). Add AZURE_SPEECH_KEY and AZURE_SPEECH_REGION to .env for the official service.");
   console.log(`Data folder: ${DATA}`);
 });

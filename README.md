@@ -104,7 +104,32 @@ Mỗi cảnh có hai lớp chữ:
 - **Phụ đề:** câu nhấn mạnh ngắn, hiện trên màn hình.
 - **Lời thuyết minh:** đoạn giải thích kỹ hơn, được đọc thành tiếng bằng giọng nam tiếng Việt. Cảnh tự kéo dài theo độ dài giọng đọc, đọc xong mới chuyển cảnh. Nhạc nền tự nhỏ lại khi có tiếng nói.
 
-Giọng đọc dùng giọng neural tiếng Việt miễn phí của tính năng Read Aloud trong Microsoft Edge, qua thư viện [`msedge-tts`](https://www.npmjs.com/package/msedge-tts). Không cần key, nhưng cần Internet. Mỗi đoạn đọc được lưu lại trong `data/tts/`, lần sau dùng lại không phải tạo nữa.
+### Nguồn giọng đọc: Azure AI Speech (nên dùng)
+
+Azure AI Speech là dịch vụ chính thức của Microsoft, có cùng giọng `vi-VN-NamMinhNeural`. Gói **Free (F0)** cho khoảng 500.000 ký tự giọng neural mỗi tháng, tương đương khoảng 300 clip 2 phút. Kiểm tra lại hạn mức trên trang giá của Azure, vì Microsoft có thể thay đổi.
+
+Cách lấy key:
+
+1. Đăng ký tài khoản tại https://azure.microsoft.com/free. Azure có thể yêu cầu thẻ để xác minh; gói F0 không tự trừ tiền.
+2. Vào https://portal.azure.com → **Create a resource** → tìm **Speech** → **Create**.
+3. Chọn **Region** gần bạn, ví dụ **Southeast Asia**, và **Pricing tier: Free F0**. Mỗi subscription chỉ được một tài nguyên F0.
+4. Tạo xong, mở tài nguyên → **Keys and Endpoint**. Copy **KEY 1** và **Location/Region** (ví dụ `southeastasia`).
+5. Điền vào `.env` rồi khởi động lại server:
+
+   ```
+   AZURE_SPEECH_KEY=<KEY 1>
+   AZURE_SPEECH_REGION=southeastasia
+   ```
+
+Khi server khởi động, dòng `Voice: Azure AI Speech (southeastasia), Edge as fallback` cho biết đã nhận key. Tab **Lịch & logo → Giọng đọc** hiện số ký tự Azure đã dùng trong tháng. Bộ đếm chỉ tính các câu Azure tạo ra trên máy này; số chính xác xem trong Azure portal.
+
+- Mặc định (`CODELENS_TTS_PROVIDER=auto`), nếu Azure lỗi (hết hạn mức, sai key, mất mạng) thì câu đó tự dùng Edge, để render không bị dừng.
+- Đặt `CODELENS_TTS_PROVIDER=azure` nếu chỉ muốn dùng Azure, hoặc `edge` nếu muốn tắt Azure.
+- Câu nào đã tạo giọng thì được lưu trong `data/tts/` và dùng lại, không tốn thêm ký tự.
+
+### Nguồn giọng đọc dự phòng: Microsoft Edge
+
+Khi chưa có key Azure, giọng đọc dùng giọng neural tiếng Việt miễn phí của tính năng Read Aloud trong Microsoft Edge, qua thư viện [`msedge-tts`](https://www.npmjs.com/package/msedge-tts). Không cần key, nhưng cần Internet. Mỗi đoạn đọc được lưu lại trong `data/tts/`, lần sau dùng lại không phải tạo nữa.
 
 Cần biết trước khi dùng cho kênh:
 
