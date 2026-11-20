@@ -274,6 +274,70 @@ async function publishToPage(file, caption, title) {
   return body; // { id: <video id> }
 }
 
+// Reels Publishing API: start a session, upload the bytes to rupload, then finish with
+// video_state=PUBLISHED. Meta documents reels via API as 3-90 s; longer clips are refused
+// with error 1363128 (the Facebook app itself accepts longer reels).
+const FB_GRAPH_BASE = process.env.FB_GRAPH_BASE || "https://graph.facebook.com";
+const FB_RUPLOAD_BASE = process.env.FB_RUPLOAD_BASE || "https://rupload.facebook.com";
+async function fbJson(res) {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body.error) {
+    const e = body.error || {};
+    throw Object.assign(new Error(e.error_user_msg || e.message || `Facebook trả lỗi HTTP ${res.status}`), { fbCode: e.code, fbSub: e.error_subcode });
+  }
+  return body;
+}
+async function publishReel(file, caption, title) {
+  const reels = `${FB_GRAPH_BASE}/${FB_GRAPH_VERSION}/${encodeURIComponent(FB_PAGE_ID)}/video_reels`;
+  const start = await fbJson(await fetch(reels, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ upload_phase: "start", access_token: FB_PAGE_TOKEN }) }));
+  const videoId = String(start.video_id || "");
+  if (!/^\d+$/.test(videoId)) throw new Error("Facebook không trả về video_id cho phiên tải Reels.");
+  const buf = await fs.readFile(file);
+  const up = await fbJson(await fetch(`${FB_RUPLOAD_BASE}/video-upload/${FB_GRAPH_VERSION}/${videoId}`, {
+    method: "POST", body: buf,
+    headers: { authorization: `OAuth ${FB_PAGE_TOKEN}`, offset: "0", file_size: String(buf.length), "content-type": "application/octet-stream" },
+  }));
+  if (up.success === false) throw new Error("Facebook không nhận file video (rupload).");
+  const fin = new URLSearchParams({ access_token: FB_PAGE_TOKEN, video_id: videoId, upload_phase: "finish", video_state: "PUBLISHED", description: caption });
+  if (title) fin.set("title", title.slice(0, 250));
+  await fbJson(await fetch(reels, { method: "POST", body: fin }));
+  return { id: videoId };
+}
+
+// Captions: POST /{video-id}/captions with an SRT named <name>.<locale>.srt (max 200 KB).
+// Right after upload the video can still be processing, so retry a few times.
+async function uploadCaptions(videoId, srt, locale = "vi_VN") {
+  const data = Buffer.from(String(srt), "utf8");
+  if (!data.length) return { ok: false, message: "Không có phụ đề." };
+  if (data.length > 200 * 1024) return { ok: false, message: "File phụ đề vượt 200 KB." };
+  let last = null;
+  for (const wait of [0, 4000, 8000, 15000, 25000]) {
+    if (wait) await new Promise(r => setTimeout(r, wait));
+    try {
+      const form = new FormData();
+      form.append("access_token", FB_PAGE_TOKEN);
+      form.append("default_locale", locale);
+      form.append("captions_file", new Blob([data], { type: "application/x-subrip" }), `codelens.${locale}.srt`);
+      await fbJson(await fetch(`${FB_GRAPH_BASE}/${FB_GRAPH_VERSION}/${videoId}/captions`, { method: "POST", body: form }));
+      return { ok: true };
+    } catch (err) {
+      last = err;
+      if (err.fbCode === 190 || err.fbCode === 482 || err.fbCode === 385 || err.fbCode === 386) break; // not transient
+    }
+  }
+  return { ok: false, message: last ? last.message : "Không tải được phụ đề." };
+}
+function fbHint(err, reel) {
+  const c = err.fbCode, sub = err.fbSub;
+  if (c === 1363128 || sub === 1363128 || /duration/i.test(err.message) && reel)
+    return " API Reels của Meta chỉ nhận clip 3–90 giây. Clip dài hơn: tải video về rồi đăng Reels bằng app Facebook (app cho phép clip dài hơn), hoặc dùng nút Đăng lên Fanpage (video thường).";
+  if (c === 190) return " Token đã hết hạn hoặc không hợp lệ: tạo Page access token mới.";
+  if (c === 100 && /permission/i.test(err.message)) return " Token thiếu quyền đăng video: tạo lại token với quyền publish_video và pages_manage_posts, chọn đúng Fanpage khi cấp quyền (xem README → Chia sẻ Facebook).";
+  if (c === 200 || c === 10) return " Token thiếu quyền pages_manage_posts hoặc bạn không phải quản trị viên Fanpage.";
+  if (c === 4 || c === 32 || c === 613) return reel ? " Đã chạm giới hạn của Facebook (Reels qua API: tối đa 30 bài mỗi 24 giờ). Thử lại sau." : " Đã chạm giới hạn gọi API của Facebook. Thử lại sau.";
+  return "";
+}
+
 async function ttsStatus() {
   const used = (await readUsage())[monthKey()] || 0;
   const provider = azureReady && TTS_PROVIDER !== "edge" ? "azure" : "edge";
@@ -298,21 +362,24 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/facebook/publish") {
       if (!fbConfigured) return send(res, 400, { code: "fb_not_configured", message: "Chưa cấu hình Fanpage: thêm FB_PAGE_ID và FB_PAGE_TOKEN vào file .env rồi khởi động lại server." });
-      const { assetId, caption, title } = JSON.parse((await readBody(req, 256 * 1024)).toString("utf8") || "{}");
+      const { assetId, caption, title, kind, srt } = JSON.parse((await readBody(req, 1024 * 1024)).toString("utf8") || "{}");
+      const reel = kind === "reel";
       if (!/^[0-9a-f]{32}$/.test(assetId || "")) return send(res, 400, { code: "invalid_request", message: "Thiếu file video." });
       const file = path.join(DATA, "assets", assetId);
       if (!existsSync(file)) return send(res, 404, { code: "not_found", message: "Không tìm thấy file video trong thư viện." });
+      let out;
       try {
-        const out = await publishToPage(file, String(caption || "").slice(0, 5000), String(title || ""));
-        console.log(`[facebook] published video ${out.id}`);
-        return send(res, 200, { id: out.id, url: `https://www.facebook.com/${encodeURIComponent(out.id)}` });
+        out = reel ? await publishReel(file, String(caption || "").slice(0, 2200), String(title || ""))
+          : await publishToPage(file, String(caption || "").slice(0, 5000), String(title || ""));
+        console.log(`[facebook] published ${reel ? "reel" : "video"} ${out.id}`);
       } catch (err) {
         console.error("[facebook]", err.message);
-        const hint = err.fbCode === 190 ? " Token đã hết hạn hoặc không hợp lệ: tạo Page access token mới."
-          : err.fbCode === 100 && /permission/i.test(err.message) ? " Token thiếu quyền đăng video: tạo lại token với quyền publish_video và pages_manage_posts, chọn đúng Fanpage khi cấp quyền (xem README → Chia sẻ Facebook)."
-          : err.fbCode === 200 || err.fbCode === 10 ? " Token thiếu quyền pages_manage_posts hoặc bạn không phải quản trị viên Fanpage." : "";
-        return send(res, 502, { code: "fb_failed", message: err.message + hint });
+        return send(res, 502, { code: "fb_failed", message: err.message + fbHint(err, reel) });
       }
+      const captions = srt ? await uploadCaptions(out.id, srt) : null;
+      if (captions && !captions.ok) console.error("[facebook] captions:", captions.message);
+      const link = reel ? `https://www.facebook.com/reel/${encodeURIComponent(out.id)}` : `https://www.facebook.com/${encodeURIComponent(out.id)}`;
+      return send(res, 200, { id: out.id, url: link, captions });
     }
 
     if (req.method === "POST" && url.pathname === "/api/tts") {

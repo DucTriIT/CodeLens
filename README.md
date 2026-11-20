@@ -165,7 +165,10 @@ Trong trình soạn:
 Mỗi clip trong Thư viện (và trong Hàng đợi khi render xong) có nút **Chia sẻ Facebook**. Hộp chia sẻ gồm:
 
 - **Caption:** soạn sẵn từ kịch bản (tiêu đề, câu mở đầu, các ý chính, hashtag). Bấm **AI viết caption** để Claude viết lại cho hấp dẫn hơn, rồi bấm **Sao chép caption**.
-- **Đăng thẳng lên Fanpage:** chỉ có ở bản chạy trên máy, khi `.env` có `FB_PAGE_ID` và `FB_PAGE_TOKEN`. Video được tải lên Fanpage kèm caption, công khai ngay; trang hỏi bấm hai lần để tránh đăng nhầm.
+- **Đăng thẳng lên Fanpage:** chỉ có ở bản chạy trên máy, khi `.env` có `FB_PAGE_ID` và `FB_PAGE_TOKEN`. Có hai nút, đều đăng công khai ngay và hỏi bấm hai lần để tránh đăng nhầm:
+  - **Đăng lên Reels:** dùng Reels Publishing API (`/{page}/video_reels`: start, tải file lên `rupload.facebook.com`, finish với `video_state=PUBLISHED`). Clip hiện ở tab Reels và bảng tin. Meta ghi giới hạn cho Reels đăng qua API là **3–90 giây** và tối đa 30 Reels mỗi 24 giờ. Clip dài hơn có thể bị từ chối (lỗi 1363128); khi đó trang báo rõ, và bạn tải video về đăng Reels bằng app Facebook (app nhận clip dài hơn) hoặc dùng nút Đăng lên Fanpage. CodeLens không cắt hay đổi độ dài clip.
+  - **Đăng lên Fanpage:** đăng thành bài video thường (`/{page}/videos`).
+  - **Kèm phụ đề tiếng Việt** (bật sẵn): sau khi đăng, server tải file `.srt` của clip lên `/{video-id}/captions` với ngôn ngữ mặc định `vi_VN`, nên người xem bật được phụ đề (CC) trên Facebook. Nếu Facebook chưa xử lý xong video, server thử lại vài lần. Nếu vẫn lỗi, bài vẫn được đăng và trang báo để bạn tải gói phụ đề rồi thêm tay trong Meta Business Suite. API không có chỗ cho transcript dạng text, nên `transcript.txt` vẫn phải tải lên tay nếu bạn muốn.
 - **Chia sẻ qua ứng dụng:** hiện khi trình duyệt hỗ trợ chia sẻ file (điện thoại, Windows), để chọn ứng dụng Facebook.
 - **Tự đăng trên Facebook:** tải video, sao chép caption, mở facebook.com, rồi tạo bài viết hoặc Reel. Dùng cách này cho **trang cá nhân**.
 
@@ -177,7 +180,7 @@ Lấy `FB_PAGE_ID` và `FB_PAGE_TOKEN`:
 
 1. Tạo một app tại https://developers.facebook.com (loại Business).
 2. Mở Graph API Explorer, chọn app vừa tạo, chọn **Get User Access Token** và cấp các quyền `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` và **`publish_video`** (bắt buộc để đăng video; thêm `business_management` nếu Fanpage nằm trong Meta Business Suite). Bấm Generate Access Token và **tick chọn đúng Fanpage** trong hộp thoại cấp quyền.
-3. Gọi `me/accounts?fields=id,name,access_token,tasks`. Ở dòng Fanpage của bạn, `tasks` phải có `CREATE_CONTENT`; `id` là `FB_PAGE_ID`, `access_token` là `FB_PAGE_TOKEN`. Kiểm tra token bằng Access Token Debugger: Type là Page và Scopes có `pages_manage_posts` lẫn `publish_video`.
+3. Gọi `me/accounts?fields=id,name,access_token,tasks`. Ở dòng Fanpage của bạn, `tasks` phải có `CREATE_CONTENT`; `id` là `FB_PAGE_ID`, `access_token` là `FB_PAGE_TOKEN`. Kiểm tra token bằng Access Token Debugger: Type là Page và Scopes có `pages_manage_posts` lẫn `publish_video`. Token này dùng chung cho cả nút Đăng lên Reels, Đăng lên Fanpage và phần gắn phụ đề, không cần thêm quyền mới.
 4. Token lấy từ Explorer thường hết hạn sau vài giờ. Đổi sang token dài hạn bằng Access Token Debugger (nút Extend), rồi gọi lại `me/accounts` để lấy Page token không hết hạn.
 
 Token này đăng được lên Fanpage của bạn: giữ bí mật như mật khẩu, chỉ để trong `.env`.
