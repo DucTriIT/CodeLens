@@ -1940,17 +1940,23 @@ function captionTemplate(script, clip) {
   const points = script ? script.scenes.slice(1).map(sc => plain(sc.subtitle)).filter(Boolean).slice(0, 4) : [];
   const tags = ["#CodeLens", ...(HASHTAGS[(script && script.category) || clip.category] || []), "#LapTrinh", "#Developer"];
   const sr = script && script.series;
-  return [`${title.toUpperCase()}${sr ? ` (Phần ${sr.part}/${sr.total})` : ""} — giải thích trong ${Math.round(+clip.durationSec || 60)} giây`, script && script.hook ? plain(script.hook) : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để xem thêm các khái niệm khó, giải thích dễ hiểu cho dev.", "", tags.join(" ")].filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
+  return [`${title.toUpperCase()}${sr ? ` (Phần ${sr.part}/${sr.total})` : ""} — giải thích trong ${Math.round(+clip.durationSec || 60)} giây`, script && script.hook ? plain(script.hook) : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để hiểu sâu thêm các khái niệm khó cho dev.", "", tags.join(" ")].filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
 }
 function captionPrompt(script) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = script;
   return `Viết caption tiếng Việt cho bài đăng Facebook kèm video ngắn của kênh CodeLens (kênh giải thích khái niệm công nghệ cho lập trình viên Việt Nam).
-Yêu cầu:
-- Dòng đầu là hook gây tò mò, ngắn.
-- 3 đến 5 dòng tóm tắt ý chính của video, mỗi dòng bắt đầu bằng một emoji phù hợp. Nội dung phải đúng với kịch bản, không thêm thông tin ngoài kịch bản.
-- Một câu kêu gọi theo dõi kênh hoặc bình luận câu hỏi.
-- Dòng cuối 4 đến 6 hashtag, luôn có #CodeLens.
-- Tổng dưới 900 ký tự. Văn tự nhiên, không sến, không dùng chữ in hoa toàn bộ trừ thuật ngữ.
+Cấu trúc, theo đúng thứ tự:
+1. Dòng tiêu đề: tên chủ đề viết hoa, " — giải thích trong N giây" (N là tổng thời lượng các cảnh, làm tròn).
+2. Hook: một câu hỏi đánh vào chỗ dev hay hiểu sai hoặc thấy vô lý (ví dụ: "HTTP/2 đã multiplex rồi, sao mất 1 packet cả trang vẫn khựng?").
+3. Gọi đúng tên kỹ thuật của vấn đề hoặc khái niệm trong một câu ngắn (ví dụ: "Đây là TCP Head-of-Line Blocking."), để người xem biết từ khóa mà tra cứu.
+4. 3 đến 5 dòng bắt đầu bằng "👉 ", đi theo mạch nguyên nhân → hậu quả → giải pháp → kết quả. Mỗi dòng nêu một cơ chế cụ thể, có tên thành phần (TCP, stream, packet, retransmit…), không nói chung chung kiểu "tự lo hết", "tối ưu hơn", "xịn hơn". Nói đúng phạm vi: ví dụ QUIC đảm bảo tin cậy và thứ tự theo từng stream, không phải "reliability" chung chung.
+5. Một câu kêu gọi theo dõi CodeLens, ngắn, tự nhiên, dưới 15 từ.
+6. Dòng cuối 5 đến 7 hashtag: #CodeLens, các hashtag tên công nghệ chính trong video, một hashtag lĩnh vực, #Developer.
+Quy tắc:
+- Mọi khẳng định kỹ thuật phải đúng và có trong kịch bản; không thêm số liệu hay tính năng ngoài kịch bản. Dùng "có thể" khi hiện tượng không phải lúc nào cũng xảy ra.
+- Facebook không hiển thị markdown: không dùng **, __, #tiêu đề hay dấu gạch đầu dòng "-".
+- Giữ thuật ngữ tiếng Anh chuẩn (Multiplexing, Head-of-Line Blocking, stream…), phần còn lại tiếng Việt tự nhiên, không sến.
+- Tổng dưới 900 ký tự.
 Kịch bản video:
 ${JSON.stringify(body)}
 Chỉ trả về JSON: {"caption": "..."}`;
