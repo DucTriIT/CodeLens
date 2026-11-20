@@ -97,6 +97,17 @@ CodeLens ưu tiên chất lượng hơn độ ngắn. Khi viết từ chủ đ�
 
 Ví dụ có sẵn: series **Outbox Pattern** gồm 3 phần: lỗi dual write, cách outbox hoạt động, gửi trùng và thứ tự event.
 
+### Cảnh vẽ nét (AI Orchestra)
+
+Layout **Vẽ nét: nhiều agent cùng vẽ** (`"layout": "sketch"`) là một cảnh trình diễn không cần lời:
+- Một Orchestrator chia bức tranh thành nhiều phần việc, mỗi phần có khung màu riêng.
+- Mỗi agent (một actor trong cảnh, tối đa 6) nhận một phần và vẽ từng nét mực đen, song song với các agent khác.
+- Xong việc, các agent về chỗ và nhận dấu tick, rồi Orchestrator ghép thành hình hoàn chỉnh.
+
+Hình có sẵn là `"art": "teacher"`: người thầy, bảng "20/11" và quả táo. Cảnh dài 8–40 giây. Thêm `"noOutro": true` ở cấp kịch bản để bỏ thẻ follow cuối clip.
+
+Ví dụ: `examples/ai-orchestra-ve-thay-giao.json`. Bấm **Nhập kịch bản** để mở.
+
 ## Giọng đọc (thuyết minh)
 
 Mỗi cảnh có hai lớp chữ:

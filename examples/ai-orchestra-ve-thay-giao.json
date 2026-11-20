@@ -1,0 +1,24 @@
+{
+  "title": "AI Orchestra: 5 agent cùng vẽ người thầy",
+  "topic": "AI Orchestra: orchestrator chia việc, nhiều agent cùng vẽ song song",
+  "category": "AI",
+  "hook": "",
+  "noOutro": true,
+  "scenes": [
+    {
+      "layout": "sketch",
+      "art": "teacher",
+      "duration": 22,
+      "heading": "AI *ORCHESTRA*",
+      "subtitle": "",
+      "narration": "",
+      "actors": [
+        { "icon": "robot", "label": "Đầu & tóc" },
+        { "icon": "robot", "label": "Khuôn mặt" },
+        { "icon": "robot", "label": "Áo & cà vạt" },
+        { "icon": "robot", "label": "Tay & sách" },
+        { "icon": "robot", "label": "Bảng 20/11" }
+      ]
+    }
+  ]
+}
