@@ -308,7 +308,9 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { id: out.id, url: `https://www.facebook.com/${encodeURIComponent(out.id)}` });
       } catch (err) {
         console.error("[facebook]", err.message);
-        const hint = err.fbCode === 190 ? " Token đã hết hạn hoặc không hợp lệ: tạo Page access token mới." : err.fbCode === 200 || err.fbCode === 10 ? " Token thiếu quyền pages_manage_posts hoặc bạn không phải quản trị viên Fanpage." : "";
+        const hint = err.fbCode === 190 ? " Token đã hết hạn hoặc không hợp lệ: tạo Page access token mới."
+          : err.fbCode === 100 && /permission/i.test(err.message) ? " Token thiếu quyền đăng video: tạo lại token với quyền publish_video và pages_manage_posts, chọn đúng Fanpage khi cấp quyền (xem README → Chia sẻ Facebook)."
+          : err.fbCode === 200 || err.fbCode === 10 ? " Token thiếu quyền pages_manage_posts hoặc bạn không phải quản trị viên Fanpage." : "";
         return send(res, 502, { code: "fb_failed", message: err.message + hint });
       }
     }

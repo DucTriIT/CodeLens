@@ -164,8 +164,8 @@ Facebook không cho phần mềm tự đăng lên trang cá nhân; API chỉ đ�
 Lấy `FB_PAGE_ID` và `FB_PAGE_TOKEN`:
 
 1. Tạo một app tại https://developers.facebook.com (loại Business).
-2. Mở Graph API Explorer, chọn app vừa tạo, cấp quyền `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, rồi bấm Generate Access Token.
-3. Gọi `me/accounts`. Kết quả liệt kê các Fanpage bạn quản trị, kèm `id` (đây là `FB_PAGE_ID`) và `access_token` (đây là `FB_PAGE_TOKEN`).
+2. Mở Graph API Explorer, chọn app vừa tạo, chọn **Get User Access Token** và cấp các quyền `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` và **`publish_video`** (bắt buộc để đăng video; thêm `business_management` nếu Fanpage nằm trong Meta Business Suite). Bấm Generate Access Token và **tick chọn đúng Fanpage** trong hộp thoại cấp quyền.
+3. Gọi `me/accounts?fields=id,name,access_token,tasks`. Ở dòng Fanpage của bạn, `tasks` phải có `CREATE_CONTENT`; `id` là `FB_PAGE_ID`, `access_token` là `FB_PAGE_TOKEN`. Kiểm tra token bằng Access Token Debugger: Type là Page và Scopes có `pages_manage_posts` lẫn `publish_video`.
 4. Token lấy từ Explorer thường hết hạn sau vài giờ. Đổi sang token dài hạn bằng Access Token Debugger (nút Extend), rồi gọi lại `me/accounts` để lấy Page token không hết hạn.
 
 Token này đăng được lên Fanpage của bạn: giữ bí mật như mật khẩu, chỉ để trong `.env`.
