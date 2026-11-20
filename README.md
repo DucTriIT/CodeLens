@@ -100,6 +100,12 @@ Cần biết trước khi dùng cho kênh:
 - Đây là dịch vụ không chính thức. Microsoft không công bố nó như một API công khai, nên có thể đổi hoặc ngừng bất cứ lúc nào, và điều khoản dùng cho mục đích thương mại (kênh có kiếm tiền) chưa rõ ràng.
 - Muốn chắc chắn về bản quyền giọng đọc, dùng dịch vụ có giấy phép: Azure AI Speech (cùng giọng NamMinh, có gói miễn phí hằng tháng), FPT.AI hoặc Viettel AI.
 
+Nếu render báo "Không tạo được giọng đọc":
+
+- **"Dịch vụ giọng đọc tạm thời từ chối":** dịch vụ miễn phí đôi khi cắt kết nối khi nhận nhiều yêu cầu liên tiếp. Server đã tự thử lại 5 lần. Nếu vẫn lỗi, chờ vài phút rồi bấm **Thử lại** trong Hàng đợi; các cảnh đã có giọng đọc được giữ lại, không phải tạo lại.
+- **"Không kết nối được dịch vụ giọng đọc":** máy không ra được Internet, hoặc tường lửa/proxy chặn `speech.platform.bing.com`.
+- Cửa sổ server in các dòng `[tts] …` cho biết lần thử nào lỗi và vì sao.
+
 Trong trình soạn:
 
 - **▶ Nghe:** nghe thử lời thuyết minh của từng cảnh.

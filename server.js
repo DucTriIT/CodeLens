@@ -121,37 +121,60 @@ const TTS_DEFAULT_VOICE = TTS_VOICES[process.env.CODELENS_TTS_VOICE] ? process.e
 const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
 const ttsAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
 const xmlEscape = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
+// The free Edge service sometimes closes a stream mid-sentence, mostly when it gets many
+// connections in a row. So: one shared connection reused for every sentence, a short gap
+// between requests, and several retries with growing waits.
 let ttsChain = Promise.resolve(); // one synthesis at a time is gentler on the free service
+let ttsClient = null, ttsClientVoice = "", lastTtsAt = 0;
+const TTS_GAP_MS = 300;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function dropTtsClient() { try { ttsClient && ttsClient.close(); } catch { /* already closed */ } ttsClient = null; ttsClientVoice = ""; }
+async function getTtsClient(voice) {
+  if (ttsClient && ttsClientVoice === voice) return ttsClient;
+  dropTtsClient();
+  const c = new MsEdgeTTS({ agent: ttsAgent, connectionTimeoutMs: 15000, synthesisTimeoutMs: 60000 });
+  await c.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+  ttsClient = c; ttsClientVoice = voice;
+  return c;
+}
 function synthesize(text, voice, rate) {
   const run = async () => {
-    const tts = new MsEdgeTTS({ agent: ttsAgent, connectionTimeoutMs: 15000, synthesisTimeoutMs: 60000 });
+    const wait = lastTtsAt + TTS_GAP_MS - Date.now();
+    if (wait > 0) await sleep(wait);
     try {
-      await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3);
+      const tts = await getTtsClient(voice);
       const { audioStream } = tts.toStream(xmlEscape(text), { rate });
       return await new Promise((resolve, reject) => {
-        const chunks = [];
+        const chunks = []; let failed = false;
         audioStream.on("data", (d) => chunks.push(d));
-        audioStream.on("error", reject);
-        audioStream.on("close", () => (chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error("Không nhận được âm thanh."))));
+        audioStream.on("error", (e) => { failed = true; reject(e); });
+        audioStream.on("close", () => { if (failed) return; chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error("Không nhận được âm thanh.")); });
       });
-    } finally { try { tts.close(); } catch { /* already closed */ } }
+    } catch (err) { dropTtsClient(); throw err; } // start a fresh connection on the next try
+    finally { lastTtsAt = Date.now(); }
   };
   const p = ttsChain.then(run, run);
   ttsChain = p.catch(() => {});
   return p;
 }
+const TTS_RETRY_WAITS = [1000, 2500, 5000, 10000]; // 5 attempts in total
 async function ttsAudio(text, voice, rate) {
   const key = crypto.createHash("sha256").update(`${voice}|${rate}|${text}`).digest("hex").slice(0, 32);
   const file = path.join(DATA, "tts", key + ".mp3");
   if (existsSync(file)) return fs.readFile(file);
   let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt <= TTS_RETRY_WAITS.length; attempt++) {
     try {
       const buf = await synthesize(text, voice, rate);
       await fs.mkdir(path.dirname(file), { recursive: true });
       await fs.writeFile(file, buf);
+      if (attempt) console.log(`[tts] ok after ${attempt + 1} attempts`);
       return buf;
-    } catch (err) { lastErr = err; await new Promise((r) => setTimeout(r, 800 * (attempt + 1))); }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[tts] attempt ${attempt + 1} failed: ${err.message || err}`);
+      if (attempt < TTS_RETRY_WAITS.length) await sleep(TTS_RETRY_WAITS[attempt]);
+    }
   }
   throw lastErr;
 }
@@ -220,7 +243,13 @@ const server = http.createServer(async (req, res) => {
       const v = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
       const r = /^[+-]?\d{1,2}%$/.test(String(rate || "")) ? String(rate) : "+0%";
       try { return send(res, 200, await ttsAudio(clean, v, r), "audio/mpeg"); }
-      catch (err) { console.error("[tts]", err.message || err); return send(res, 502, { code: "tts_failed", message: "Không tạo được giọng đọc (cần Internet để dùng giọng đọc Microsoft Edge). Thử lại sau." }); }
+      catch (err) {
+        console.error("[tts] gave up:", err.message || err, "| text:", clean.slice(0, 80));
+        const offline = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ENETUNREACH/.test(String(err.message || err.code || ""));
+        return send(res, 502, { code: "tts_failed", message: offline
+          ? "Không kết nối được dịch vụ giọng đọc Microsoft Edge: kiểm tra Internet hoặc tường lửa, rồi bấm Thử lại."
+          : `Dịch vụ giọng đọc tạm thời từ chối (thường do gửi nhiều yêu cầu liên tiếp). Chờ ít phút rồi bấm Thử lại: các cảnh đã tạo được giữ lại. Chi tiết: ${String(err.message || err).slice(0, 160)}` });
+      }
     }
 
     if (req.method === "GET" && url.pathname === "/api/events") {

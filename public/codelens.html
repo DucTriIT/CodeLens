@@ -936,7 +936,9 @@ async function prepareVoice(s, onStep) {
     const sc = s.scenes[i]; const text = narrationText(sc);
     if (onStep) onStep(i, s.scenes.length);
     if (!text) { voices.push(null); scenes.push(sc); continue; }
-    const buffer = await narrationAudio(text, opts);
+    let buffer;
+    try { buffer = await narrationAudio(text, opts); }
+    catch (e) { throw new Error(`cảnh ${i + 1}: ${(e && e.message) || e}`); }
     voices.push({ buffer });
     scenes.push({ ...sc, duration: Math.max(sc.duration, Math.round((VOICE_LEAD + buffer.duration + VOICE_TAIL) * 10) / 10) });
   }
