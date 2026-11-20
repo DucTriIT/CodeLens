@@ -61,6 +61,31 @@ Mỗi kịch bản có ba phần, ghi ở ô **Phần** của từng cảnh:
 
 Cuối mọi clip, CodeLens tự thêm **cảnh kêu gọi follow**: logo lớn, nút "Theo dõi" được bấm, kèm lời đọc. Đổi chữ hoặc tắt cảnh này ở tab **Lịch & logo → Cảnh kết**. Trình soạn hiện số cảnh của mỗi phần và báo khi kịch bản thiếu phần nào.
 
+### Tiêu chí chất lượng
+
+AI viết và AI kiểm tra kỹ thuật đều theo các tiêu chí sau. Giọng kể như một Senior Developer giải thích cho một Junior: đặt vấn đề, dẫn dắt, giải thích vì sao, rồi mới tới cách triển khai.
+
+| Tiêu chí | Quy tắc |
+|---|---|
+| Hook | Bắt đầu bằng một vấn đề thực tế |
+| Mở bài | Nói rõ người xem sẽ học được gì |
+| Thuật ngữ | Giải thích bằng một câu đơn giản trước khi dùng |
+| Ví dụ | Một ví dụ cụ thể xuyên suốt clip |
+| Hình | Mỗi cảnh một ý chính; bảng hoặc danh sách tối đa 4 mục |
+| Lời đọc | Giải thích thêm, không đọc lại nguyên văn phụ đề |
+| Độ sâu | Người mới hiểu được, dev có kinh nghiệm vẫn học thêm |
+| Kết bài | Một thông điệp chính, kèm giới hạn của giải pháp |
+
+### Series nhiều phần
+
+CodeLens ưu tiên chất lượng hơn độ ngắn. Khi viết từ chủ đề hoặc từ bài viết, AI lên kế hoạch trước. Nếu một clip khoảng 2 phút không đủ để giải thích kỹ, AI chia thành series (tối đa 4 phần) và viết từng phần, các phần dùng chung một ví dụ và không lặp ý.
+
+- Mỗi phần có nhãn **PHẦN 1/3** ở góc trên.
+- Cảnh cuối của các phần chưa phải phần cuối đổi thành **"ĐÓN XEM PHẦN 2"**, đọc lời giới thiệu phần sau. Sửa lời này trong trình soạn, ô "Lời giới thiệu phần…".
+- Phần cuối kết bằng cảnh follow như thường.
+
+Ví dụ có sẵn: series **Outbox Pattern** gồm 3 phần: lỗi dual write, cách outbox hoạt động, gửi trùng và thứ tự event.
+
 ## Giọng đọc (thuyết minh)
 
 Mỗi cảnh có hai lớp chữ:

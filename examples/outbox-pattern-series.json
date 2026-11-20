@@ -1,0 +1,1063 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "topic": "Outbox Pattern",
+   "category": "Architecture",
+   "metaphor": "Order service lưu đơn hàng rồi gửi event OrderCreated qua Kafka để Email service gửi mail xác nhận",
+   "status": "draft",
+   "createdBy": "ai",
+   "sample": false,
+   "createdAt": "2026-11-20T03:00:00.000Z",
+   "reviewed": true,
+   "reviewNotes": [],
+   "title": "Outbox Pattern (Phần 1): Lỗi dual write",
+   "hook": "Đơn đã lưu, nhưng email xác nhận không bao giờ được gửi?",
+   "series": {
+    "id": "outbox-series",
+    "title": "Outbox Pattern",
+    "part": 1,
+    "total": 3
+   },
+   "nextTeaser": "Ở phần hai, mình sẽ cho bạn thấy outbox pattern giải quyết lỗi này bằng một ý tưởng rất đơn giản.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 3,
+     "heading": "*OUTBOX* PATTERN",
+     "subtitle": "Đơn đã lưu, nhưng email xác nhận *không bao giờ* được gửi?",
+     "narration": "Khách đặt hàng thành công, đơn đã nằm trong database, nhưng email xác nhận thì không bao giờ tới. Lỗi này đến từ đâu?",
+     "actors": [
+      {
+       "icon": "cart",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "mail",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "intro",
+     "layout": "stack",
+     "duration": 3,
+     "heading": "PHẦN 1 *NÓI GÌ*?",
+     "subtitle": "Vì sao lưu dữ liệu rồi gửi event lại *dễ hỏng* đến vậy",
+     "narration": "Trong phần một, mình sẽ cho bạn thấy vì sao việc lưu dữ liệu rồi gửi event lại dễ hỏng, và lỗi đó trông như thế nào.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "Lưu dữ liệu",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Gửi event",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Lỗi dual write",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "VÍ DỤ *XUYÊN SUỐT*",
+     "subtitle": "Order service lưu đơn, rồi báo cho Email service *qua Kafka*",
+     "narration": "Ví dụ cho cả series: Order service lưu đơn hàng vào database, rồi gửi một event lên Kafka để Email service gửi mail xác nhận.",
+     "actors": [
+      {
+       "icon": "server",
+       "label": "Order service",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Database",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Kafka",
+       "side": ""
+      },
+      {
+       "icon": "mail",
+       "label": "Email service",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": "Lưu đơn"
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": "Gửi event"
+      },
+      {
+       "from": 2,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "EVENT VÀ *BROKER*",
+     "subtitle": "Event là thông báo *chuyện vừa xảy ra*, broker chuyển nó đi",
+     "narration": "Event là một thông báo kiểu đơn hàng vừa được tạo. Kafka là message broker, nơi nhận event và chuyển tới các service đang quan tâm.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "OrderCreated",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Message broker",
+       "side": ""
+      },
+      {
+       "icon": "group",
+       "label": "Service khác",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": 1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "HAI LẦN *GHI*",
+     "subtitle": "Ghi database và gửi Kafka là *hai thao tác riêng*",
+     "narration": "Vấn đề nằm ở đây: lưu vào database và gửi lên Kafka là hai thao tác riêng, không có transaction nào bao trùm cả hai. Người ta gọi đó là dual write.",
+     "actors": [
+      {
+       "icon": "server",
+       "label": "Order service",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "1. Ghi DB",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "2. Gửi Kafka",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "LỖI 1: *MẤT EVENT*",
+     "subtitle": "Đơn đã lưu, nhưng gửi Kafka lỗi: email *không bao giờ* đến",
+     "narration": "Trường hợp một: đơn đã lưu xong, nhưng đúng lúc đó Kafka mất kết nối hoặc service bị crash. Event biến mất, và không ai gửi email cả.",
+     "actors": [
+      {
+       "icon": "server",
+       "label": "Order service",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Đã lưu đơn",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Gửi thất bại",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": {
+      "index": 2,
+      "type": "cross"
+     },
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "LỖI 2: *EVENT MA*",
+     "subtitle": "Đổi thứ tự cũng không cứu được: event đã đi, đơn *bị rollback*",
+     "narration": "Nếu gửi event trước rồi mới lưu đơn thì sao? Event đã đi, nhưng transaction lưu đơn lại bị rollback. Khách nhận email cho một đơn không hề tồn tại.",
+     "actors": [
+      {
+       "icon": "queue",
+       "label": "Đã gửi event",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Rollback",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": {
+      "index": 1,
+      "type": "cross"
+     },
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "outro",
+     "layout": "compare",
+     "duration": 3,
+     "heading": "VẤN ĐỀ *GỐC*",
+     "subtitle": "Không thể ghi DB và gửi Kafka *nguyên tử* trong một bước",
+     "narration": "Vấn đề gốc là ta không thể ghi database và gửi Kafka một cách nguyên tử. Thử lại hay đổi thứ tự cũng không loại bỏ được rủi ro này.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "Ghi DB",
+       "side": "L"
+      },
+      {
+       "icon": "queue",
+       "label": "Gửi Kafka",
+       "side": "R"
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "Thao tác 1",
+     "right": "Thao tác 2"
+    }
+   ],
+   "id": "outbox-p1"
+  },
+  {
+   "topic": "Outbox Pattern",
+   "category": "Architecture",
+   "metaphor": "Order service lưu đơn hàng rồi gửi event OrderCreated qua Kafka để Email service gửi mail xác nhận",
+   "status": "draft",
+   "createdBy": "ai",
+   "sample": false,
+   "createdAt": "2026-11-20T03:00:00.000Z",
+   "reviewed": true,
+   "reviewNotes": [],
+   "title": "Outbox Pattern (Phần 2): Cách hoạt động",
+   "hook": "Làm sao để không bao giờ mất event?",
+   "series": {
+    "id": "outbox-series",
+    "title": "Outbox Pattern",
+    "part": 2,
+    "total": 3
+   },
+   "nextTeaser": "Ở phần ba, mình sẽ nói vì sao event vẫn có thể bị gửi trùng khi chạy thật, và cách xử lý cho an toàn.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 3,
+     "heading": "OUTBOX *PHẦN 2*",
+     "subtitle": "Làm sao để *không bao giờ* mất event?",
+     "narration": "Ở phần một, ta thấy lưu đơn rồi gửi event có thể làm mất event, hoặc gửi event cho đơn không tồn tại. Giờ xem outbox giải quyết thế nào.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "intro",
+     "layout": "stack",
+     "duration": 3,
+     "heading": "PHẦN 2 *NÓI GÌ*?",
+     "subtitle": "Cùng transaction, bảng outbox, và *message relay*",
+     "narration": "Phần này gồm ba mảnh ghép: ghi event trong cùng transaction, bảng outbox chứa event, và message relay đem event đi gửi.",
+     "actors": [
+      {
+       "icon": "lock",
+       "label": "Cùng transaction",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Bảng outbox",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "Message relay",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "title",
+     "duration": 3,
+     "heading": "Ý TƯỞNG CỦA *OUTBOX*",
+     "subtitle": "Đừng gửi ngay: *ghi event vào database* trước",
+     "narration": "Outbox pattern đổi cách nghĩ. Thay vì gửi event ngay, ta ghi event vào chính database đang lưu đơn hàng, rồi gửi đi sau.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "hub",
+     "duration": 3,
+     "heading": "CÙNG MỘT *TRANSACTION*",
+     "subtitle": "Lưu đơn và lưu event *cùng thành công*, hoặc cùng bị hủy",
+     "narration": "Trong cùng một transaction, ta ghi đơn vào bảng orders và event vào bảng outbox. Cùng thành công hoặc cùng bị hủy, không còn trạng thái nửa vời.",
+     "actors": [
+      {
+       "icon": "lock",
+       "label": "Transaction",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Bảng orders",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Bảng outbox",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 3,
+     "heading": "BẢNG *OUTBOX*",
+     "subtitle": "Mỗi dòng là *một event* đang chờ gửi",
+     "narration": "Bảng outbox rất gọn: mỗi dòng là một event chờ gửi, gồm mã event, loại event, nội dung, và thời điểm đã gửi, lúc đầu để trống.",
+     "actors": [
+      {
+       "icon": "key",
+       "label": "id",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "event_type",
+       "side": ""
+      },
+      {
+       "icon": "package",
+       "label": "payload",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "sent_at",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "MESSAGE *RELAY*",
+     "subtitle": "Relay: tiến trình nền *đọc outbox*, rồi gửi lên Kafka",
+     "narration": "Việc gửi do message relay đảm nhiệm: một tiến trình chạy nền, đọc các event chưa gửi trong outbox và đẩy lên Kafka.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "Bảng outbox",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "Relay",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Kafka",
+       "side": ""
+      },
+      {
+       "icon": "mail",
+       "label": "Email service",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": "Đọc"
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": "Gửi"
+      },
+      {
+       "from": 2,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": 1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "CÁCH 1: *POLLING*",
+     "subtitle": "Relay *định kỳ* hỏi bảng outbox: có event mới chưa?",
+     "narration": "Relay đọc outbox theo hai cách. Cách đơn giản là polling: cứ sau một khoảng ngắn lại query tìm dòng chưa gửi. Dễ làm, nhưng tốn query và có độ trễ.",
+     "actors": [
+      {
+       "icon": "gear",
+       "label": "Relay",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Bảng outbox",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": "Định kỳ hỏi"
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "CÁCH 2: *CDC*",
+     "subtitle": "Đọc *nhật ký thay đổi* của database, không cần query liên tục",
+     "narration": "Cách thứ hai là CDC, change data capture: công cụ như Debezium đọc transaction log và gửi ngay dòng outbox mới. Nhanh hơn, nhưng thêm hạ tầng.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "Database",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "Transaction log",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "Debezium",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Kafka",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 2,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": 2,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "outro",
+     "layout": "before-after",
+     "duration": 3,
+     "heading": "TRƯỚC / *SAU*",
+     "subtitle": "Event chỉ tồn tại khi đơn hàng *thật sự* được lưu",
+     "narration": "Kết quả: event chỉ tồn tại khi đơn thật sự được lưu. Kafka đang lỗi thì event nằm chờ trong outbox, gửi khi Kafka hoạt động lại.",
+     "actors": [
+      {
+       "icon": "warning",
+       "label": "Dual write",
+       "side": "L"
+      },
+      {
+       "icon": "check",
+       "label": "Outbox",
+       "side": "R"
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "outro",
+     "layout": "title",
+     "duration": 3,
+     "heading": "*GHI NHỚ*",
+     "subtitle": "Lưu dữ liệu và event *cùng lúc*, gửi event sau",
+     "narration": "Ghi nhớ một câu: lưu dữ liệu và event trong cùng transaction, việc gửi để sau. Cái giá là event đến chậm hơn một chút.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    }
+   ],
+   "id": "outbox-p2"
+  },
+  {
+   "topic": "Outbox Pattern",
+   "category": "Architecture",
+   "metaphor": "Order service lưu đơn hàng rồi gửi event OrderCreated qua Kafka để Email service gửi mail xác nhận",
+   "status": "draft",
+   "createdBy": "ai",
+   "sample": false,
+   "createdAt": "2026-11-20T03:00:00.000Z",
+   "reviewed": true,
+   "reviewNotes": [],
+   "title": "Outbox Pattern (Phần 3): Gửi trùng và thứ tự",
+   "hook": "Đã dùng outbox, sao event vẫn bị gửi hai lần?",
+   "series": {
+    "id": "outbox-series",
+    "title": "Outbox Pattern",
+    "part": 3,
+    "total": 3
+   },
+   "nextTeaser": "",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 3,
+     "heading": "OUTBOX *PHẦN 3*",
+     "subtitle": "Đã dùng outbox, sao event vẫn bị *gửi hai lần*?",
+     "narration": "Ở phần hai, relay đã gửi event từ outbox lên Kafka. Nhưng khi chạy thật, cùng một event vẫn có thể đến nơi hai lần. Vì sao?",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "intro",
+     "layout": "stack",
+     "duration": 3,
+     "heading": "PHẦN 3 *NÓI GÌ*?",
+     "subtitle": "Vì sao bị gửi trùng, *chống trùng* ra sao, giữ thứ tự thế nào",
+     "narration": "Phần cuối này trả lời ba câu: vì sao event bị gửi trùng, phía nhận chống trùng thế nào, và làm sao giữ đúng thứ tự event.",
+     "actors": [
+      {
+       "icon": "warning",
+       "label": "Gửi trùng",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Chống trùng",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Giữ thứ tự",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "*ACK* LÀ GÌ?",
+     "subtitle": "ACK là lời xác nhận: Kafka *đã nhận* event",
+     "narration": "Khi relay gửi event, Kafka trả về ACK, tức là lời xác nhận đã lưu event an toàn. Có ACK rồi, relay mới đánh dấu dòng đó là đã gửi.",
+     "actors": [
+      {
+       "icon": "gear",
+       "label": "Relay",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Kafka",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": "Gửi event"
+      },
+      {
+       "from": 1,
+       "to": 0,
+       "label": "ACK"
+      }
+     ],
+     "focus": 1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "CRASH *SAI THỜI ĐIỂM*",
+     "subtitle": "Kafka đã nhận, nhưng relay *crash* trước khi kịp đánh dấu",
+     "narration": "Nhưng nếu Kafka đã nhận mà relay crash ngay trước khi đánh dấu? Khởi động lại, relay thấy dòng đó chưa gửi, và gửi thêm lần nữa.",
+     "actors": [
+      {
+       "icon": "gear",
+       "label": "Relay",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Kafka đã nhận",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Chưa đánh dấu",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": {
+      "index": 2,
+      "type": "cross"
+     },
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "grid",
+     "duration": 3,
+     "heading": "*AT-LEAST-ONCE*",
+     "subtitle": "Event *không bao giờ mất*, nhưng có thể đến nhiều lần",
+     "narration": "Đây gọi là đảm bảo at-least-once, tức là ít nhất một lần: event không bị mất, nhưng có thể đến nơi nhiều lần. Outbox không cho bạn exactly-once.",
+     "actors": [
+      {
+       "icon": "check",
+       "label": "Không mất event",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Có thể trùng",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "*IDEMPOTENT* CONSUMER",
+     "subtitle": "Lưu *ID event* đã xử lý, gặp lại thì bỏ qua",
+     "narration": "Vì vậy phía nhận phải idempotent: xử lý một event hai lần cũng như một lần. Cách phổ biến là lưu ID event đã xử lý, gặp lại thì bỏ qua.",
+     "actors": [
+      {
+       "icon": "queue",
+       "label": "Event #42",
+       "side": ""
+      },
+      {
+       "icon": "mail",
+       "label": "Email service",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "ID đã xử lý",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": "Kiểm tra"
+      }
+     ],
+     "focus": 1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "THỨ TỰ *QUAN TRỌNG*",
+     "subtitle": "Event của *cùng một đơn* phải đến đúng thứ tự",
+     "narration": "Một đơn hàng sinh ra nhiều event: tạo đơn, thanh toán, giao hàng. Đến lộn xộn thì service phía sau sẽ xử lý sai trạng thái đơn.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Tạo đơn",
+       "side": ""
+      },
+      {
+       "icon": "money",
+       "label": "Thanh toán",
+       "side": ""
+      },
+      {
+       "icon": "truck",
+       "label": "Giao hàng",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 3,
+     "heading": "*PARTITION KEY*",
+     "subtitle": "Cùng *mã đơn hàng* thì vào cùng partition, giữ đúng thứ tự",
+     "narration": "Kafka chia topic thành nhiều partition, mỗi partition giữ đúng thứ tự. Gửi kèm key là mã đơn hàng, các event của cùng đơn sẽ vào cùng một partition.",
+     "actors": [
+      {
+       "icon": "key",
+       "label": "Key: order_id",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Cùng partition",
+       "side": ""
+      },
+      {
+       "icon": "mail",
+       "label": "Đọc đúng thứ tự",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": 1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "outro",
+     "layout": "grid",
+     "duration": 3,
+     "heading": "CÁI GIÁ *PHẢI TRẢ*",
+     "subtitle": "Thêm độ trễ, thêm relay, và *phải dọn* bảng outbox",
+     "narration": "Outbox cũng có cái giá: event đến chậm hơn một chút, có thêm relay phải vận hành, và bảng outbox phải được dọn định kỳ để không phình to.",
+     "actors": [
+      {
+       "icon": "clock",
+       "label": "Thêm độ trễ",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "Thêm relay",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Dọn outbox",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    },
+    {
+     "part": "outro",
+     "layout": "title",
+     "duration": 3,
+     "heading": "*GHI NHỚ*",
+     "subtitle": "Lưu cùng transaction, gửi sau, và *phía nhận phải chống trùng*",
+     "narration": "Tóm lại cả series: lưu dữ liệu và event trong cùng transaction, gửi event sau, và luôn thiết kế phía nhận để chống trùng.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": ""
+    }
+   ],
+   "id": "outbox-p3"
+  }
+ ]
+}

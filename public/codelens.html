@@ -497,6 +497,8 @@ function normScript(s) {
     sample: !!s.sample,
     createdAt: s.createdAt || new Date().toISOString(),
     sourceText: String(s.sourceText || "").slice(0, ARTICLE_MAX), source: s.source === "article" ? "article" : (s.source || ""),
+    series: s.series && s.series.id && +s.series.total > 1 ? { id: String(s.series.id).slice(0, 40), title: String(s.series.title || "").slice(0, 120), part: clamp(Math.round(+s.series.part) || 1, 1, 9), total: clamp(Math.round(+s.series.total) || 1, 1, 9) } : null,
+    nextTeaser: String(s.nextTeaser || "").slice(0, 300),
     reviewed: !!s.reviewed, reviewNotes: Array.isArray(s.reviewNotes) ? s.reviewNotes.slice(0, 12).map(x => String(x).slice(0, 200)) : [],
   };
 }
@@ -539,6 +541,12 @@ function withOutro(s) {
   const st = state.settings || {};
   if (st.outroEnabled === false || s.scenes.some(sc => sc.layout === "outro")) return s;
   const o = st.outro || {};
+  const sr = s.series;
+  if (sr && sr.part < sr.total) { // not the last part: tease the next one
+    return { ...s, scenes: [...s.scenes, normScene({ layout: "outro", part: "outro", duration: 4.2,
+      heading: `ĐÓN XEM *PHẦN ${sr.part + 1}*`, subtitle: "Follow CodeLens để *không bỏ lỡ* phần tiếp theo",
+      narration: `${s.nextTeaser ? s.nextTeaser.replace(/\s*$/, "") + " " : `Phần ${sr.part + 1} sẽ có ngay sau đây. `}Follow CodeLens để không bỏ lỡ nhé.` })] };
+  }
   return { ...s, scenes: [...s.scenes, normScene({ layout: "outro", part: "outro", duration: 4.2,
     heading: o.heading || OUTRO_DEFAULT.heading, subtitle: o.subtitle || OUTRO_DEFAULT.subtitle, narration: o.narration || OUTRO_DEFAULT.narration })] };
 }
@@ -600,6 +608,11 @@ function drawChrome(c, s, t, total) {
   const cw = c.measureText(cat).width + 40; const cx = right ? 60 : W - 60 - cw;
   c.beginPath(); c.roundRect(cx, 137, cw, 48, 24);
   c.strokeStyle = COL.orange; c.lineWidth = 3; c.stroke(); c.fillStyle = COL.orange; c.textAlign = "center"; c.fillText(cat, cx + cw / 2, 162);
+  if (s.series && s.series.total > 1) { // "PHẦN 1/2" pill under the category
+    const lab = `PHẦN ${s.series.part}/${s.series.total}`; const pw = c.measureText(lab).width + 40; const px = right ? 60 : W - 60 - pw;
+    c.beginPath(); c.roundRect(px, 197, pw, 48, 24); c.fillStyle = COL.orange; c.fill();
+    c.fillStyle = COL.ink; c.fillText(lab, px + pw / 2, 222);
+  }
 }
 /* Logo: the uploaded image when there is one, otherwise a drawn CodeLens mark (magnifier + </>). */
 const logoState = { corner: "left", img: null, assetId: "" };
@@ -666,9 +679,17 @@ function edgePoint(from, to, pad) {
   if (from.bar) { const sy = Math.sign(dy) || 1; return { x: from.x + (Math.abs(dy) < 5 ? Math.sign(dx) * 390 : 0), y: from.y + (Math.abs(dy) < 5 ? 0 : sy * (from.r + 10)) }; }
   return { x: from.x + (dx / d) * (from.r + pad), y: from.y + (dy / d) * (from.r + pad) };
 }
-function drawLink(c, A, B, label, k, t, mode) {
+function drawLink(c, A, B, label, k, t, mode, paired) {
   if (k <= 0) return;
   let a = edgePoint(A, B, 22), b = edgePoint(B, A, 22);
+  if (!A.bar && !B.bar && Math.abs(B.x - A.x) < Math.abs(B.y - A.y) * 0.3) {
+    // vertical link: skip past the actor label under the upper disk
+    if (B.y > A.y) a = { x: a.x, y: A.y + A.r + 95 }; else b = { x: b.x, y: B.y + B.r + 95 };
+  }
+  if (paired) { // a link in each direction between the same two actors: draw them side by side
+    const d0 = Math.hypot(b.x - a.x, b.y - a.y) || 1, px = -(b.y - a.y) / d0 * 22, py = (b.x - a.x) / d0 * 22;
+    a = { x: a.x + px, y: a.y + py }; b = { x: b.x + px, y: b.y + py };
+  }
   if (A.bar && B.bar) { const off = 300; a = { x: A.x + off, y: A.y + Math.sign(B.y - A.y) * (A.r + 6) }; b = { x: B.x + off, y: B.y - Math.sign(B.y - A.y) * (B.r + 6) }; }
   const e = easeInOut(k); const ex = a.x + (b.x - a.x) * e, ey = a.y + (b.y - a.y) * e;
   c.save();
@@ -688,7 +709,12 @@ function drawLink(c, A, B, label, k, t, mode) {
   if (mode !== "line" && label && k > 0.6) {
     c.globalAlpha *= clamp((k - 0.6) / 0.4, 0, 1);
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2; const nx = -Math.sin(ang), ny = Math.cos(ang);
-    const off = Math.abs(Math.cos(ang)) > 0.7 ? -46 : 0; const lx = mx + nx * off * (ny < 0 ? -1 : 1), ly = my + ny * off * (ny < 0 ? -1 : 1);
+    // Horizontal links: label above the line (or below for the second of a pair). Vertical links: label beside the line, clear of actor labels.
+    const horiz = Math.abs(Math.cos(ang)) > 0.7;
+    let lx, ly;
+    if (paired) { lx = mx + nx * 46; ly = my + ny * 46; }
+    else if (horiz) { const sgn = ny < 0 ? -1 : 1; lx = mx - nx * 46 * sgn; ly = my - ny * 46 * sgn; }
+    else { lx = mx + 100; ly = my; }
     // labels draw on top of the icons and shrink to fit short links
     const span = Math.hypot(b.x - a.x, b.y - a.y) + 90; let fs = 30; c.font = `700 ${fs}px ${FONT}`;
     while (fs > 20 && c.measureText(label).width + 28 > span) { fs -= 2; c.font = `700 ${fs}px ${FONT}`; }
@@ -726,13 +752,13 @@ function drawOutro(c, s, sc, tl, t) {
   }
   c.restore();
   // heading
-  c.font = `800 86px ${FONT}`;
-  drawTokens(c, parseAccent(sc.heading), 540, 1110, 960, 96, { upper: true, base: COL.blue, reveal: easeOut((tl - 0.35) / 0.6), maxLines: 2 });
+  c.font = `800 72px ${FONT}`;
+  drawTokens(c, parseAccent(sc.heading), 540, 1100, 980, 84, { upper: true, base: COL.blue, reveal: easeOut((tl - 0.35) / 0.6), maxLines: 2 });
   // "follow" button that gets tapped
   const tapAt = Math.min(1.8, d * 0.45); const tapped = tl >= tapAt;
   const bk = easeOut((tl - 0.6) / 0.4); const pulse = tapped ? 1 : 1 + Math.sin(t * 6) * 0.03;
   const press = tl > tapAt - 0.12 && tl < tapAt + 0.12 ? 0.94 : 1;
-  c.save(); c.globalAlpha *= bk; c.translate(540, 1290); c.scale(pulse * press, pulse * press);
+  c.save(); c.globalAlpha *= bk; c.translate(540, 1320); c.scale(pulse * press, pulse * press);
   const label = tapped ? "ĐÃ THEO DÕI" : "THEO DÕI";
   c.font = `800 54px ${FONT}`; const bw = c.measureText(label).width + 190;
   c.beginPath(); c.roundRect(-bw / 2, -62, bw, 124, 62); c.fillStyle = tapped ? COL.blue : COL.orange; c.fill();
@@ -747,10 +773,10 @@ function drawOutro(c, s, sc, tl, t) {
   c.restore(); c.restore();
   // tap ripple and pointer
   const rk = (tl - tapAt) / 0.6;
-  if (rk > 0 && rk < 1) { c.save(); c.globalAlpha *= 1 - rk; c.strokeStyle = COL.white; c.lineWidth = 6; c.beginPath(); c.arc(640, 1310, 30 + rk * 140, 0, Math.PI * 2); c.stroke(); c.restore(); }
+  if (rk > 0 && rk < 1) { c.save(); c.globalAlpha *= 1 - rk; c.strokeStyle = COL.white; c.lineWidth = 6; c.beginPath(); c.arc(640, 1340, 30 + rk * 140, 0, Math.PI * 2); c.stroke(); c.restore(); }
   if (tl > tapAt - 0.7 && tl < tapAt + 0.9) {
     const pk = easeInOut((tl - (tapAt - 0.7)) / 0.6);
-    const px = 860 - (860 - 640) * pk, py = 1520 - (1520 - 1320) * pk;
+    const px = 860 - (860 - 640) * pk, py = 1540 - (1540 - 1350) * pk;
     c.save(); c.translate(px, py); c.fillStyle = COL.white; c.strokeStyle = COL.ink; c.lineWidth = 4;
     c.beginPath(); c.moveTo(0, 0); c.lineTo(0, 64); c.lineTo(16, 50); c.lineTo(28, 76); c.lineTo(40, 70); c.lineTo(28, 46); c.lineTo(48, 44); c.closePath(); c.fill(); c.stroke(); c.restore();
   }
@@ -784,9 +810,10 @@ function drawScene(c, s, sc, tl, t) {
     if (ba) { drawMark(c, { x: 290 + 150, y: 590 + 70, r: 30 }, "cross", easeOut((tl - 0.6) / 0.4)); drawMark(c, { x: 790 + 110, y: 590 + 70, r: 30 }, "check", easeOut((tl - 0.8) / 0.4)); }
     c.restore();
   }
-  sc.links.forEach((l, j) => { if (pts[l.from] && pts[l.to]) drawLink(c, pts[l.from], pts[l.to], l.label, (tl - tm.linkAt(j)) / 0.45, t, "line"); });
+  const isPaired = (l) => sc.links.some(o => o.from === l.to && o.to === l.from);
+  sc.links.forEach((l, j) => { if (pts[l.from] && pts[l.to]) drawLink(c, pts[l.from], pts[l.to], l.label, (tl - tm.linkAt(j)) / 0.45, t, "line", isPaired(l)); });
   sc.actors.forEach((a, i) => { if (pts[i]) drawActor(c, a, pts[i], (tl - tm.actorAt(i)) / 0.45, i === sc.focus && tl > tm.linksEnd, t); });
-  sc.links.forEach((l, j) => { if (pts[l.from] && pts[l.to]) drawLink(c, pts[l.from], pts[l.to], l.label, (tl - tm.linkAt(j)) / 0.45, t, "label"); });
+  sc.links.forEach((l, j) => { if (pts[l.from] && pts[l.to]) drawLink(c, pts[l.from], pts[l.to], l.label, (tl - tm.linkAt(j)) / 0.45, t, "label", isPaired(l)); });
   if (sc.mark && pts[sc.mark.index]) drawMark(c, pts[sc.mark.index], sc.mark.type, (tl - tm.markAt) / 0.35);
   if (sc.layout === "title" && s.hook && !sc.subtitle) { /* hook is shown via subtitle */ }
 }
@@ -1117,7 +1144,7 @@ function visibleScripts() {
   return [...state.scripts.values()]
     .filter(s => state.filterCat === "all" || s.category === state.filterCat)
     .filter(s => state.filterStatus === "all" || s.status === state.filterStatus || (state.filterStatus === "queued" && s.status === "rendering"))
-    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) || ((a.series && a.series.part) || 0) - ((b.series && b.series.part) || 0));
 }
 function renderList() {
   const list = visibleScripts(); const el = $("slist");
@@ -1132,7 +1159,7 @@ function renderList() {
       <div>
         <button class="t" data-open="${s.id}">${esc(s.title)}</button>
         <div class="meta"><span class="chip cat">${esc(s.category)}</span><span class="chip st-${s.status}">${STATUS_LABEL[s.status]}</span>
-        <span>${totalDur(s).toFixed(1)}s · ${s.scenes.length} cảnh</span>${s.sample ? "<span>mẫu</span>" : s.createdBy === "ai" ? "<span>AI</span>" : ""}</div>
+        ${s.series ? `<span class="chip part-outro">Phần ${s.series.part}/${s.series.total}</span>` : ""}<span>${totalDur(s).toFixed(1)}s · ${s.scenes.length} cảnh</span>${s.sample ? "<span>mẫu</span>" : s.createdBy === "ai" ? "<span>AI</span>" : ""}</div>
       </div>
     </div>`).join("");
   const n = state.selected.size; const b = $("btn-render-sel");
@@ -1218,6 +1245,8 @@ function renderEditor() {
     ${!cap.voice && d.scenes.some(sc => narrationText(sc)) ? `<p class="hint">Giọng đọc chỉ có ở bản chạy trên máy (dùng API key). Ở đây clip render không có giọng đọc, chỉ có phụ đề và nhạc nền.</p>` : ""}
     ${d.source === "article" ? `<p class="hint">Tạo từ bài viết (${(d.sourceText || "").length.toLocaleString("vi-VN")} ký tự). “AI kiểm tra kỹ thuật” sẽ đối chiếu lại với bài này.</p>` : ""}
     ${d.reviewed ? `<div class="banner"><b style="color:var(--ok)">Đã kiểm tra kỹ thuật.</b> ${d.reviewNotes && d.reviewNotes.length ? "Đã sửa: " + d.reviewNotes.map(esc).join(" · ") : "Không phát hiện lỗi."}</div>` : `<div class="banner warn">Kịch bản chưa được kiểm tra kỹ thuật. Bấm “AI kiểm tra kỹ thuật” trước khi render.</div>`}
+    ${d.series ? `<div class="banner">Series <b>${esc(d.series.title)}</b> · phần ${d.series.part}/${d.series.total}.${d.series.part < d.series.total ? ` Cảnh cuối sẽ giới thiệu phần ${d.series.part + 1}.` : ""}</div>
+    ${d.series.part < d.series.total ? `<label class="f"><span>Lời giới thiệu phần ${d.series.part + 1} (đọc ở cảnh cuối)</span><textarea rows="2" data-f="nextTeaser" id="ed-teaser">${esc(d.nextTeaser || "")}</textarea></label>` : ""}` : ""}
     ${structureNote(d)}
     <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (tối đa khoảng 120s): <b id="ed-total">${totalDur(withOutro(normScript(d))).toFixed(1)}s</b></p>
     ${d.scenes.map((sc, i) => renderSceneCard(sc, i, d.scenes.length, sel)).join("")}
@@ -1406,8 +1435,20 @@ const STYLE_RULES = `Bạn là biên kịch kỹ thuật cho kênh video ngắn 
 Giải thích TRỰC TIẾP bằng thành phần kỹ thuật thật: client, server, service, database, cache, queue, load balancer, request, response, thread, node... và thuật ngữ chuẩn (giữ nguyên tiếng Anh khi đó là cách dev thường gọi).
 TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường hay tình huống công sở (lễ tân, thư ký, HR, nhân viên, quán ăn, ngân hàng...). Nếu cần ví dụ thì dùng tình huống kỹ thuật cụ thể (ví dụ: "Nginx đứng trước 3 instance API", "bảng users 10 triệu dòng").
 Nội dung phải CHÍNH XÁC về kỹ thuật: định nghĩa đúng, thứ tự các bước đúng, tên trạng thái/thuật toán đúng, nêu đúng đánh đổi (trade-off). Không bịa số liệu, benchmark hay phiên bản; nếu không chắc một chi tiết thì bỏ chi tiết đó.
-Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.`;
-function scriptPrompt(topic, category, article, note) {
+Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.
+
+TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
+- Giọng kể như một Senior Developer giải thích kiến trúc cho một Junior Developer: đặt vấn đề, dẫn dắt, minh họa, giải thích VÌ SAO, cuối cùng mới đi vào cách triển khai.
+- Hook: bắt đầu bằng một vấn đề thực tế mà dev gặp.
+- Mở bài: nói rõ người xem sẽ học được gì.
+- Giải thích MỌI thuật ngữ bằng một câu đơn giản ngay lần đầu dùng (ví dụ: ACK, relay, partition key, delivery guarantee). Không dùng thuật ngữ trước khi giải thích.
+- Dùng MỘT ví dụ cụ thể xuyên suốt cả clip (cùng hệ thống, cùng tên service, cùng dữ liệu).
+- Mỗi cảnh chỉ truyền tải MỘT ý chính; hình chỉ giữ thông tin cần thiết (bảng hay danh sách tối đa 4 mục).
+- Lời thuyết minh giải thích thêm, không đọc lại nguyên văn phụ đề.
+- Độ sâu: người mới hiểu được, developer có kinh nghiệm vẫn học thêm được điều gì đó.
+- Kết bài: chốt MỘT thông điệp chính người xem phải nhớ, và nêu giới hạn hoặc cái giá của giải pháp.
+- Ưu tiên chất lượng hơn độ ngắn: nếu một clip 2 phút không đủ để giải thích kỹ theo các tiêu chí trên thì chia chủ đề thành nhiều phần, đừng nhồi nhét.`;
+function scriptPrompt(topic, category, article, note, ctx) {
   const existing = [...state.scripts.values()].map(s => s.title).slice(0, 80).join("; ");
   const head = article
     ? `Viết kịch bản cho clip dọc 9:16 dựa trên BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}${category && category !== "auto" && category !== "all" ? ` (lĩnh vực ${category})` : ""}.
@@ -1420,7 +1461,7 @@ ${article}
   return `${STYLE_RULES}
 
 ${head}
-Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
+${ctx ? "\n" + ctx + "\n" : ""}Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
 
 Quy tắc:
 - Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 9–16 cảnh. Tổng độ dài tất cả "narration" khoảng 700–1.250 ký tự (giọng đọc khoảng 12 ký tự mỗi giây), không vượt quá 1.250 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây).
@@ -1444,8 +1485,8 @@ Quy tắc:
 Chỉ trả về JSON đúng dạng:
 {"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
 }
-function reviewPrompt(sc) {
-  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = sc;
+function reviewPrompt(sc, ctx) {
+  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
   return `${STYLE_RULES}
 
 Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch bản clip dưới đây:
@@ -1455,7 +1496,8 @@ Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch 
 2c. Cấu trúc: phải có MỞ BÀI (2 cảnh: hook, rồi giới thiệu clip sẽ nói gì), THÂN BÀI giải thích đúng các ý đã hứa, KẾT BÀI tóm tắt. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.250 ký tự.
 2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (tối đa khoảng 2 phút). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
 3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
-${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
+2d. Tiêu chí chất lượng: kiểm tra từng tiêu chí trong phần TIÊU CHÍ CHẤT LƯỢNG ở trên (thuật ngữ được giải thích trước khi dùng, một ví dụ xuyên suốt, mỗi cảnh một ý, kết bài có thông điệp chính và giới hạn của giải pháp). Sửa chỗ nào chưa đạt.
+${ctx ? "2e. Đây là một phần của series, chỉ được trình bày đúng phạm vi của phần này:\n" + ctx + "\n" : ""}${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
 
 === BÀI VIẾT NGUỒN ===
 ${sourceText}
@@ -1466,7 +1508,7 @@ ${JSON.stringify(body)}
 Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc, mỗi cảnh có cả subtitle và narration: title, category, hook, metaphor, scenes}}`;
 }
 function narratePrompt(sc) {
-  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = sc;
+  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
   return `${STYLE_RULES}
 
 Kịch bản clip dưới đây có phụ đề ngắn cho từng cảnh. Hãy viết thêm "narration" (lời thuyết minh đọc bằng giọng nam) cho TỪNG cảnh.
@@ -1482,8 +1524,8 @@ ${JSON.stringify(body)}
 
 Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, scenes), mỗi cảnh có thêm trường "narration".`;
 }
-async function aiReview(script) {
-  const r = await cap.sample.json(reviewPrompt(script), aiOpts("review", "complex"));
+async function aiReview(script, ctx) {
+  const r = await cap.sample.json(reviewPrompt(script, ctx), aiOpts("review", "complex"));
   const fixed = r && r.script && Array.isArray(r.script.scenes) && r.script.scenes.length ? r.script : script;
   const issues = r && Array.isArray(r.issues) ? r.issues.filter(Boolean).map(String) : [];
   return { fixed, issues };
@@ -1533,19 +1575,66 @@ function renderSuggestions() {
 $("suggest").addEventListener("click", (e) => { const b = e.target.closest("[data-sug]"); if (!b) return; const s = state.suggestions[+b.dataset.sug]; if (s) aiWrite(s.topic + (s.angle ? ` — gợi ý: ${s.angle}` : ""), s.category, +b.dataset.sug); });
 $("btn-write").addEventListener("click", () => { const t = $("ai-topic").value.trim(); if (!t) { toast("Gõ một chủ đề trước, ví dụ: Idempotency key."); $("ai-topic").focus(); return; } aiWrite(t, $("ai-cat").value); });
 $("ai-topic").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-write").click(); });
+// ---- series: plan first, then write each part with the whole plan in view ----
+function planPrompt(topic, category, article, note) {
+  return `${STYLE_RULES}
+
+Lên kế hoạch clip dọc 9:16 cho ${article ? `BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}` : `chủ đề "${topic}"`}${category && !["all", "auto"].includes(category) ? ` (lĩnh vực ${category})` : ""}.${note ? `\nYêu cầu thêm: ${note}` : ""}
+Mỗi clip tối đa khoảng 2 phút (lời thuyết minh không quá 1.250 ký tự, khoảng 9–16 cảnh, gồm mở bài, thân bài, kết bài).
+Ưu tiên CHẤT LƯỢNG: nếu cần giải thích đủ sâu theo các tiêu chí ở trên mà một clip không đủ, hãy chia thành nhiều phần (tối đa 4). Chủ đề gọn thì giữ 1 phần.
+Mỗi phần phải xem riêng vẫn hiểu được; các phần không lặp ý; phần sau nối tiếp phần trước. Cả series dùng chung MỘT ví dụ xuyên suốt.
+${article ? `\n=== BÀI VIẾT NGUỒN ===\n${article}\n=== HẾT BÀI VIẾT ===\n` : ""}
+Chỉ trả về JSON: {"seriesTitle": "tên chung của series", "example": "ví dụ kỹ thuật xuyên suốt", "parts": [{"title": "tiêu đề clip của phần này", "covers": ["các ý phần này trình bày, theo thứ tự"], "teaser": "một câu văn nói giới thiệu phần này, sẽ được đọc ở cuối phần trước"}]}`;
+}
+function seriesContext(plan, i) {
+  const n = plan.parts.length;
+  return `Đây là PHẦN ${i + 1}/${n} của series "${plan.seriesTitle}". Ví dụ xuyên suốt cả series: ${plan.example || "giữ nguyên ví dụ giữa các phần"}.
+Kế hoạch cả series:
+${plan.parts.map((p, k) => `- Phần ${k + 1}: ${p.title}: ${p.covers.join("; ")}`).join("\n")}
+Chỉ viết PHẦN ${i + 1}: trình bày đúng các ý của phần này, không lấn sang phần khác.${i > 0 ? " Mở bài nhắc ngắn phần trước đã nói gì, rồi nói phần này sẽ học gì." : ""}${i < n - 1 ? " Kết bài tóm tắt phần này; KHÔNG giới thiệu phần sau (hệ thống tự thêm lời giới thiệu ở cảnh cuối)." : ""} Tiêu đề clip ghi rõ "(Phần ${i + 1})".`;
+}
+function normPlan(r, topic) {
+  const parts = (r && Array.isArray(r.parts) ? r.parts : []).slice(0, 4).map(p => ({
+    title: String((p && p.title) || topic).slice(0, 120),
+    covers: (Array.isArray(p && p.covers) ? p.covers : []).map(String).slice(0, 12),
+    teaser: String((p && p.teaser) || "").slice(0, 300),
+  }));
+  return { seriesTitle: String((r && r.seriesTitle) || topic).slice(0, 120), example: String((r && r.example) || "").slice(0, 300), parts: parts.length ? parts : [{ title: topic, covers: [], teaser: "" }] };
+}
+// Writes one script, or a series when the topic needs it. Returns the saved scripts in order.
+async function writeScripts({ topic, category, article, note, tier = "default", status = "draft", onStatus = () => {} }) {
+  onStatus("Claude đang lên kế hoạch nội dung…");
+  let plan;
+  try { plan = normPlan(await cap.sample.json(planPrompt(topic, category, article, note), aiOpts("write", tier)), topic); }
+  catch (e) { plan = normPlan(null, topic); }
+  const n = plan.parts.length; const seriesId = n > 1 ? uid() : ""; const createdAt = new Date().toISOString();
+  const saved = []; let issuesTotal = 0, allReviewed = true;
+  for (let i = 0; i < n; i++) {
+    const part = plan.parts[i]; const ctx = n > 1 ? seriesContext(plan, i) : "";
+    onStatus(n > 1 ? `Claude đang viết phần ${i + 1}/${n}: “${part.title}”…` : "Claude đang viết kịch bản…");
+    const r0 = await cap.sample.json(scriptPrompt(n > 1 ? part.title : topic, category, article, note, ctx), aiOpts("write", article ? "complex" : tier));
+    onStatus(n > 1 ? `Đang kiểm tra kỹ thuật phần ${i + 1}/${n}…` : (article ? "Đang đối chiếu kịch bản với bài viết…" : "Claude đang kiểm tra lại độ chính xác kỹ thuật…"));
+    let r = r0, issues = [], reviewed = false;
+    try { const rv = await aiReview(normScript({ ...r0, sourceText: article || "" }), ctx); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) { allReviewed = false; }
+    issuesTotal += issues.length;
+    const cat = CATEGORIES.includes(category) ? category : (CATEGORIES.includes(r && r.category) ? r.category : undefined);
+    const s = normScript({ ...r, topic: n > 1 ? plan.seriesTitle : (topic || (r && r.title)), category: cat, createdBy: "ai", status, createdAt,
+      source: article ? "article" : "", sourceText: article || "", reviewed, reviewNotes: issues,
+      series: n > 1 ? { id: seriesId, title: plan.seriesTitle, part: i + 1, total: n } : null,
+      nextTeaser: i < n - 1 ? plan.parts[i + 1].teaser : "" });
+    saved.push(await putScript(s));
+  }
+  return { saved, issuesTotal, allReviewed, parts: n };
+}
 async function aiWrite(topic, category, sugIdx) {
   if (!cap.sample || state.aiBusy) return;
-  setAiBusy(true, "Claude đang viết kịch bản…");
+  setAiBusy(true, "Claude đang lên kế hoạch nội dung…");
   try {
-    const r0 = await cap.sample.json(scriptPrompt(topic, category), aiOpts("write", "default"));
-    setAiBusy(true, "Claude đang kiểm tra lại độ chính xác kỹ thuật…");
-    let r = r0, issues = [], reviewed = false;
-    try { const rv = await aiReview(normScript(r0)); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
-    const s = normScript({ ...r, topic, createdBy: "ai", status: "draft", reviewed, reviewNotes: issues, category: CATEGORIES.includes(r && r.category) ? r.category : (CATEGORIES.includes(category) ? category : undefined) });
-    const saved = await putScript(s);
+    const out = await writeScripts({ topic, category, onStatus: (m) => setAiBusy(true, m) });
+    const saved = out.saved[0]; const reviewed = out.allReviewed; const issues = { length: out.issuesTotal };
     if (sugIdx !== undefined) { state.suggestions.splice(sugIdx, 1); renderSuggestions(); }
     $("ai-topic").value = "";
-    setAiBusy(false, `Đã viết “${saved.title}”` + (reviewed ? (issues.length ? `, AI đã tự sửa ${issues.length} điểm kỹ thuật.` : ", AI đã kiểm tra và không thấy lỗi kỹ thuật.") : ". Chưa kiểm tra lại được, hãy bấm “AI kiểm tra kỹ thuật”.") + " Xem trước và sửa nếu cần.");
+    setAiBusy(false, (out.parts > 1 ? `Chủ đề này được chia thành series ${out.parts} phần. ` : "") + `Đã viết “${saved.title}”` + (reviewed ? (issues.length ? `, AI đã tự sửa ${issues.length} điểm kỹ thuật.` : ", AI đã kiểm tra và không thấy lỗi kỹ thuật.") : ". Chưa kiểm tra lại được, hãy bấm “AI kiểm tra kỹ thuật”.") + " Xem trước và sửa nếu cần.");
     state.editingId = saved.id; state.draft = clone(saved); state.dirty = false; renderEditor(); renderList(); pv.reset(); pv.play();
   } catch (err) { setAiBusy(false, aiError(err)); }
 }
@@ -1559,17 +1648,12 @@ async function aiFromArticle() {
   state.aiBusy = true; btn.disabled = true;
   st.innerHTML = '<span class="spin"></span> Claude đang đọc bài và viết kịch bản…';
   try {
-    const r0 = await cap.sample.json(scriptPrompt(title, cat, text, note), aiOpts("write", "complex"));
-    st.innerHTML = '<span class="spin"></span> Đang đối chiếu kịch bản với bài viết…';
-    let r = r0, issues = [], reviewed = false;
-    try { const rv = await aiReview(normScript({ ...r0, sourceText: text })); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
-    const category = CATEGORIES.includes(cat) ? cat : (CATEGORIES.includes(r && r.category) ? r.category : undefined);
-    const s = normScript({ ...r, title: title || (r && r.title), topic: title || (r && r.title), category, createdBy: "ai", status: "draft", source: "article", sourceText: text, reviewed, reviewNotes: issues });
-    const saved = await putScript(s);
+    const out = await writeScripts({ topic: title, category: cat, article: text, note, tier: "complex", onStatus: (m) => { st.innerHTML = '<span class="spin"></span> ' + esc(m); } });
+    const saved = out.saved[0]; const reviewed = out.allReviewed; const issues = { length: out.issuesTotal };
     saveArticleDraft({});
     state.articleMode = false; state.aiBusy = false;
     state.editingId = saved.id; state.draft = clone(saved); state.dirty = false; renderEditor(); renderList(); pv.reset(); pv.play();
-    toast(`Đã tạo “${saved.title}” (${totalDur(saved).toFixed(0)} giây)` + (reviewed ? (issues.length ? `, AI đã sửa ${issues.length} điểm khi đối chiếu.` : ", khớp với bài viết.") : ". Chưa đối chiếu được, hãy bấm “AI kiểm tra kỹ thuật”."), 6000);
+    toast((out.parts > 1 ? `Bài viết được chia thành series ${out.parts} phần. ` : "") + `Đã tạo “${saved.title}” (${totalDur(saved).toFixed(0)} giây)` + (reviewed ? (issues.length ? `, AI đã sửa ${issues.length} điểm khi đối chiếu.` : ", khớp với bài viết.") : ". Chưa đối chiếu được, hãy bấm “AI kiểm tra kỹ thuật”."), 6000);
   } catch (err) {
     state.aiBusy = false; btn.disabled = false;
     st.textContent = err && err.code === "prompt_too_large" ? "Bài viết quá dài cho một lần xử lý. Hãy rút gọn hoặc chia thành nhiều bài." : aiError(err);
@@ -1682,10 +1766,8 @@ async function autoWriteScripts(n, cats) {
     for (const t of topics) {
       setAiBusy(true, `Lịch chạy: đang viết “${t.topic}” (${done + 1}/${topics.length})…`);
       try {
-        const r0 = await cap.sample.json(scriptPrompt(t.topic + (t.angle ? ` — gợi ý: ${t.angle}` : ""), t.category), aiOpts("write", "default"));
-        let fixed = r0, issues = [], reviewed = false;
-        try { const rv = await aiReview(normScript(r0)); fixed = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) {}
-        await putScript(normScript({ ...fixed, topic: t.topic, category: CATEGORIES.includes(t.category) ? t.category : fixed.category, createdBy: "ai", status: "queued", reviewed, reviewNotes: issues }));
+        const out = await writeScripts({ topic: t.topic + (t.angle ? ` — gợi ý: ${t.angle}` : ""), category: CATEGORIES.includes(t.category) ? t.category : "all", status: "queued", onStatus: (m) => setAiBusy(true, "Lịch chạy: " + m) });
+        if (!out.saved.length) throw new Error("empty");
         done++;
       } catch (e) { /* skip this topic, keep going */ }
       setAiBusy(false, "");
@@ -1703,7 +1785,8 @@ function captionTemplate(script, clip) {
   const plain = (t) => String(t || "").replace(/\*/g, "").trim();
   const points = script ? script.scenes.slice(1).map(sc => plain(sc.subtitle)).filter(Boolean).slice(0, 4) : [];
   const tags = ["#CodeLens", ...(HASHTAGS[(script && script.category) || clip.category] || []), "#LapTrinh", "#Developer"];
-  return [`${title.toUpperCase()} — giải thích trong ${Math.round(+clip.durationSec || 60)} giây`, script && script.hook ? plain(script.hook) : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để xem thêm các khái niệm khó, giải thích dễ hiểu cho dev.", "", tags.join(" ")].filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
+  const sr = script && script.series;
+  return [`${title.toUpperCase()}${sr ? ` (Phần ${sr.part}/${sr.total})` : ""} — giải thích trong ${Math.round(+clip.durationSec || 60)} giây`, script && script.hook ? plain(script.hook) : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để xem thêm các khái niệm khó, giải thích dễ hiểu cho dev.", "", tags.join(" ")].filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
 }
 function captionPrompt(script) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = script;
@@ -1999,6 +2082,6 @@ fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelP
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { drawFrame, normScript, renderMp4, renderAudio, totalDur, pickEncoder };
+window.__codelens = { drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
 })();
 </script>
