@@ -274,6 +274,12 @@ a.btn { text-decoration: none; color: inherit; }
       <div class="row"><button class="btn primary" id="btn-save-sched">Lưu cài đặt</button><span class="hint" id="sch-msg"></span></div>
     </div>
     <div class="panel">
+      <h2>Phụ đề trên video</h2>
+      <p class="hint">Facebook Reels không hỗ trợ tải phụ đề hay tự tạo phụ đề, nên CodeLens in thẳng lời thuyết minh vào video: lời thuyết minh chạy trong ô dưới cùng theo đúng giọng đọc, câu nhấn mạnh chuyển lên dưới tiêu đề. Cảnh chưa có lời thuyết minh vẫn hiện như cũ.</p>
+      <label class="toggle"><input type="checkbox" id="b-enabled"><span>In lời thuyết minh lên video</span></label>
+      <span class="hint" id="b-msg"></span>
+    </div>
+    <div class="panel">
       <h2>Cảnh kết: kêu gọi follow</h2>
       <p class="hint">Cảnh này tự thêm vào cuối mọi clip: logo lớn, nút “Theo dõi” được bấm, kèm lời đọc. Để trống ô nào thì dùng câu mặc định.</p>
       <label class="toggle"><input type="checkbox" id="o-enabled"><span>Tự thêm cảnh kết vào cuối clip</span></label>
@@ -301,6 +307,12 @@ a.btn { text-decoration: none; color: inherit; }
           <label class="f"><span>Tốc độ</span><select id="v-rate"><option value="-10%">Chậm (-10%)</option><option value="-5%">Hơi chậm (-5%)</option><option value="+0%">Bình thường</option><option value="+5%">Hơi nhanh (+5%)</option><option value="+10%">Nhanh vừa (+10%, mặc định)</option><option value="+15%">Rất nhanh (+15%)</option></select></label>
         </div>
         <div class="row" style="margin-top:10px"><button class="btn" id="v-test">▶ Nghe thử</button><span class="hint" id="v-msg"></span></div>
+        <div class="f" style="margin-top:12px"><span class="hint" style="font-weight:600">Cách đọc từ tiếng Anh</span>
+          <span class="hint">Giọng tiếng Việt đọc từ tiếng Anh theo kiểu tiếng Việt. Mỗi dòng: <code>từ = cách đọc</code>. Chỉ áp dụng cho giọng đọc, phụ đề vẫn giữ chữ gốc.</span>
+          <textarea id="v-dict" rows="8" spellcheck="false"></textarea>
+          <div class="row"><input type="text" id="v-dict-test" class="grow" value="Request đi qua proxy, đọc cache trong Redis rồi trả response cho client."><button class="btn small" id="v-dict-play">▶ Nghe câu này</button></div>
+          <div class="row"><button class="btn small" id="v-dict-save">Lưu cách đọc</button><button class="btn small" id="v-dict-ai">AI gợi ý từ kịch bản đang mở</button><button class="btn small ghost" id="v-dict-reset">Khôi phục mặc định</button><span class="hint" id="v-dict-msg"></span></div>
+        </div>
       </div>
     </div>
     <div class="panel">
@@ -837,6 +849,29 @@ function drawSubtitle(c, text, tl, d) {
   drawTokens(c, toks, 540, y, 900, 64, { base: COL.white, acc: COL.orange, reveal: easeOut((tl - 0.1) / Math.min(1.1, d * 0.45)), maxLines: 3 });
   c.restore();
 }
+// Burned-in captions: the narration is shown in the bottom box (Reels has no closed captions),
+// and the scene's punchline moves up under the heading.
+function drawPunch(c, sc, tl, d) {
+  if (!sc.subtitle || sc.layout === "outro") return;
+  const k = easeOut((tl - 0.2) / 0.3) * (1 - easeOut((tl - (d - 0.18)) / 0.18));
+  if (k <= 0) return;
+  c.save(); c.globalAlpha *= k; c.font = `600 40px ${FONT}`;
+  drawTokens(c, parseAccent(sc.subtitle), 540, sc.layout === "title" ? 1050 : 505, 920, 50, { base: "rgba(230,237,247,0.92)", acc: COL.orange, reveal: 1, maxLines: 2 });
+  c.restore();
+}
+function drawCaption(c, cue, t) {
+  const k = easeOut((t - cue.s) / 0.12) * (1 - easeOut((t - (cue.e - 0.08)) / 0.08));
+  if (k <= 0) return;
+  c.save(); c.globalAlpha *= k; c.font = `600 46px ${FONT}`;
+  const toks = cue.t.split(/\s+/).filter(Boolean).map(w => ({ w, acc: false }));
+  const { lines } = wrapTokens(c, toks, 900); const nl = Math.min(lines.length, 3); const bh = 64 + nl * 60; const y = 1660;
+  c.beginPath(); c.roundRect(60, y - bh / 2, W - 120, bh, 26); c.fillStyle = "rgba(4,8,18,0.86)"; c.fill();
+  c.strokeStyle = "rgba(255,255,255,0.08)"; c.lineWidth = 2; c.stroke();
+  drawTokens(c, toks, 540, y, 900, 60, { base: COL.white, reveal: 1, maxLines: 3 });
+  c.restore();
+}
+const burnOn = () => state.settings.burnCaptions !== false;
+const withCues = (s, voices) => burnOn() ? { ...s, _cues: chunkCues(buildCues(s, voices)) } : s;
 function drawFrame(c, s, t) {
   const total = totalDur(s);
   t = clamp(t, 0, Math.max(0, total - 1e-4));
@@ -849,7 +884,11 @@ function drawFrame(c, s, t) {
   c.translate((1 - inK) * 70 - (1 - outK) * 70, 0);
   drawScene(c, s, sc, tl, t);
   c.restore();
-  drawSubtitle(c, sc.subtitle, tl, d);
+  if (s._cues && narrationText(sc)) {
+    drawPunch(c, sc, tl, d);
+    const cue = s._cues.find(q => t >= q.s && t < q.e);
+    if (cue) drawCaption(c, cue, t);
+  } else drawSubtitle(c, sc.subtitle, tl, d);
 }
 
 /* ================= audio (generated) ================= */
@@ -922,6 +961,51 @@ async function renderAudio(s, voices, sampleRate = 48000) {
 /* ================= voice-over ================= */
 const VOICE_LEAD = 0.35, VOICE_TAIL = 0.5; // seconds of silence before / after the narration in each scene
 const voiceCache = new Map(); // "voice|rate|text" -> Promise<AudioBuffer>
+// How Vietnamese developers say common English terms; applied only to the text sent to the voice.
+const DEFAULT_PRONOUNCE = `API = ây pi ai
+HTTP = hát tê tê pê
+HTTPS = hát tê tê pê ét
+SQL = ét kiu eo
+JSON = giây sơn
+cache = két
+server = sơ vơ
+client = clai ừn
+database = đây ta bết
+request = ri quét
+response = ri xpon
+event = i ven
+queue = kiu
+token = tô kừn
+timeout = tham ao
+backend = bách en
+frontend = phờ ron en
+deploy = đi ploi
+proxy = próc xi
+relay = ri lây
+Kafka = cáp ca
+Redis = rê đít
+Docker = đóc cơ
+Kubernetes = kiu bơ nét tít
+Nginx = en gin ích
+microservice = mai crô sơ vít
+load balancer = lốt ba lăn xơ
+outbox = ao bóc
+partition = pa ti sần
+consumer = cần xiu mơ
+producer = prô đu xơ`;
+function pronounceRules() {
+  const txt = typeof state.settings.pronounce === "string" ? state.settings.pronounce : DEFAULT_PRONOUNCE;
+  return txt.split(/\r?\n/).map(l => l.split("=")).filter(p => p.length === 2 && p[0].trim() && p[1].trim())
+    .map(([a, b]) => ({ term: a.trim(), say: b.trim() })).sort((x, y) => y.term.length - x.term.length);
+}
+function ttsText(text) {
+  let out = text;
+  for (const r of pronounceRules()) {
+    const esc = r.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), r.say);
+  }
+  return out;
+}
 const narrationText = (sc) => String(sc.narration || "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
 function voiceOpts() { const st = state.settings; return { voice: st.voice || "", rate: st.voiceRate || "+10%" }; }
 // rough reading time: the voice reads about 12 characters per second at normal speed
@@ -946,7 +1030,7 @@ async function prepareVoice(s, onStep) {
     if (onStep) onStep(i, s.scenes.length);
     if (!text) { voices.push(null); scenes.push(sc); continue; }
     let buffer;
-    try { buffer = await narrationAudio(text, opts); }
+    try { buffer = await narrationAudio(ttsText(text), opts); }
     catch (e) { throw new Error(`cảnh ${i + 1}: ${(e && e.message) || e}`); }
     voices.push({ buffer });
     scenes.push({ ...sc, duration: Math.max(sc.duration, Math.round((VOICE_LEAD + buffer.duration + VOICE_TAIL) * 10) / 10) });
@@ -995,6 +1079,7 @@ async function renderMp4(s, job) {
     catch (e) { throw new Error("Không tạo được giọng đọc: " + ((e && e.message) || e)); }
     job.phase = "";
   }
+  s = withCues(s, voices);
   const total = totalDur(s); const nFrames = Math.ceil(total * FPS);
   const audioBuf = plan.audio ? await renderAudio(s, voices) : null;
   const target = new Mp4Muxer.ArrayBufferTarget();
@@ -1043,6 +1128,7 @@ async function renderWebm(s, job) {
   await ensureFonts();
   let voices = null;
   if (voiceOn()) ({ script: s, voices } = await prepareVoice(s));
+  s = withCues(s, voices);
   const total = totalDur(s);
   const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H; const c = canvas.getContext("2d");
   drawFrame(c, s, 0);
@@ -1111,7 +1197,7 @@ async function initCaps() {
     state.settings = { ...defaultSettings(), ...(snap.exists ? snap.data() : {}) }; state.loaded.settings = true;
     logoState.corner = state.settings.logoCorner === "right" ? "right" : "left";
     if ((state.settings.logoAssetId || "") !== logoState.assetId) loadLogo(state.settings.logoAssetId || "");
-    renderSchedule(); renderLogoPanel(); renderVoicePanel(); renderModelPanel(); renderOutroPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
+    renderSchedule(); renderLogoPanel(); renderVoicePanel(); renderModelPanel(); renderOutroPanel(); renderCaptionPanel(); renderDictPanel(); $("q-conc").value = String(state.settings.concurrency || 2); maybeAutoRender(); pv.draw();
   }, () => { state.loaded.settings = true; });
 }
 function goLocal(msg) { state.localMode = true; state.loaded.scripts = state.loaded.settings = true; banner(msg, true); renderList(); renderSchedule(); }
@@ -1358,7 +1444,7 @@ $("editor").addEventListener("click", async (e) => {
     if (speakAudio) { speakAudio.pause(); speakAudio = null; }
     b.disabled = true; b.innerHTML = '<span class="spin"></span>';
     try {
-      const ab = await cap.voice.synthesize(text, voiceOpts());
+      const ab = await cap.voice.synthesize(ttsText(text), voiceOpts());
       speakAudio = new Audio(URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" })));
       speakAudio.play().catch(() => {});
     } catch (err) { toast((err && err.message) || "Không tạo được giọng đọc."); }
@@ -1431,7 +1517,7 @@ let speakAudio = null;
 /* ================= preview ================= */
 const pv = (() => {
   const canvas = $("pv"); const c = canvas.getContext("2d"); let t = 0, playing = false, last = 0, raf = 0;
-  const cur = () => { const d = state.draft || (state.editingId && state.scripts.get(state.editingId)); return d ? withOutro(normScript(d)) : null; };
+  const cur = () => { const d = state.draft || (state.editingId && state.scripts.get(state.editingId)); if (!d) return null; return withCues(withOutro(normScript(d)), null); };
   function draw() {
     const s = cur(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
     if (!s) { drawBg(c, 0); c.font = `700 44px ${FONT}`; c.fillStyle = COL.muted; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("Chọn một kịch bản", 540, 960); $("pv-info").textContent = ""; $("pv-time").textContent = "0:00.0"; return; }
@@ -2100,6 +2186,50 @@ $("btn-save-sched").addEventListener("click", async () => {
   } catch (err) { $("sch-msg").textContent = "Không lưu được: " + (err.message || err.code); }
 });
 
+/* ================= captions + pronunciation settings ================= */
+function renderCaptionPanel() { $("b-enabled").checked = burnOn(); }
+$("b-enabled").addEventListener("change", async () => {
+  const v = $("b-enabled").checked;
+  try { await saveLogoSettings({ burnCaptions: v }); if (!cap.db) state.settings.burnCaptions = v; $("b-msg").textContent = "Đã lưu."; setTimeout(() => $("b-msg").textContent = "", 2000); pv.draw(); }
+  catch (e) { $("b-msg").textContent = "Không lưu được."; }
+});
+function renderDictPanel() { const el = $("v-dict"); if (el && document.activeElement !== el) el.value = typeof state.settings.pronounce === "string" ? state.settings.pronounce : DEFAULT_PRONOUNCE; }
+async function saveDict(text) {
+  try { await saveLogoSettings({ pronounce: text }); if (!cap.db) state.settings.pronounce = text; $("v-dict-msg").textContent = "Đã lưu. Câu có từ đã sửa sẽ được tạo lại giọng ở lần render sau."; }
+  catch (e) { $("v-dict-msg").textContent = "Không lưu được."; }
+}
+$("v-dict-save").addEventListener("click", () => saveDict($("v-dict").value));
+$("v-dict-reset").addEventListener("click", () => { $("v-dict").value = DEFAULT_PRONOUNCE; saveDict(DEFAULT_PRONOUNCE); });
+$("v-dict-play").addEventListener("click", async () => {
+  const b = $("v-dict-play"); const keep = state.settings.pronounce; state.settings.pronounce = $("v-dict").value; // try the unsaved list
+  const text = ttsText($("v-dict-test").value.trim()); state.settings.pronounce = keep;
+  if (!text) return;
+  b.disabled = true; $("v-dict-msg").innerHTML = '<span class="spin"></span> ' + esc(text);
+  try { const ab = await cap.voice.synthesize(text, voiceOpts()); if (speakAudio) speakAudio.pause(); speakAudio = new Audio(URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" }))); speakAudio.play().catch(() => {}); $("v-dict-msg").textContent = "Đọc: " + text; }
+  catch (err) { $("v-dict-msg").textContent = (err && err.message) || "Không tạo được giọng đọc."; }
+  b.disabled = false;
+});
+$("v-dict-ai").addEventListener("click", async () => {
+  const d = state.draft || (state.editingId && state.scripts.get(state.editingId));
+  if (!d) { $("v-dict-msg").textContent = "Mở một kịch bản ở tab Kịch bản trước."; return; }
+  if (!cap.sample) { $("v-dict-msg").textContent = "AI không khả dụng."; return; }
+  const known = new Set(pronounceRules().map(r => r.term.toLowerCase()));
+  const words = new Set();
+  normScript(d).scenes.forEach(sc => (narrationText(sc).match(/[A-Za-z][A-Za-z0-9+#.\-]*[A-Za-z0-9+#]|[A-Za-z]/g) || []).forEach(w => { if (!known.has(w.toLowerCase()) && w.length > 1) words.add(w); }));
+  if (!words.size) { $("v-dict-msg").textContent = "Kịch bản này không có từ tiếng Anh mới."; return; }
+  const b = $("v-dict-ai"); b.disabled = true; $("v-dict-msg").innerHTML = '<span class="spin"></span> Đang gợi ý cách đọc…';
+  try {
+    const r = await cap.sample.json(`Bạn giúp một giọng đọc tiếng Việt (text-to-speech) đọc đúng các thuật ngữ tiếng Anh trong video kỹ thuật.
+Với mỗi từ dưới đây, viết cách đọc mà lập trình viên Việt Nam hay nói, bằng chữ tiếng Việt có dấu, các âm tiết cách nhau bằng dấu cách (ví dụ: "server" → "sơ vơ", "cache" → "két", "API" → "ây pi ai"). Từ viết tắt thì đọc theo cách dev Việt thường đọc. Bỏ qua từ đã là tiếng Việt hoặc tên riêng đọc như tiếng Việt cũng đúng.
+Danh sách: ${[...words].slice(0, 60).join(", ")}
+Chỉ trả về JSON: {"items": [{"term": "...", "say": "..."}]}`, aiOpts("light", "default"));
+    const items = (r && Array.isArray(r.items) ? r.items : []).filter(x => x && x.term && x.say);
+    if (items.length) $("v-dict").value = $("v-dict").value.replace(/\s*$/, "") + "\n" + items.map(x => `${String(x.term).trim()} = ${String(x.say).trim()}`).join("\n");
+    $("v-dict-msg").textContent = items.length ? `Đã thêm ${items.length} từ vào cuối danh sách. Nghe thử rồi bấm Lưu cách đọc.` : "AI không gợi ý thêm từ nào.";
+  } catch (err) { $("v-dict-msg").textContent = aiError(err); }
+  b.disabled = false;
+});
+
 /* ================= outro settings ================= */
 function renderOutroPanel() {
   const st = state.settings; const o = st.outro || {};
@@ -2241,10 +2371,10 @@ if (LOCAL) {
   $("sch-desc").textContent = "Bản chạy trên máy: vào giờ render bên dưới, nếu trang đang mở, Claude dùng API key của bạn để viết kịch bản mới rồi render luôn.";
   $("sch-note").hidden = true;
 }
-fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelPanel(); renderOutroPanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
+fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelPanel(); renderOutroPanel(); renderCaptionPanel(); renderDictPanel(); renderEditor(); renderJobs(); renderLibrary(); renderSchedule();
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
+window.__codelens = { ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
 })();
 </script>

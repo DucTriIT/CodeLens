@@ -136,6 +136,18 @@ Cần biết trước khi dùng cho kênh:
 - Đây là dịch vụ không chính thức. Microsoft không công bố nó như một API công khai, nên có thể đổi hoặc ngừng bất cứ lúc nào, và điều khoản dùng cho mục đích thương mại (kênh có kiếm tiền) chưa rõ ràng.
 - Muốn chắc chắn về bản quyền giọng đọc, dùng dịch vụ có giấy phép: Azure AI Speech (cùng giọng NamMinh, có gói miễn phí hằng tháng), FPT.AI hoặc Viettel AI.
 
+### Cách đọc từ tiếng Anh
+
+Giọng tiếng Việt đọc từ tiếng Anh theo kiểu tiếng Việt ("cache", "Kafka" nghe rất lạ). Tab **Lịch & logo → Giọng đọc → Cách đọc từ tiếng Anh** là một từ điển, mỗi dòng `từ = cách đọc` (ví dụ `cache = két`, `server = sơ vơ`). Trước khi gửi đi tạo giọng, CodeLens thay các từ này bằng cách đọc; phụ đề và lời thuyết minh trên màn hình vẫn giữ chữ gốc.
+
+- Có sẵn khoảng 30 từ phổ biến; sửa, thêm, rồi bấm **▶ Nghe câu này** để thử trước khi lưu.
+- **AI gợi ý từ kịch bản đang mở** tìm các từ tiếng Anh chưa có trong từ điển và đề xuất cách đọc.
+- Sửa từ điển chỉ làm các câu có từ đó phải tạo lại giọng; các câu khác vẫn dùng bản đã lưu.
+
+### Phụ đề trên video
+
+Facebook Reels không hỗ trợ tải phụ đề hay tự tạo phụ đề, nên CodeLens in lời thuyết minh thẳng vào video (bật/tắt ở **Lịch & logo → Phụ đề trên video**, mặc định bật). Lời thuyết minh chạy trong ô dưới cùng, mỗi lần một câu, khớp với giọng đọc; câu nhấn mạnh của cảnh chuyển lên dưới tiêu đề.
+
 Nếu render báo "Không tạo được giọng đọc":
 
 - **"Dịch vụ giọng đọc tạm thời từ chối":** dịch vụ miễn phí đôi khi cắt kết nối khi nhận nhiều yêu cầu liên tiếp. Server đã tự thử lại 5 lần. Nếu vẫn lỗi, chờ vài phút rồi bấm **Thử lại** trong Hàng đợi; các cảnh đã có giọng đọc được giữ lại, không phải tạo lại.
