@@ -76,6 +76,17 @@ AI viết và AI kiểm tra kỹ thuật đều theo các tiêu chí sau. Giọn
 | Độ sâu | Người mới hiểu được, dev có kinh nghiệm vẫn học thêm |
 | Kết bài | Một thông điệp chính, kèm giới hạn của giải pháp |
 
+### Giọng văn tự nhiên
+
+Lời thuyết minh phải nghe như một kỹ sư người Việt đang nói chuyện với đồng nghiệp, không như ghi chú hay văn dịch. Quy tắc của AI có:
+
+- Bộ hướng dẫn giọng văn: xưng "mình", gọi người xem là "bạn"; câu đầy đủ, có từ nối (thì, mà, thế là…); không câu cụt, không văn dịch từ tiếng Anh; phụ đề không chứa nguyên câu lệnh code.
+- Ví dụ câu cứng và câu tự nhiên tương ứng để AI bắt chước.
+- Lời đọc mỗi cảnh dài khoảng 80–250 ký tự, tổng tối đa 1.500 ký tự. Để vừa 2 phút, AI bớt cảnh chứ không nén câu.
+- Giọng đọc mặc định nhanh hơn 10% (đổi ở tab Lịch & logo → Giọng đọc).
+
+Sau bước kiểm tra kỹ thuật, AI chạy thêm bước **biên tập giọng văn**: đóng vai biên tập viên tiếng Việt, chỉ viết lại tiêu đề, phụ đề và lời đọc cho tự nhiên, không đổi nội dung kỹ thuật. Kịch bản cũ thì bấm nút **AI biên tập giọng văn** trong trình soạn.
+
 ### Series nhiều phần
 
 CodeLens ưu tiên chất lượng hơn độ ngắn. Khi viết từ chủ đề hoặc từ bài viết, AI lên kế hoạch trước. Nếu một clip khoảng 2 phút không đủ để giải thích kỹ, AI chia thành series (tối đa 4 phần) và viết từng phần, các phần dùng chung một ví dụ và không lặp ý.

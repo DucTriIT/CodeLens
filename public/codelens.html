@@ -297,7 +297,7 @@ a.btn { text-decoration: none; color: inherit; }
         <label class="toggle"><input type="checkbox" id="v-enabled"><span>Thêm giọng đọc khi render</span></label>
         <div class="row" style="margin-top:10px">
           <label class="f"><span>Giọng</span><select id="v-voice"></select></label>
-          <label class="f"><span>Tốc độ</span><select id="v-rate"><option value="-10%">Chậm (-10%)</option><option value="-5%">Hơi chậm (-5%)</option><option value="+0%">Bình thường</option><option value="+5%">Hơi nhanh (+5%)</option><option value="+10%">Nhanh (+10%)</option><option value="+15%">Rất nhanh (+15%)</option></select></label>
+          <label class="f"><span>Tốc độ</span><select id="v-rate"><option value="-10%">Chậm (-10%)</option><option value="-5%">Hơi chậm (-5%)</option><option value="+0%">Bình thường</option><option value="+5%">Hơi nhanh (+5%)</option><option value="+10%">Nhanh vừa (+10%, mặc định)</option><option value="+15%">Rất nhanh (+15%)</option></select></label>
         </div>
         <div class="row" style="margin-top:10px"><button class="btn" id="v-test">▶ Nghe thử</button><span class="hint" id="v-msg"></span></div>
       </div>
@@ -499,6 +499,7 @@ function normScript(s) {
     sourceText: String(s.sourceText || "").slice(0, ARTICLE_MAX), source: s.source === "article" ? "article" : (s.source || ""),
     series: s.series && s.series.id && +s.series.total > 1 ? { id: String(s.series.id).slice(0, 40), title: String(s.series.title || "").slice(0, 120), part: clamp(Math.round(+s.series.part) || 1, 1, 9), total: clamp(Math.round(+s.series.total) || 1, 1, 9) } : null,
     nextTeaser: String(s.nextTeaser || "").slice(0, 300),
+    polished: !!s.polished,
     reviewed: !!s.reviewed, reviewNotes: Array.isArray(s.reviewNotes) ? s.reviewNotes.slice(0, 12).map(x => String(x).slice(0, 200)) : [],
   };
 }
@@ -916,7 +917,9 @@ async function renderAudio(s, voices, sampleRate = 48000) {
 const VOICE_LEAD = 0.35, VOICE_TAIL = 0.5; // seconds of silence before / after the narration in each scene
 const voiceCache = new Map(); // "voice|rate|text" -> Promise<AudioBuffer>
 const narrationText = (sc) => String(sc.narration || "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
-function voiceOpts() { const st = state.settings; return { voice: st.voice || "", rate: st.voiceRate || "+0%" }; }
+function voiceOpts() { const st = state.settings; return { voice: st.voice || "", rate: st.voiceRate || "+10%" }; }
+// rough reading time: the voice reads about 12 characters per second at normal speed
+const readSecs = (n) => Math.round(n / (12 * (1 + (parseInt(state.settings.voiceRate || "+10%", 10) || 0) / 100)));
 function voiceOn() { return !!(cap.voice && state.settings.voiceEnabled !== false); }
 function narrationAudio(text, opts) {
   const key = `${opts.voice}|${opts.rate}|${text}`;
@@ -1072,7 +1075,7 @@ const state = {
   jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
   aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
 };
-function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+0%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+10%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
 const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -1234,6 +1237,7 @@ function renderEditor() {
         <button class="btn primary" data-act="save">Lưu</button>
         <button class="btn blue" data-act="review" ${cap.sample ? "" : "disabled"}>AI kiểm tra kỹ thuật</button>
         <button class="btn" data-act="narrate" ${cap.sample ? "" : "disabled"}>AI viết lời thuyết minh</button>
+        <button class="btn" data-act="polish" ${cap.sample ? "" : "disabled"}>AI biên tập giọng văn</button>
         ${cap.voice ? `<button class="btn" data-act="voice-sync">Khớp thời lượng với giọng đọc</button>` : ""}
         <button class="btn" data-act="render" ${d.id ? "" : "disabled"}>Render clip này</button>
         <button class="btn ghost danger" data-act="delete" ${d.id ? "" : "disabled"}>Xóa</button>
@@ -1282,7 +1286,7 @@ function renderSceneCard(sc, i, n, sel) {
     <label class="f"><span>Phụ đề (câu nhấn mạnh, hiện trên màn hình)</span><textarea rows="2" data-f="${p}.subtitle" id="ed-${i}-sub">${esc(sc.subtitle)}</textarea></label>
     <div class="f"><span class="hint" style="font-weight:600">Lời thuyết minh (giọng đọc, giải thích kỹ hơn phụ đề)</span>
       <textarea rows="3" data-f="${p}.narration" id="ed-${i}-nar" placeholder="Đoạn giải thích được đọc thành tiếng trong cảnh này">${esc(sc.narration || "")}</textarea>
-      <div class="row"><span class="hint" id="ed-${i}-narinfo">${narrationText(sc) ? `${narrationText(sc).length} ký tự · khoảng ${Math.round(narrationText(sc).length / 12)} giây đọc` : "Chưa có lời thuyết minh"}</span>${cap.voice ? `<span class="grow"></span><button class="btn small" data-act="speak" data-i="${i}" ${narrationText(sc) ? "" : "disabled"}>▶ Nghe</button>` : ""}</div>
+      <div class="row"><span class="hint" id="ed-${i}-narinfo">${narrationText(sc) ? `${narrationText(sc).length} ký tự · khoảng ${readSecs(narrationText(sc).length)} giây đọc` : "Chưa có lời thuyết minh"}</span>${cap.voice ? `<span class="grow"></span><button class="btn small" data-act="speak" data-i="${i}" ${narrationText(sc) ? "" : "disabled"}>▶ Nghe</button>` : ""}</div>
     </div>
     ${isCmp ? `<div class="scene-grid"><label class="f"><span>Nhãn cột trái</span><input type="text" data-f="${p}.left" id="ed-${i}-left" value="${esc(sc.left)}" placeholder="${sc.layout === "before-after" ? "TRƯỚC" : "A"}"></label><label class="f"><span>Nhãn cột phải</span><input type="text" data-f="${p}.right" id="ed-${i}-right" value="${esc(sc.right)}" placeholder="${sc.layout === "before-after" ? "SAU" : "B"}"></label></div>` : ""}
     <div class="f"><span class="hint" style="font-weight:600">Đối tượng (tối đa 6)</span>
@@ -1316,7 +1320,7 @@ $("editor").addEventListener("input", (e) => {
   if (ty === "mark") { if (!v) v = null; else { const [i, t] = v.split(":"); v = { index: +i, type: t }; } }
   setPath(state.draft, f, v); markDirty();
   const mi = /^scenes\.(\d+)\.narration$/.exec(f);
-  if (mi) { const info = $(`ed-${mi[1]}-narinfo`); const n = narrationText({ narration: v }).length; if (info) info.textContent = n ? `${n} ký tự · khoảng ${Math.round(n / 12)} giây đọc` : "Chưa có lời thuyết minh"; const sb = document.querySelector(`[data-act="speak"][data-i="${mi[1]}"]`); if (sb) sb.disabled = !n; }
+  if (mi) { const info = $(`ed-${mi[1]}-narinfo`); const n = narrationText({ narration: v }).length; if (info) info.textContent = n ? `${n} ký tự · khoảng ${readSecs(n)} giây đọc` : "Chưa có lời thuyết minh"; const sb = document.querySelector(`[data-act="speak"][data-i="${mi[1]}"]`); if (sb) sb.disabled = !n; }
   if (e.target.dataset.rerender || e.target.dataset.rerenderSoft) { if (e.type === "input" && e.target.tagName === "SELECT") renderEditor(); }
 });
 $("editor").addEventListener("change", (e) => { if (e.target.tagName === "SELECT" && (e.target.dataset.rerender || e.target.dataset.rerenderSoft)) renderEditor(); });
@@ -1361,6 +1365,18 @@ $("editor").addEventListener("click", async (e) => {
       script.scenes.forEach((sc, k) => { if (d.scenes[k]) d.scenes[k].duration = sc.duration; });
       markDirty(); renderEditor(); toast(`Đã khớp thời lượng: clip dài khoảng ${totalDur(withOutro(normScript(state.draft))).toFixed(0)} giây (gồm cảnh kết). Bấm Lưu để ghi lại.`, 5000);
     } catch (err) { toast("Không tạo được giọng đọc: " + ((err && err.message) || err), 5000); renderEditor(); }
+  }
+  else if (act === "polish") {
+    if (!cap.sample || state.aiBusy) return;
+    if (!d.scenes.some(sc => narrationText(sc))) { toast("Kịch bản chưa có lời thuyết minh: bấm “AI viết lời thuyết minh” trước."); return; }
+    b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang biên tập…'; state.aiBusy = true;
+    try {
+      const { script, notes } = await aiPolish(normScript(d));
+      script.scenes.forEach((sc, k) => { if (d.scenes[k]) { d.scenes[k].heading = sc.heading; d.scenes[k].subtitle = sc.subtitle; d.scenes[k].narration = sc.narration; } });
+      d.polished = true; markDirty(); renderEditor();
+      toast((notes.length ? "Đã biên tập: " + notes.slice(0, 3).join("; ") : "Đã biên tập giọng văn.") + " Nghe thử rồi bấm Lưu.", 6000);
+    } catch (err) { toast(aiError(err), 5000); renderEditor(); }
+    state.aiBusy = false;
   }
   else if (act === "narrate") {
     if (!cap.sample || state.aiBusy) return;
@@ -1439,6 +1455,19 @@ TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường hay tình huống công s
 Nội dung phải CHÍNH XÁC về kỹ thuật: định nghĩa đúng, thứ tự các bước đúng, tên trạng thái/thuật toán đúng, nêu đúng đánh đổi (trade-off). Không bịa số liệu, benchmark hay phiên bản; nếu không chắc một chi tiết thì bỏ chi tiết đó.
 Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.
 
+GIỌNG VĂN (bắt buộc, áp dụng cho phụ đề và nhất là lời thuyết minh):
+- Viết như đang NÓI CHUYỆN với một đồng nghiệp ngồi cạnh: xưng "mình", gọi người xem là "bạn". Câu đầy đủ chủ ngữ, vị ngữ.
+- Dùng từ nối và nhịp nói tự nhiên: "thì", "mà", "nên", "thế là", "lúc đó", "vì vậy", "nghe thì hợp lý, nhưng…"; thỉnh thoảng có "đấy", "nhé", "cả", "luôn", nhưng đừng lạm dụng. Xen câu dài và câu ngắn.
+- KHÔNG viết kiểu ghi chú hay gạch đầu dòng: không câu cụt như "Thường là sai.", không nối các ý bằng dấu phẩy thay cho câu.
+- KHÔNG dùng văn dịch từ tiếng Anh: tránh "điều này dẫn đến", "việc … được thực hiện", "nó là", "trong khi đó" lặp lại, bị động "được/bị" thừa.
+- Thuật ngữ tiếng Anh giữ nguyên, nhưng đặt trong câu tiếng Việt tự nhiên ("có ticket báo…", không phải "ticket báo…").
+- Phụ đề là một câu chốt tự nhiên, đọc lướt là hiểu; không chứa nguyên câu lệnh hay đoạn code (chỉ tên ngắn nếu thật cần).
+Ví dụ (CỨNG → TỰ NHIÊN):
+- "Ticket báo API đơn hàng chậm. Chạy trong SSMS thấy nhanh, bạn kết luận database ổn. Thường là sai." → "Có ticket báo API đơn hàng chạy chậm. Bạn mở SSMS chạy thử thì thấy nhanh re, thế là yên tâm database không sao. Nghe hợp lý, nhưng phần lớn trường hợp lại sai."
+- "Cache hit: nhanh. Database không bị truy cập." → "Khi dữ liệu đã có sẵn trong cache, request lấy ra gần như ngay lập tức, database chẳng phải làm gì cả."
+- "Relay crash trước khi đánh dấu. Event bị gửi lại." → "Giả sử relay vừa gửi xong thì bị crash, chưa kịp đánh dấu. Lúc chạy lại, nó tưởng event chưa đi, thế là gửi thêm lần nữa."
+- "Điều này dẫn đến việc hiệu suất bị suy giảm đáng kể." → "Thế là hệ thống chậm hẳn đi."
+
 TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
 - Giọng kể như một Senior Developer giải thích kiến trúc cho một Junior Developer: đặt vấn đề, dẫn dắt, minh họa, giải thích VÌ SAO, cuối cùng mới đi vào cách triển khai.
 - Hook: bắt đầu bằng một vấn đề thực tế mà dev gặp.
@@ -1466,7 +1495,7 @@ ${head}
 ${ctx ? "\n" + ctx + "\n" : ""}Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
 
 Quy tắc:
-- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 9–16 cảnh. Tổng độ dài tất cả "narration" khoảng 700–1.250 ký tự (giọng đọc khoảng 12 ký tự mỗi giây), không vượt quá 1.250 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây).
+- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 8–14 cảnh. Tổng độ dài tất cả "narration" khoảng 800–1.500 ký tự (giọng đọc khoảng 13 ký tự mỗi giây), không vượt quá 1.500 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây). Muốn câu tự nhiên mà vẫn vừa thời lượng thì bớt cảnh, đừng nén câu.
 - Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất mà dev cần biết (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
 - CẤU TRÚC BẮT BUỘC gồm 3 phần, mỗi cảnh ghi rõ phần của nó trong trường "part":
   • MỞ BÀI ("part": "intro", đúng 2 cảnh). Cảnh 1 dùng layout "title": hook gây tò mò (vấn đề dev hay gặp, hoặc một câu hỏi), phụ đề là câu hook. Cảnh 2 nói rõ clip sẽ trả lời những gì: layout "stack" hoặc "grid" liệt kê 2–4 ý sẽ trình bày, narration kiểu "Trong clip này, mình sẽ cùng bạn tìm hiểu...".
@@ -1474,8 +1503,8 @@ Quy tắc:
   • KẾT BÀI ("part": "outro", 1–2 cảnh): tóm tắt lại các ý chính (thường dùng "compare" hoặc "before-after") và một câu chốt hoặc mẹo nhớ nhanh.
   • KHÔNG viết cảnh kêu gọi follow, like, subscribe: hệ thống tự thêm cảnh đó ở cuối mọi clip.
 - "heading": tiếng Việt hoặc thuật ngữ tiếng Anh, ngắn (tối đa 5 từ), sẽ được in hoa. Bao 1 từ quan trọng trong *dấu sao* để tô cam.
-- "subtitle": câu NHẤN MẠNH hiện trên màn hình: ngắn, đắt giá, chốt ý chính của cảnh, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*.
-- "narration": lời thuyết minh được đọc thành tiếng bằng giọng nam, GIẢI THÍCH RÕ cảnh đó cho người nghe hiểu: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 60–200 ký tự. Văn nói tự nhiên, dễ hiểu, như một kỹ sư giải thích cho đồng nghiệp; nối mạch với cảnh trước và chuyển ý sang cảnh sau. Không lặp nguyên văn phụ đề. Viết để ĐỌC THÀNH TIẾNG: không dùng ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên; tránh viết tắt khó đọc.
+- "subtitle": câu NHẤN MẠNH hiện trên màn hình: một câu chốt tự nhiên, đắt giá, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*. Không chứa nguyên câu lệnh hay đoạn code.
+- "narration": lời thuyết minh được đọc thành tiếng bằng giọng nam, GIẢI THÍCH RÕ cảnh đó cho người nghe hiểu: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 80–250 ký tự, theo đúng GIỌNG VĂN ở trên; nối mạch với cảnh trước và dẫn sang cảnh sau. Không lặp nguyên văn phụ đề. Viết để ĐỌC THÀNH TIẾNG: không dùng ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên; tránh viết tắt khó đọc.
 - "duration": để 3 (hệ thống tự kéo dài cảnh theo độ dài giọng đọc).
 - "actors": 1–6 đối tượng, mỗi đối tượng {"icon", "label", "side"}. label ngắn (tối đa 3 từ). "side" chỉ dùng cho compare/before-after: "L" hoặc "R".
 - icon CHỈ được chọn trong: ${ICON_NAMES.join(", ")}.
@@ -1494,8 +1523,8 @@ function reviewPrompt(sc, ctx) {
 Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch bản clip dưới đây:
 1. Độ chính xác kỹ thuật: định nghĩa, thứ tự các bước, tên trạng thái/thuật toán, trade-off, ví dụ công cụ/sản phẩm. Sửa mọi chỗ sai hoặc gây hiểu nhầm. Bỏ số liệu không chắc chắn.
 2. Bỏ mọi ẩn dụ đời thường/công sở, thay bằng thành phần kỹ thuật thật.
-2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá 1.400 ký tự.
-2c. Cấu trúc: phải có MỞ BÀI (2 cảnh: hook, rồi giới thiệu clip sẽ nói gì), THÂN BÀI giải thích đúng các ý đã hứa, KẾT BÀI tóm tắt. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.250 ký tự.
+2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá 1.500 ký tự. Khi sửa, giữ câu văn tự nhiên theo GIỌNG VĂN, đừng làm câu cụt hay khô đi.
+2c. Cấu trúc: phải có MỞ BÀI (2 cảnh: hook, rồi giới thiệu clip sẽ nói gì), THÂN BÀI giải thích đúng các ý đã hứa, KẾT BÀI tóm tắt. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.500 ký tự.
 2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (tối đa khoảng 2 phút). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
 3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
 2d. Tiêu chí chất lượng: kiểm tra từng tiêu chí trong phần TIÊU CHÍ CHẤT LƯỢNG ở trên (thuật ngữ được giải thích trước khi dùng, một ví dụ xuyên suốt, mỗi cảnh một ý, kết bài có thông điệp chính và giới hạn của giải pháp). Sửa chỗ nào chưa đạt.
@@ -1515,16 +1544,41 @@ function narratePrompt(sc) {
 
 Kịch bản clip dưới đây có phụ đề ngắn cho từng cảnh. Hãy viết thêm "narration" (lời thuyết minh đọc bằng giọng nam) cho TỪNG cảnh.
 - Phụ đề giữ nguyên: đó là câu nhấn mạnh hiện trên màn hình.
-- Narration GIẢI THÍCH RÕ cảnh đó: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 60–200 ký tự, văn nói tự nhiên, dễ hiểu, nối mạch giữa các cảnh, không lặp nguyên văn phụ đề.
+- Narration GIẢI THÍCH RÕ cảnh đó: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 80–250 ký tự, theo đúng GIỌNG VĂN ở trên, nối mạch giữa các cảnh, không lặp nguyên văn phụ đề.
 - Viết để đọc thành tiếng: không ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên.
 - Giữ cấu trúc 3 phần và ghi "part" cho từng cảnh: MỞ BÀI ("intro", 2 cảnh: hook, rồi giới thiệu clip sẽ nói gì, narration kiểu "Trong clip này, mình sẽ..."), THÂN BÀI ("body") giải thích, KẾT BÀI ("outro") tóm tắt và chốt ý. Không viết lời kêu gọi follow: hệ thống tự thêm cảnh đó.
-- Tổng narration của cả clip không quá 1.250 ký tự (khoảng 2 phút, chưa tính cảnh follow). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất; nếu thiếu ý quan trọng thì thêm cảnh.
+- Tổng narration của cả clip không quá 1.500 ký tự (khoảng 2 phút, chưa tính cảnh follow). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất, đừng nén câu; nếu thiếu ý quan trọng thì thêm cảnh.
 - Phải đúng kỹ thuật; không bịa số liệu.
 ${sourceText ? `\nĐối chiếu với BÀI VIẾT NGUỒN:\n=== BÀI VIẾT NGUỒN ===\n${sourceText}\n=== HẾT BÀI VIẾT ===\n` : ""}
 Kịch bản hiện tại:
 ${JSON.stringify(body)}
 
 Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, scenes), mỗi cảnh có thêm trường "narration".`;
+}
+// Language editor: rewrites only the words (heading, subtitle, narration) for natural spoken Vietnamese.
+function polishPrompt(sc, ctx) {
+  const scenes = sc.scenes.map((x, i) => ({ i, part: x.part, layout: x.layout, heading: x.heading, subtitle: x.subtitle, narration: x.narration, actors: x.actors.map(a => a.label).filter(Boolean) }));
+  return `${STYLE_RULES}
+
+Bạn là BIÊN TẬP VIÊN TIẾNG VIỆT của kênh. Nội dung kỹ thuật dưới đây đã được kiểm tra là đúng. Việc của bạn chỉ là làm cho câu chữ TỰ NHIÊN, dễ nghe như người Việt nói chuyện, theo đúng phần GIỌNG VĂN ở trên.
+- Viết lại "narration" của từng cảnh cho tự nhiên, mạch lạc, nối ý giữa các cảnh; viết lại "subtitle" và "heading" nếu còn cứng hoặc chứa code.
+- TUYỆT ĐỐI không thay đổi nội dung kỹ thuật, không thêm hay bớt ý, không thêm số liệu. Giữ nguyên thuật ngữ.
+- Giữ nguyên số cảnh và thứ tự cảnh. Heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tối đa 90 ký tự; narration mỗi cảnh tối đa khoảng 250 ký tự; tổng narration không quá 1.500 ký tự.
+${ctx ? "\n" + ctx + "\n" : ""}
+Các cảnh hiện tại:
+${JSON.stringify(scenes)}
+
+Chỉ trả về JSON: {"notes": ["ghi chú ngắn bằng tiếng Việt về những gì đã sửa"], "scenes": [{"i": số thứ tự cảnh, "heading": "...", "subtitle": "...", "narration": "..."}]}`;
+}
+async function aiPolish(script, ctx) {
+  const r = await cap.sample.json(polishPrompt(script, ctx), aiOpts("write", "default"));
+  const out = r && Array.isArray(r.scenes) ? r.scenes : [];
+  const scenes = script.scenes.map((x, i) => {
+    const y = out.find(o => o && +o.i === i) || out[i];
+    if (!y) return x;
+    return { ...x, heading: y.heading ? String(y.heading) : x.heading, subtitle: y.subtitle ? String(y.subtitle) : x.subtitle, narration: y.narration ? String(y.narration) : x.narration };
+  });
+  return { script: { ...script, scenes }, notes: r && Array.isArray(r.notes) ? r.notes.map(String).filter(Boolean) : [] };
 }
 async function aiReview(script, ctx) {
   const r = await cap.sample.json(reviewPrompt(script, ctx), aiOpts("review", "complex"));
@@ -1582,7 +1636,7 @@ function planPrompt(topic, category, article, note) {
   return `${STYLE_RULES}
 
 Lên kế hoạch clip dọc 9:16 cho ${article ? `BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}` : `chủ đề "${topic}"`}${category && !["all", "auto"].includes(category) ? ` (lĩnh vực ${category})` : ""}.${note ? `\nYêu cầu thêm: ${note}` : ""}
-Mỗi clip tối đa khoảng 2 phút (lời thuyết minh không quá 1.250 ký tự, khoảng 9–16 cảnh, gồm mở bài, thân bài, kết bài).
+Mỗi clip tối đa khoảng 2 phút (lời thuyết minh không quá 1.500 ký tự, khoảng 8–14 cảnh, gồm mở bài, thân bài, kết bài).
 Ưu tiên CHẤT LƯỢNG: nếu cần giải thích đủ sâu theo các tiêu chí ở trên mà một clip không đủ, hãy chia thành nhiều phần (tối đa 4). Chủ đề gọn thì giữ 1 phần.
 Mỗi phần phải xem riêng vẫn hiểu được; các phần không lặp ý; phần sau nối tiếp phần trước. Cả series dùng chung MỘT ví dụ xuyên suốt.
 ${article ? `\n=== BÀI VIẾT NGUỒN ===\n${article}\n=== HẾT BÀI VIẾT ===\n` : ""}
@@ -1619,9 +1673,12 @@ async function writeScripts({ topic, category, article, note, tier = "default", 
     let r = r0, issues = [], reviewed = false;
     try { const rv = await aiReview(normScript({ ...r0, sourceText: article || "" }), ctx); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) { allReviewed = false; }
     issuesTotal += issues.length;
+    onStatus(n > 1 ? `Đang biên tập giọng văn phần ${i + 1}/${n}…` : "Đang biên tập giọng văn cho tự nhiên…");
+    let polished = false;
+    try { const pz = await aiPolish(normScript(r), ctx); r = { ...r, scenes: pz.script.scenes }; polished = true; } catch (e) {}
     const cat = CATEGORIES.includes(category) ? category : (CATEGORIES.includes(r && r.category) ? r.category : undefined);
     const s = normScript({ ...r, topic: n > 1 ? plan.seriesTitle : (topic || (r && r.title)), category: cat, createdBy: "ai", status, createdAt,
-      source: article ? "article" : "", sourceText: article || "", reviewed, reviewNotes: issues,
+      source: article ? "article" : "", sourceText: article || "", reviewed, reviewNotes: issues, polished,
       series: n > 1 ? { id: seriesId, title: plan.seriesTitle, part: i + 1, total: n } : null,
       nextTeaser: i < n - 1 ? plan.parts[i + 1].teaser : "" });
     saved.push(await putScript(s));
@@ -1987,7 +2044,7 @@ async function renderVoicePanel() {
     $("voice-controls").hidden = true; return;
   }
   $("voice-controls").hidden = false;
-  $("v-enabled").checked = st.voiceEnabled !== false; $("v-rate").value = st.voiceRate || "+0%";
+  $("v-enabled").checked = st.voiceEnabled !== false; $("v-rate").value = st.voiceRate || "+10%";
   try {
     const info = await cap.voice.info();
     const cur = st.voice || info.defaultVoice;
