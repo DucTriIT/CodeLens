@@ -373,7 +373,7 @@ const CATEGORIES = ["Network", "Backend", "Frontend", "Database", "Cloud", "AI",
 const LAYOUTS = {
   title: "Mở đầu (tiêu đề lớn)", flow: "Dòng chảy (A → B → C)", hub: "Trung tâm & vệ tinh",
   compare: "So sánh 2 cột", "before-after": "Trước / Sau", stack: "Các tầng xếp chồng", grid: "Lưới",
-  outro: "Kết: kêu gọi follow kênh", sketch: "Vẽ nét: nhiều agent cùng vẽ"
+  outro: "Kết: kêu gọi follow kênh"
 };
 const PARTS = { intro: "Mở bài", body: "Thân bài", outro: "Kết bài" };
 const STATUS_LABEL = { draft: "Nháp", queued: "Chờ render", rendering: "Đang render", done: "Đã render", failed: "Lỗi" };
@@ -520,7 +520,6 @@ function normScript(s) {
     sourceText: String(s.sourceText || "").slice(0, ARTICLE_MAX), source: s.source === "article" ? "article" : (s.source || ""),
     series: s.series && s.series.id && +s.series.total > 1 ? { id: String(s.series.id).slice(0, 40), title: String(s.series.title || "").slice(0, 120), part: clamp(Math.round(+s.series.part) || 1, 1, 9), total: clamp(Math.round(+s.series.total) || 1, 1, 9) } : null,
     nextTeaser: String(s.nextTeaser || "").slice(0, 300),
-    noOutro: !!s.noOutro,
     polished: !!s.polished,
     reviewed: !!s.reviewed, reviewNotes: Array.isArray(s.reviewNotes) ? s.reviewNotes.slice(0, 12).map(x => String(x).slice(0, 200)) : [],
   };
@@ -545,8 +544,7 @@ function normScene(sc) {
   }
   return {
     // never shorter than the time needed to read the subtitle
-    duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14) * 10) / 10, layout === "sketch" ? 8 : 1.2, layout === "sketch" ? 40 : 12),
-    art: layout === "sketch" ? (ART[sc.art] ? sc.art : "teacher") : "",
+    duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14) * 10) / 10, 1.2, 12),
     layout, heading: String(sc.heading || "").slice(0, 90), subtitle: String(sc.subtitle || "").slice(0, 140),
     narration: String(sc.narration || "").slice(0, 600),
     part: PARTS[sc.part] ? sc.part : (layout === "outro" ? "outro" : ""),
@@ -563,7 +561,7 @@ const OUTRO_DEFAULT = {
 };
 function withOutro(s) {
   const st = state.settings || {};
-  if (st.outroEnabled === false || s.noOutro || s.scenes.some(sc => sc.layout === "outro")) return s;
+  if (st.outroEnabled === false || s.scenes.some(sc => sc.layout === "outro")) return s;
   const o = st.outro || {};
   const sr = s.series;
   if (sr && sr.part < sr.total) { // not the last part: tease the next one
@@ -805,195 +803,8 @@ function drawOutro(c, s, sc, tl, t) {
     c.beginPath(); c.moveTo(0, 0); c.lineTo(0, 64); c.lineTo(16, 50); c.lineTo(28, 76); c.lineTo(40, 70); c.lineTo(28, 46); c.lineTo(48, 44); c.closePath(); c.fill(); c.stroke(); c.restore();
   }
 }
-/* ================= sketch: an orchestrator splits a line drawing into tasks, agents draw in parallel ================= */
-// Line art in a 1000×1100 box. Each group is one task, handed to agent (group index mod agent count).
-// Path commands: M L C Q Z (absolute), O cx cy r (circle), E cx cy rx ry (ellipse).
-const ART = {
-  teacher: { w: 1000, h: 1100, groups: [
-    { name: "Đầu & tóc", strokes: [
-      "E 650 335 92 108",
-      "M558 322 C552 250 600 214 655 214 C716 214 752 258 744 322 C728 290 700 270 668 266 C640 284 600 296 558 322",
-      "M560 318 C538 318 538 362 564 366", "M740 318 C762 318 762 362 736 366"] },
-    { name: "Khuôn mặt", strokes: [
-      "O 614 342 26", "O 688 342 26", "M640 340 Q651 332 662 340", "M588 338 L562 330", "M714 338 L740 330",
-      "M594 302 Q614 292 634 300", "M668 300 Q688 292 708 302",
-      "M604 348 Q614 338 624 348", "M678 348 Q688 338 698 348",
-      "M651 358 Q643 382 657 386", "M618 406 Q651 432 684 406"] },
-    { name: "Áo & cà vạt", strokes: [
-      "M626 440 L626 478", "M676 440 L676 478",
-      "M626 478 C560 486 505 515 488 580 L470 960", "M676 478 C742 486 797 515 814 580 L832 960",
-      "M626 478 L606 540 L640 522", "M676 478 L696 540 L662 522",
-      "M651 528 L638 560 L651 680 L664 560 Z", "M640 542 L662 542",
-      "O 651 900 6", "M470 960 L832 960"] },
-    { name: "Tay, thước & sách", strokes: [
-      "M500 560 C450 520 410 482 374 448", "M492 640 C440 600 402 550 366 492", "O 358 468 26", "M340 450 L236 350",
-      "M814 600 C846 680 830 760 772 790", "M790 640 C800 700 782 734 742 748",
-      "M598 720 L772 700 L782 830 L606 850 Z", "M602 790 L777 770", "M630 745 L740 733", "M632 765 L720 756"] },
-    { name: "Bảng 20/11", strokes: [
-      "M70 150 L520 150 L520 470 L70 470 Z", "M60 488 L530 488",
-      "M126 262 C130 226 196 226 196 262 C196 296 128 326 124 368 L200 368",
-      "E 262 301 36 67", "M318 368 L354 234", "M388 258 L414 234 L414 368", "M452 258 L478 234 L478 368",
-      "M200 860 C160 830 120 870 130 920 C140 970 180 985 200 970 C220 985 260 970 270 920 C280 870 240 830 200 860 Z",
-      "M200 860 L206 830", "M206 840 C226 820 250 826 254 836 C236 850 216 848 206 840",
-      "M40 1000 L960 1000"] },
-  ] },
-};
-const AGENT_COLS = ["blue", "orange", "teal", "violet", "red", "yellow"];
-function parseStroke(d) {
-  const tk = String(d).match(/[MLCQZOE]|-?\d*\.?\d+/g) || []; const pts = []; let i = 0, cmd = "", x = 0, y = 0, sx = 0, sy = 0;
-  const num = () => +tk[i++];
-  while (i < tk.length) {
-    if (/[A-Z]/.test(tk[i])) cmd = tk[i++];
-    if (cmd === "M") { x = num(); y = num(); sx = x; sy = y; pts.push([x, y]); cmd = "L"; }
-    else if (cmd === "L") { x = num(); y = num(); pts.push([x, y]); }
-    else if (cmd === "C") { const a = [num(), num(), num(), num(), num(), num()]; for (let k = 1; k <= 24; k++) { const u = k / 24, v = 1 - u; pts.push([v*v*v*x + 3*v*v*u*a[0] + 3*v*u*u*a[2] + u*u*u*a[4], v*v*v*y + 3*v*v*u*a[1] + 3*v*u*u*a[3] + u*u*u*a[5]]); } x = a[4]; y = a[5]; }
-    else if (cmd === "Q") { const a = [num(), num(), num(), num()]; for (let k = 1; k <= 16; k++) { const u = k / 16, v = 1 - u; pts.push([v*v*x + 2*v*u*a[0] + u*u*a[2], v*v*y + 2*v*u*a[1] + u*u*a[3]]); } x = a[2]; y = a[3]; }
-    else if (cmd === "Z") { pts.push([sx, sy]); x = sx; y = sy; cmd = ""; }
-    else if (cmd === "O" || cmd === "E") { const cx = num(), cy = num(), rx = num(), ry = cmd === "O" ? rx : num(); const n = Math.max(16, Math.round((rx + ry) / 2)); for (let k = 0; k <= n; k++) { const a = -Math.PI / 2 + (k / n) * Math.PI * 2; pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); } cmd = ""; }
-    else i++;
-  }
-  const cum = [0]; for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
-  return { pts, cum, len: cum[cum.length - 1] || 1 };
-}
-// Geometry: paper on screen and the art's transform onto it.
-const PAPER = { x: 70, y: 560, w: 940, h: 1010 };
-function artBox(art) { const k = Math.min((PAPER.w - 70) / art.w, (PAPER.h - 50) / art.h); return { k, ox: 540 - art.w * k / 2, oy: PAPER.y + 25 }; }
-const ORCH = { x: 540, y: 448, r: 56 };
-const dockOf = (i, n) => ({ x: 540 + (i - (n - 1) / 2) * Math.min(190, 900 / Math.max(1, n - 1 || 1)), y: 1680 });
-const sketchCache = new WeakMap();
-function sketchPlan(sc) {
-  if (sketchCache.has(sc)) return sketchCache.get(sc);
-  const art = ART[sc.art] || ART.teacher; const box = artBox(art);
-  const n = clamp(sc.actors.length || 5, 1, 6);
-  const T0 = 2.6, T1 = Math.max(T0 + 4, sc.duration - 3.4);
-  const toScr = ([x, y]) => [box.ox + x * box.k, box.oy + y * box.k];
-  const groups = art.groups.map((g, gi) => {
-    const strokes = g.strokes.map(d => { const st = parseStroke(d); st.pts = st.pts.map(toScr); st.cum = st.cum.map(v => v * box.k); st.len *= box.k; return st; });
-    const all = strokes.flatMap(st => st.pts); const xs = all.map(q => q[0]), ys = all.map(q => q[1]);
-    return { name: g.name, agent: gi % n, strokes, bbox: [Math.min(...xs) - 18, Math.min(...ys) - 18, Math.max(...xs) + 18, Math.max(...ys) + 18] };
-  });
-  const agents = [];
-  for (let a = 0; a < n; a++) {
-    const dock = dockOf(a, n); const segs = []; let pos = [dock.x, dock.y], units = 0;
-    groups.filter(g => g.agent === a).forEach(g => g.strokes.forEach(st => {
-      const mv = Math.hypot(st.pts[0][0] - pos[0], st.pts[0][1] - pos[1]) * 0.3;
-      segs.push({ type: "move", from: pos, to: st.pts[0], u0: units, u1: units + mv }); units += mv;
-      segs.push({ type: "draw", st, u0: units, u1: units + st.len }); units += st.len; pos = st.pts[st.pts.length - 1];
-    }));
-    const span = T1 - T0 - a * 0.12; const k = units > 0 ? span / units : 1;
-    segs.forEach(sg => { sg.t0 = T0 + 0.1 * a + sg.u0 * k; sg.t1 = T0 + 0.1 * a + sg.u1 * k; });
-    agents.push({ dock, segs, end: segs.length ? segs[segs.length - 1].t1 : T0, last: pos, col: colorOf(AGENT_COLS[a % AGENT_COLS.length]) });
-  }
-  const plan = { art, box, n, T0, T1, groups, agents };
-  sketchCache.set(sc, plan); return plan;
-}
-const pointAt = (st, d) => { let k = 1; while (k < st.cum.length - 1 && st.cum[k] < d) k++; const a = st.pts[k - 1], b = st.pts[k], seg = st.cum[k] - st.cum[k - 1] || 1, u = clamp((d - st.cum[k - 1]) / seg, 0, 1); return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, k]; };
-function agentPos(ag, tl, T0) {
-  const home = [ag.dock.x, ag.dock.y];
-  if (!ag.segs.length || tl < T0 - 0.05) return { p: home, drawing: false, home: true };
-  for (const sg of ag.segs) {
-    if (tl < sg.t0) return { p: sg.from || home, drawing: false };
-    if (tl <= sg.t1) {
-      const u = (tl - sg.t0) / Math.max(1e-3, sg.t1 - sg.t0);
-      if (sg.type === "move") { const e = easeInOut(u); return { p: [sg.from[0] + (sg.to[0] - sg.from[0]) * e, sg.from[1] + (sg.to[1] - sg.from[1]) * e], drawing: false }; }
-      const q = pointAt(sg.st, u * sg.st.len); return { p: [q[0], q[1]], drawing: true };
-    }
-  }
-  const u = easeInOut((tl - ag.end) / 0.9); // back to the dock
-  return { p: [ag.last[0] + (home[0] - ag.last[0]) * u, ag.last[1] + (home[1] - ag.last[1]) * u], drawing: false, home: u >= 1 };
-}
-function drawSketch(c, s, sc, tl, t) {
-  const P_ = sketchPlan(sc); const { T0, T1 } = P_; const d = sc.duration; const mergeAt = T1 + 1.0;
-  if (sc.heading) { c.font = `800 76px ${FONT}`; drawTokens(c, parseAccent(sc.heading), 540, 290, 960, 86, { upper: true, base: COL.blue, reveal: easeOut(tl / 0.7), maxLines: 1 }); }
-  // paper
-  const pk = easeOut((tl - 0.1) / 0.6);
-  c.save(); c.globalAlpha *= pk; c.translate(0, (1 - pk) * 40);
-  c.shadowColor = "rgba(0,0,0,0.45)"; c.shadowBlur = 40; c.shadowOffsetY = 14;
-  c.beginPath(); c.roundRect(PAPER.x, PAPER.y, PAPER.w, PAPER.h, 22); c.fillStyle = "#F6F2E8"; c.fill(); c.restore();
-  // task regions (the orchestrator's decomposition)
-  P_.groups.forEach((g, gi) => {
-    const ag = P_.agents[g.agent]; const show = easeOut((tl - (1.3 + gi * 0.14)) / 0.4);
-    const a = show * (tl < T0 ? 0.9 : tl < mergeAt ? 0.22 : 0.22 * (1 - easeOut((tl - mergeAt) / 0.6)));
-    const labA = 1 - easeOut((tl - T0) / 0.6); // labels only while the orchestrator is splitting the work
-    if (a <= 0.01) return;
-    const [x0, y0, x1, y1] = g.bbox; const base = c.globalAlpha;
-    c.save(); c.globalAlpha *= a; c.setLineDash([14, 10]); c.lineWidth = 4; c.strokeStyle = ag.col;
-    c.beginPath(); c.roundRect(x0, y0, x1 - x0, y1 - y0, 14); c.stroke(); c.setLineDash([]);
-    if (labA <= 0.01) { c.restore(); return; }
-    c.globalAlpha = base * clamp(show * labA * 0.9, 0, 1);
-    c.font = `700 24px ${FONT}`; const lab = `#${gi + 1} ${g.name}`; const tw = c.measureText(lab).width + 24;
-    c.beginPath(); c.roundRect(x0, y0 - 34, tw, 34, 10); c.fillStyle = ag.col; c.fill();
-    c.fillStyle = COL.ink; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(lab, x0 + 12, y0 - 16);
-    c.restore();
-  });
-  // ink
-  c.save(); c.lineCap = "round"; c.lineJoin = "round"; c.strokeStyle = "#16171B"; c.lineWidth = 6.5;
-  P_.agents.forEach(ag => ag.segs.forEach(sg => {
-    if (sg.type !== "draw" || tl < sg.t0) return;
-    const st = sg.st; const dl = tl >= sg.t1 ? st.len : ((tl - sg.t0) / (sg.t1 - sg.t0)) * st.len;
-    c.beginPath(); c.moveTo(st.pts[0][0], st.pts[0][1]);
-    if (dl >= st.len) for (let k = 1; k < st.pts.length; k++) c.lineTo(st.pts[k][0], st.pts[k][1]);
-    else { const q = pointAt(st, dl); for (let k = 1; k < q[2]; k++) c.lineTo(st.pts[k][0], st.pts[k][1]); c.lineTo(q[0], q[1]); }
-    c.stroke();
-  }));
-  c.restore();
-  // finished sweep of light across the drawing
-  if (tl > mergeAt + 0.3) {
-    const u = clamp((tl - mergeAt - 0.3) / 1.1, 0, 1); const sx = PAPER.x - 300 + u * (PAPER.w + 600);
-    c.save(); c.beginPath(); c.roundRect(PAPER.x, PAPER.y, PAPER.w, PAPER.h, 22); c.clip();
-    const g = c.createLinearGradient(sx - 160, 0, sx + 160, 0); g.addColorStop(0, "rgba(255,138,31,0)"); g.addColorStop(0.5, "rgba(255,138,31,0.18)"); g.addColorStop(1, "rgba(255,138,31,0)");
-    c.fillStyle = g; c.fillRect(PAPER.x, PAPER.y, PAPER.w, PAPER.h); c.restore();
-  }
-  // orchestrator
-  const ok = easeBack(clamp((tl - 0.2) / 0.5, 0, 1));
-  const busy = tl > 0.8 && tl < T0 ? 1 : tl > T1 && tl < mergeAt + 0.6 ? 1 : 0;
-  c.save(); c.translate(ORCH.x, ORCH.y); c.scale(ok, ok);
-  const pr = ORCH.r + 14 + Math.sin(t * 7) * 6 * busy + (tl > mergeAt ? easeOut((tl - mergeAt) / 0.8) * 60 : 0);
-  if (busy || (tl > mergeAt && tl < mergeAt + 0.8)) { c.beginPath(); c.arc(0, 0, pr, 0, Math.PI * 2); c.strokeStyle = `rgba(255,138,31,${tl > mergeAt ? 0.6 * (1 - easeOut((tl - mergeAt) / 0.8)) : 0.55})`; c.lineWidth = 7; c.stroke(); }
-  c.beginPath(); c.arc(0, 0, ORCH.r, 0, Math.PI * 2); c.fillStyle = COL.disk; c.fill(); c.lineWidth = 5; c.strokeStyle = COL.orange; c.stroke();
-  c.save(); c.scale(0.62, 0.62); ICONS.robot.d(c, COL.orange); c.restore();
-  c.restore();
-  c.save(); c.globalAlpha *= ok; c.font = `800 30px ${FONT}`; c.textBaseline = "middle"; c.fillStyle = COL.orange;
-  c.textAlign = "right"; c.fillText("ORCHESTRATOR", ORCH.x - ORCH.r - 22, ORCH.y);
-  c.textAlign = "left"; c.fillStyle = COL.muted; c.font = `700 26px ${FONT}`;
-  const doneN = P_.agents.filter(ag => tl > ag.end + 0.9).length;
-  c.fillText(tl < T0 ? "chia việc…" : tl < mergeAt ? `${doneN}/${P_.n} agent xong` : "ghép kết quả ✓", ORCH.x + ORCH.r + 22, ORCH.y);
-  c.restore();
-  // agents: dock, coordination line, cursor
-  P_.agents.forEach((ag, i) => {
-    const a = sc.actors[i] || { label: `Agent ${i + 1}` }; const ak = easeBack(clamp((tl - (0.7 + i * 0.12)) / 0.45, 0, 1));
-    if (ak <= 0) return;
-    const st = agentPos(ag, tl, T0); const [px, py] = st.p;
-    // task packet from orchestrator to the dock during planning, then a live link while working
-    const lk = tl < T0 ? easeOut((tl - (1.0 + i * 0.12)) / 0.6) : tl < ag.end + 0.9 ? 1 : 1 - easeOut((tl - ag.end - 0.9) / 0.4);
-    if (lk > 0) {
-      c.save(); c.globalAlpha *= 0.45 * clamp(lk, 0, 1); c.strokeStyle = ag.col; c.lineWidth = 3; c.setLineDash([10, 12]); c.lineDashOffset = -t * 60;
-      c.beginPath(); c.moveTo(ORCH.x, ORCH.y + ORCH.r); c.lineTo(px, py); c.stroke(); c.restore();
-      const u = tl < T0 ? clamp((tl - (1.0 + i * 0.12)) / 0.6, 0, 1) : (t * 0.8 + i * 0.23) % 1;
-      if (u > 0 && u < 1) { c.beginPath(); c.arc(ORCH.x + (px - ORCH.x) * u, ORCH.y + ORCH.r + (py - ORCH.y - ORCH.r) * u, 9, 0, Math.PI * 2); c.fillStyle = ag.col; c.fill(); }
-    }
-    // dock
-    c.save(); c.globalAlpha *= clamp(ak, 0, 1);
-    c.beginPath(); c.arc(ag.dock.x, ag.dock.y, 44, 0, Math.PI * 2); c.setLineDash([8, 8]); c.strokeStyle = ag.col; c.globalAlpha *= 0.6; c.lineWidth = 3; c.stroke(); c.setLineDash([]); c.globalAlpha /= 0.6;
-    c.font = `700 24px ${FONT}`; c.fillStyle = COL.white; c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillText(a.label || `Agent ${i + 1}`, ag.dock.x, ag.dock.y + 76, 180);
-    c.restore();
-    // cursor: robot badge with a pen to the ink tip
-    const f = st.home ? 0 : Math.min(clamp((tl - T0) / 0.4, 0, 1), tl > ag.end ? 1 - clamp((tl - ag.end) / 0.9, 0, 1) : 1);
-    const bx = px + 34 * f, by = py - 52 * f;
-    c.save(); c.globalAlpha *= clamp(ak, 0, 1);
-    if (f > 0.05) { c.beginPath(); c.moveTo(bx - 10 * f, by + 22 * f); c.lineTo(px, py); c.strokeStyle = ag.col; c.lineWidth = 6; c.lineCap = "round"; c.stroke();
-      if (st.drawing) { c.beginPath(); c.arc(px, py, 10 + Math.sin(t * 20 + i) * 2, 0, Math.PI * 2); c.fillStyle = ag.col; c.globalAlpha *= 0.5; c.fill(); c.globalAlpha /= 0.5; } }
-    c.translate(bx, by); c.scale(ak, ak);
-    c.beginPath(); c.arc(0, 0, 36, 0, Math.PI * 2); c.fillStyle = COL.disk; c.fill(); c.lineWidth = 5; c.strokeStyle = ag.col; c.stroke();
-    c.save(); c.scale(0.42, 0.42); ICONS.robot.d(c, ag.col); c.restore();
-    c.restore();
-    if (tl > ag.end + 0.9) drawMark(c, { x: ag.dock.x + 34, y: ag.dock.y - 34, r: 16 }, "check", (tl - ag.end - 0.9) / 0.35);
-  });
-}
 function drawScene(c, s, sc, tl, t) {
   if (sc.layout === "outro") { drawOutro(c, s, sc, tl, t); return; }
-  if (sc.layout === "sketch") { drawSketch(c, s, sc, tl, t); return; }
   const tm = sceneTimes(sc); const pts = positions(sc);
   const isCompare = sc.layout === "compare" || sc.layout === "before-after";
   if (sc.layout === "title") {
@@ -1131,20 +942,7 @@ async function renderAudio(s, voices, sampleRate = 48000) {
   s.scenes.forEach((sc, si) => {
     const tm = sceneTimes(sc);
     whoosh(acc + (si === 0 ? 0.02 : -0.1 + 0.1));
-    if (sc.layout === "sketch") { // dispatch blips, a pen tick per stroke, a chime per finished agent, a merge chord
-      const pl = sketchPlan(sc);
-      pl.agents.forEach((ag, i) => {
-        blip(acc + 0.7 + i * 0.12, 600 + i * 90, 0.09); blip(acc + 1.6 + i * 0.12, 1100, 0.05);
-        ag.segs.forEach(sg => { if (sg.type !== "draw") return;
-          const src = ctx.createBufferSource(); src.buffer = noiseBuf; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3200 + i * 300; bp.Q.value = 2;
-          const g = ctx.createGain(); const a0 = acc + sg.t0, a1 = acc + Math.max(sg.t0 + 0.05, sg.t1);
-          g.gain.setValueAtTime(0.0001, a0); g.gain.linearRampToValueAtTime(0.03, a0 + 0.03); g.gain.setValueAtTime(0.03, a1 - 0.03); g.gain.linearRampToValueAtTime(0.0001, a1);
-          src.loop = true; src.connect(bp); bp.connect(g); g.connect(master); src.start(a0, (i * 0.17) % 0.8); src.stop(a1 + 0.02); });
-        blip(acc + ag.end + 0.9, 1320, 0.12);
-      });
-      const ta = acc + pl.T1 + 1.0; [523.25, 659.25, 783.99].forEach((f, k) => blip(ta + k * 0.08, f, 0.14));
-    }
-    if (sc.layout !== "sketch") sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
+    sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
     sc.links.forEach((_, j) => blip(acc + tm.linkAt(j) + 0.4, 1200, 0.06));
     if (sc.mark) blip(acc + tm.markAt, sc.mark.type === "check" ? 1320 : 300, 0.16);
     if (sc.layout === "outro") { const ta = acc + Math.min(1.8, sc.duration * 0.45); blip(ta, 900, 0.16); blip(ta + 0.09, 1350, 0.12); }
