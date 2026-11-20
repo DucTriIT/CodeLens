@@ -157,6 +157,8 @@ Mỗi clip trong Thư viện (và trong Hàng đợi khi render xong) có nút *
 - **Chia sẻ qua ứng dụng:** hiện khi trình duyệt hỗ trợ chia sẻ file (điện thoại, Windows), để chọn ứng dụng Facebook.
 - **Tự đăng trên Facebook:** tải video, sao chép caption, mở facebook.com, rồi tạo bài viết hoặc Reel. Dùng cách này cho **trang cá nhân**.
 
+- **Phụ đề và transcript:** nút **Tải phụ đề + transcript (.zip)** tải một gói gồm `captions.vi_VN.srt` và `transcript.txt`. Khi đăng Reel, tải file `.srt` lên mục **Closed captions** và file `.txt` lên mục **Text transcripts**. Nội dung là lời thuyết minh (cảnh chưa có lời thuyết minh thì dùng phụ đề), mỗi câu một đoạn, tối đa 2 dòng. Mốc thời gian được ghi lúc render nên khớp với giọng đọc; clip render trước khi có tính năng này thì thời gian được ước tính và dàn theo độ dài thật của clip. Gói là `.zip` vì claude.ai không cho tải trực tiếp file `.srt`.
+
 Facebook không cho phần mềm tự đăng lên trang cá nhân; API chỉ đăng được lên Fanpage.
 
 Lấy `FB_PAGE_ID` và `FB_PAGE_TOKEN`:
