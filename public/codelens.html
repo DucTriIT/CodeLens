@@ -261,7 +261,7 @@ a.btn { text-decoration: none; color: inherit; }
         <dt>Lần chạy gần nhất</dt><dd id="sch-last">Chưa chạy</dd>
       </dl>
       <label class="toggle"><input type="checkbox" id="sch-enabled"><span>Bật: mỗi lần chạy, Claude viết kịch bản mới</span></label>
-      <label class="f"><span>Số kịch bản mỗi lần</span><input type="number" id="sch-count" min="1" max="10" value="3" style="width:90px"></label>
+      <label class="f"><span>Số kịch bản mỗi lần</span><input type="number" id="sch-count" min="1" max="10" value="5" style="width:90px"></label>
       <div class="f"><span class="hint" style="font-weight:600">Lĩnh vực ưu tiên</span><div class="cats" id="sch-cats"></div></div>
       <p class="hint" id="sch-note">Muốn đổi giờ chạy của tác vụ Claude, hãy nhắn Claude trong cuộc trò chuyện.</p>
     </div>
@@ -370,7 +370,10 @@ a.btn { text-decoration: none; color: inherit; }
 /* ================= constants ================= */
 const W = 1080, H = 1920, FPS = 30;
 const LOCAL = !!window.__CODELENS_LOCAL; // running from the local server with an API key
-const CATEGORIES = ["Network", "Backend", "Frontend", "Database", "Cloud", "AI", "Architecture"];
+const CATEGORIES = ["Network", "Backend", "Frontend", "Mobile", "Database", "Cloud", "DevOps", "Security", "AI", "Architecture"];
+// Categories added after the first release: schedules saved before then get them switched on once.
+const NEW_CATEGORIES = ["Mobile", "DevOps", "Security"];
+const schedCats = (st) => { const c = Array.isArray(st.categories) && st.categories.length ? st.categories.filter(x => CATEGORIES.includes(x)) : CATEGORIES.slice(); return (st.catsVersion || 1) < 2 ? [...new Set([...c, ...NEW_CATEGORIES])] : c; };
 const LAYOUTS = {
   title: "Mở đầu (tiêu đề lớn)", flow: "Dòng chảy (A → B → C)", hub: "Trung tâm & vệ tinh",
   compare: "So sánh 2 cột", "before-after": "Trước / Sau", stack: "Các tầng xếp chồng", grid: "Lưới",
@@ -514,6 +517,7 @@ function normScript(s) {
     hook: String(s.hook || "").slice(0, 200),
     metaphor: String(s.metaphor || "").slice(0, 300),
     concept: String(s.concept || "").slice(0, 80), format: normFormat(s.format),
+    sourceUrl: /^https?:\/\//.test(String(s.sourceUrl || "")) ? String(s.sourceUrl).slice(0, 400) : "",
     scenes: scenes.length ? scenes : [normScene({ layout: "title", heading: s.title || "CHỦ ĐỀ MỚI", subtitle: "Phụ đề tiếng Việt ở đây" })],
     status: STATUS_LABEL[s.status] ? s.status : "draft",
     createdBy: s.createdBy === "ai" ? "ai" : "user",
@@ -1172,7 +1176,7 @@ const state = {
   jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
   aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
 };
-function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+10%", enabled: true, count: 3, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+10%", enabled: true, count: 5, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
 const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -1350,6 +1354,7 @@ function renderEditor() {
     </div>
     ${!cap.voice && d.scenes.some(sc => narrationText(sc)) ? `<p class="hint">Giọng đọc chỉ có ở bản chạy trên máy (dùng API key). Ở đây clip render không có giọng đọc, chỉ có phụ đề và nhạc nền.</p>` : ""}
     ${d.source === "article" ? `<p class="hint">Tạo từ bài viết (${(d.sourceText || "").length.toLocaleString("vi-VN")} ký tự). “AI kiểm tra kỹ thuật” sẽ đối chiếu lại với bài này.</p>` : ""}
+    ${d.sourceUrl ? `<div class="banner"><b>Case study có nguồn:</b> <a href="${esc(d.sourceUrl)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all">${esc(d.sourceUrl)}</a><br>Đối chiếu tên, ngày và số liệu với nguồn trước khi đăng.</div>` : ""}
     ${d.reviewed ? `<div class="banner"><b style="color:var(--ok)">Đã kiểm tra kỹ thuật.</b> ${d.reviewNotes && d.reviewNotes.length ? "Đã sửa: " + d.reviewNotes.map(esc).join(" · ") : "Không phát hiện lỗi."}</div>` : `<div class="banner warn">Kịch bản chưa được kiểm tra kỹ thuật. Bấm “AI kiểm tra kỹ thuật” trước khi render.</div>`}
     ${d.series ? `<div class="banner">Series <b>${esc(d.series.title)}</b> · phần ${d.series.part}/${d.series.total}.${d.series.part < d.series.total ? ` Cảnh cuối sẽ giới thiệu phần ${d.series.part + 1}.` : ""}</div>
     ${d.series.part < d.series.total ? `<label class="f"><span>Lời giới thiệu phần ${d.series.part + 1} (đọc ở cảnh cuối)</span><textarea rows="2" data-f="nextTeaser" id="ed-teaser">${esc(d.nextTeaser || "")}</textarea></label>` : ""}` : ""}
@@ -2001,7 +2006,7 @@ setInterval(() => {
       const ids = [...state.scripts.values()].filter(s => s.status === "queued").map(s => s.id).concat([...state.selected]);
       if (ids.length) enqueue([...new Set(ids)]);
     };
-    if (LOCAL && st.enabled && cap.sample) autoWriteScripts(clamp(+st.count || 3, 1, 10), st.categories || CATEGORIES).finally(renderNow);
+    if (LOCAL && st.enabled && cap.sample) autoWriteScripts(clamp(+st.count || 5, 1, 10), schedCats(st)).finally(renderNow);
     else renderNow();
   }
 }, 20000);
@@ -2030,7 +2035,7 @@ async function autoWriteScripts(n, cats) {
 }
 
 /* ================= share to Facebook ================= */
-const HASHTAGS = { Network: ["#Networking"], Backend: ["#Backend"], Frontend: ["#Frontend", "#WebDev"], Database: ["#Database"], Cloud: ["#Cloud", "#DevOps"], AI: ["#AI", "#LLM"], Architecture: ["#SystemDesign", "#Architecture"] };
+const HASHTAGS = { Network: ["#Networking"], Backend: ["#Backend"], Frontend: ["#Frontend", "#WebDev"], Database: ["#Database"], Cloud: ["#Cloud"], DevOps: ["#DevOps", "#SRE"], Security: ["#Security", "#AppSec"], Mobile: ["#Mobile", "#MobileDev"], AI: ["#AI", "#LLM"], Architecture: ["#SystemDesign", "#Architecture"] };
 let fbClip = null, fbStatus = null;
 function captionTemplate(script, clip) {
   const title = (script && script.title) || clip.title;
@@ -2291,7 +2296,7 @@ function slug(t) { return String(t || "clip").normalize("NFD").replace(/[̀-ͯ]/
 function renderSchedule() {
   const st = state.settings;
   $("sch-enabled").checked = !!st.enabled; $("sch-count").value = st.count || 3;
-  CATEGORIES.forEach(c => { const el = $("sch-cat-" + c); if (el) el.checked = (st.categories || []).includes(c); });
+  CATEGORIES.forEach(c => { const el = $("sch-cat-" + c); if (el) el.checked = schedCats(st).includes(c); });
   $("sch-autoopen").checked = !!st.autoRenderOnOpen; $("sch-timer").checked = !!st.timerEnabled; $("sch-time").value = st.renderTime || "08:00";
   $("sch-conc").value = String(st.concurrency || 2);
   $("sch-claude-time").textContent = LOCAL ? `${st.renderTime || "08:00"} hằng ngày, khi trang đang mở` : (st.claudeTaskLabel || "Chưa thiết lập");
@@ -2299,8 +2304,8 @@ function renderSchedule() {
 }
 $("btn-save-sched").addEventListener("click", async () => {
   const next = { ...state.settings,
-    enabled: $("sch-enabled").checked, count: clamp(Math.round(+$("sch-count").value || 3), 1, 10),
-    categories: CATEGORIES.filter(c => $("sch-cat-" + c).checked), autoRenderOnOpen: $("sch-autoopen").checked,
+    enabled: $("sch-enabled").checked, count: clamp(Math.round(+$("sch-count").value || 5), 1, 10),
+    categories: CATEGORIES.filter(c => $("sch-cat-" + c).checked), catsVersion: 2, autoRenderOnOpen: $("sch-autoopen").checked,
     timerEnabled: $("sch-timer").checked, renderTime: $("sch-time").value || "08:00", concurrency: +$("sch-conc").value || 2 };
   if (!next.categories.length) next.categories = CATEGORIES.slice();
   try {
