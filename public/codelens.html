@@ -189,11 +189,12 @@ a.btn { text-decoration: none; color: inherit; }
       <div class="panel-head"><h2>Kịch bản</h2><button class="btn small" id="btn-new">+ Từ bài viết</button></div>
       <div class="ai-box" id="ai-box">
         <div class="row">
+          <select id="ai-format" aria-label="Dạng clip" title="Dạng clip: mọi dạng đều mở bằng một case cụ thể"></select>
           <select id="ai-cat" aria-label="Lĩnh vực"></select>
           <button class="btn blue" id="btn-suggest">Gợi ý chủ đề</button>
         </div>
         <div class="row">
-          <input type="text" id="ai-topic" class="grow" placeholder="Hoặc tự gõ chủ đề, ví dụ: Idempotency key">
+          <input type="text" id="ai-topic" class="grow" placeholder="Hoặc tự gõ tình huống hay chủ đề">
           <button class="btn primary" id="btn-write">AI viết</button>
         </div>
         <div class="suggest" id="suggest"></div>
@@ -511,7 +512,8 @@ function normScript(s) {
     topic: String(s.topic || s.title || "").slice(0, 120),
     category: CATEGORIES.includes(s.category) ? s.category : "Architecture",
     hook: String(s.hook || "").slice(0, 200),
-    metaphor: String(s.metaphor || "").slice(0, 200),
+    metaphor: String(s.metaphor || "").slice(0, 300),
+    concept: String(s.concept || "").slice(0, 80), format: normFormat(s.format),
     scenes: scenes.length ? scenes : [normScene({ layout: "title", heading: s.title || "CHỦ ĐỀ MỚI", subtitle: "Phụ đề tiếng Việt ở đây" })],
     status: STATUS_LABEL[s.status] ? s.status : "draft",
     createdBy: s.createdBy === "ai" ? "ai" : "user",
@@ -1306,6 +1308,7 @@ function renderArticleForm(el) {
       <label class="f"><span>Tiêu đề clip (không bắt buộc)</span><input type="text" id="art-title" value="${esc(a.title || "")}" placeholder="Để trống để AI tự đặt"></label>
       <label class="f"><span>Lĩnh vực</span><select id="art-cat"><option value="auto">AI tự chọn</option>${CATEGORIES.map(c => `<option value="${c}"${a.cat === c ? " selected" : ""}>${c}</option>`).join("")}</select></label>
     </div>
+    <label class="f"><span>Dạng clip</span><select id="art-format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}"${(a.format || "incident") === k ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
     <label class="f"><span>Nội dung bài viết</span><textarea id="art-text" rows="16" placeholder="Dán nội dung bài viết, tài liệu hoặc ghi chú research ở đây…">${esc(a.text || "")}</textarea></label>
     <label class="f"><span>Ghi chú cho AI (không bắt buộc)</span><input type="text" id="art-note" value="${esc(a.note || "")}" placeholder="Ví dụ: tập trung phần trade-off, bỏ phần lịch sử"></label>
     <div class="row"><button class="btn primary" id="art-go" ${cap.sample ? "" : "disabled"}>AI tạo kịch bản</button><span class="hint" id="art-count"></span></div>
@@ -1421,7 +1424,7 @@ $("editor").addEventListener("input", (e) => {
 $("editor").addEventListener("change", (e) => { if (e.target.tagName === "SELECT" && (e.target.dataset.rerender || e.target.dataset.rerenderSoft)) renderEditor(); });
 $("editor").addEventListener("input", (e) => {
   if (!["art-title", "art-cat", "art-text", "art-note"].includes(e.target.id)) return;
-  saveArticleDraft({ title: $("art-title").value, cat: $("art-cat").value, text: $("art-text").value, note: $("art-note").value });
+  saveArticleDraft({ title: $("art-title").value, cat: $("art-cat").value, format: $("art-format").value, text: $("art-text").value, note: $("art-note").value });
   if (e.target.id === "art-text") updateArticleCount();
 });
 $("editor").addEventListener("click", async (e) => {
@@ -1546,7 +1549,13 @@ const fmtT = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0"
 /* ================= AI ================= */
 const STYLE_RULES = `Bạn là biên kịch kỹ thuật cho kênh video ngắn "CodeLens" dành cho lập trình viên Việt Nam (kênh tech: network, backend, frontend, database, cloud, AI, system architecture).
 Giải thích TRỰC TIẾP bằng thành phần kỹ thuật thật: client, server, service, database, cache, queue, load balancer, request, response, thread, node... và thuật ngữ chuẩn (giữ nguyên tiếng Anh khi đó là cách dev thường gọi).
-TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường hay tình huống công sở (lễ tân, thư ký, HR, nhân viên, quán ăn, ngân hàng...). Nếu cần ví dụ thì dùng tình huống kỹ thuật cụ thể (ví dụ: "Nginx đứng trước 3 instance API", "bảng users 10 triệu dòng").
+TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường để thay cho kỹ thuật (lễ tân, thư ký, HR, quán ăn... đóng vai server hay proxy). Tình huống SẢN PHẨM thật thì nên dùng: trang thanh toán, đặt vé, flash sale, chuyển khoản, giỏ hàng, app giao đồ ăn... vì đó là nơi dev gặp lỗi.
+
+CASE STUDY LÀ XƯƠNG SỐNG CỦA MỌI CLIP (bắt buộc):
+- Lý thuyết suông thì người xem hỏi AI là xong. Thứ khiến họ dừng lại xem là MỘT TÌNH HUỐNG CỤ THỂ có hậu quả: tiền bị trừ sai, trang sập, đơn hàng mất, hệ thống chậm dần. Vì vậy clip luôn MỞ BẰNG CASE, và khái niệm kỹ thuật xuất hiện như LỜI GIẢI của case đó, không phải như một bài học.
+- Case phải cụ thể: sản phẩm gì, thao tác gì, con số minh họa (ví dụ "vé 500 nghìn", "bảng orders 10 triệu dòng", "flash sale còn 100 sản phẩm"), và hậu quả đo được.
+- Mọi phần giải thích đều bám vào chính case đó: cùng hệ thống, cùng request, cùng con số từ đầu đến cuối. Không chuyển sang định nghĩa chung chung rồi bỏ quên case.
+- Trung thực: tình huống do bạn dựng thì kể như tình huống điển hình ("giả sử", "thử hình dung", "một sàn thương mại điện tử"), KHÔNG gắn tên công ty thật và không nói như thể đã xảy ra thật. Sự cố có thật của một công ty chỉ được kể khi có BÀI VIẾT NGUỒN hoặc khi bạn chắc chắn về sự kiện; chi tiết nào không chắc (số tiền, thời lượng, số máy) thì bỏ, tuyệt đối không bịa.
 Nội dung phải CHÍNH XÁC về kỹ thuật: định nghĩa đúng, thứ tự các bước đúng, tên trạng thái/thuật toán đúng, nêu đúng đánh đổi (trade-off). Không bịa số liệu, benchmark hay phiên bản; nếu không chắc một chi tiết thì bỏ chi tiết đó.
 Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.
 
@@ -1565,16 +1574,73 @@ Ví dụ (CỨNG → TỰ NHIÊN):
 
 TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
 - Giọng kể như một Senior Developer giải thích kiến trúc cho một Junior Developer: đặt vấn đề, dẫn dắt, minh họa, giải thích VÌ SAO, cuối cùng mới đi vào cách triển khai.
-- Hook: bắt đầu bằng một vấn đề thực tế mà dev gặp.
-- Mở bài: nói rõ người xem sẽ học được gì.
+- Hook: mở bằng HẬU QUẢ của case (thiệt hại, con số), không mở bằng tên khái niệm hay câu "X là gì".
+- Mở bài: tái hiện case cho người xem thấy chuyện gì xảy ra. Không viết kiểu mục lục "Trong clip này, mình sẽ cùng bạn tìm hiểu...".
+- Tên khái niệm chỉ xuất hiện SAU khi người xem đã thấy vấn đề và muốn biết cách chữa.
 - Giải thích MỌI thuật ngữ bằng một câu đơn giản ngay lần đầu dùng (ví dụ: ACK, relay, partition key, delivery guarantee). Không dùng thuật ngữ trước khi giải thích.
-- Dùng MỘT ví dụ cụ thể xuyên suốt cả clip (cùng hệ thống, cùng tên service, cùng dữ liệu).
+- Dùng MỘT case xuyên suốt cả clip (cùng hệ thống, cùng tên service, cùng dữ liệu, cùng con số).
 - Mỗi cảnh chỉ truyền tải MỘT ý chính; hình chỉ giữ thông tin cần thiết (bảng hay danh sách tối đa 4 mục).
 - Lời thuyết minh giải thích thêm, không đọc lại nguyên văn phụ đề.
 - Độ sâu: người mới hiểu được, developer có kinh nghiệm vẫn học thêm được điều gì đó.
 - Kết bài: chốt MỘT thông điệp chính người xem phải nhớ, và nêu giới hạn hoặc cái giá của giải pháp.
 - Ưu tiên chất lượng hơn độ ngắn: nếu một clip 2 phút không đủ để giải thích kỹ theo các tiêu chí trên thì chia chủ đề thành nhiều phần, đừng nhồi nhét.`;
-function scriptPrompt(topic, category, article, note, ctx) {
+// Clip formats. Every format opens with a concrete case; they differ in where the case comes from.
+const FORMATS = {
+  symptom: "Tình huống dev hay gặp", incident: "Sự cố thật (postmortem)", architecture: "Kiến trúc công ty thật",
+  quiz: "Đoán lỗi", concept: "Chủ đề / khái niệm",
+};
+const DEFAULT_FORMAT = "symptom";
+const FORMAT_HINT = {
+  symptom: "Gõ triệu chứng hoặc khái niệm, ví dụ: F5 trang thanh toán bị trừ tiền 2 lần",
+  incident: "Gõ tên sự cố, ví dụ: GitLab 2017 xóa nhầm database (nên dán postmortem ở “Từ bài viết”)",
+  architecture: "Gõ hệ thống, ví dụ: Discord lưu hàng nghìn tỷ tin nhắn",
+  quiz: "Gõ tình huống có lỗi ẩn, ví dụ: flash sale bán quá số hàng tồn",
+  concept: "Gõ chủ đề muốn làm, ví dụ: Idempotency key",
+};
+const normFormat = (f) => FORMATS[f] ? f : "";
+function formatGuide(format) {
+  const tail = `
+  • KHÔNG viết cảnh kêu gọi follow, like, subscribe: hệ thống tự thêm cảnh đó ở cuối mọi clip.
+  • Cảnh kết có thể khép bằng MỘT câu hỏi mở để người xem bình luận (ví dụ: "Team bạn đang chặn lỗi này bằng cách nào?").`;
+  const G = {
+    symptom: `DẠNG CLIP: TÌNH HUỐNG DEV HAY GẶP (triệu chứng → chẩn đoán → cách chữa).
+Người dùng có thể đưa một triệu chứng ("F5 bị trừ tiền 2 lần") hoặc chỉ một khái niệm ("Idempotency key"). Nếu chỉ có khái niệm, hãy tự chọn tình huống dev hay gặp nhất mà khái niệm đó chữa được và lấy nó làm case.
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi phần của nó trong trường "part":
+  • MỞ BÀI ("part": "intro", đúng 2 cảnh). Cảnh 1 layout "title": TRIỆU CHỨNG kèm hậu quả và con số (ví dụ heading "TRỪ TIỀN *2 LẦN*", phụ đề "Khách mua vé 500 nghìn, F5 một cái, mất 1 triệu"). Cảnh 2 TÁI HIỆN tình huống bằng layout "flow" hoặc "hub": ai bấm gì, request nào đi đâu, hỏng ở bước nào.
+  • THÂN BÀI ("part": "body"): CHẨN ĐOÁN vì sao hỏng (chỉ đúng bước sai trên chính luồng request đó) → gọi tên KHÁI NIỆM là cách chữa và giải thích nó bằng một câu → cơ chế từng bước, áp ngay vào case → 1–2 BẪY khi tự triển khai (mỗi bẫy kèm hậu quả).
+  • KẾT BÀI ("part": "outro", 1–2 cảnh): so sánh trước và sau trên chính case (layout "before-after"), một câu chốt mang đi được, và giới hạn hoặc cái giá của giải pháp.${tail}
+- Tiêu đề clip ("title") là tình huống, có thể kèm tên khái niệm: "Trừ tiền 2 lần khi retry: Idempotency Key". Không đặt tiêu đề kiểu "X là gì".`,
+    incident: `DẠNG CLIP: SỰ CỐ THẬT (kể lại một sự cố có thật từ postmortem công khai, rút ra bài học kỹ thuật).
+- Chỉ kể những gì có trong BÀI VIẾT NGUỒN, hoặc những sự kiện bạn chắc chắn. Không chắc con số nào thì nói ở mức chắc chắn ("nhiều giờ", "hàng trăm triệu đô") hoặc bỏ. Không bịa lời thoại, tên người, mốc giờ.
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • MỞ BÀI ("intro", đúng 2 cảnh). Cảnh 1 layout "title": THIỆT HẠI và tên sự cố (công ty, năm). Cảnh 2: bối cảnh hệ thống ngay trước sự cố, đủ để hiểu phần sau.
+  • THÂN BÀI ("body"): DIỄN BIẾN theo đúng thứ tự thời gian → NGUYÊN NHÂN GỐC (chỉ đúng chỗ hỏng trên sơ đồ) → vì sao các lớp bảo vệ không chặn được → KHÁI NIỆM hoặc biện pháp kỹ thuật lẽ ra đã chặn được, giải thích cơ chế.
+  • KẾT BÀI ("outro", 1–2 cảnh): bài học dev áp dụng được ngay cho hệ thống của mình, và một câu chốt.${tail}
+- Tiêu đề clip nêu sự cố và bài học: "GitLab 2017: xóa nhầm database và 5 lớp backup hỏng".`,
+    architecture: `DẠNG CLIP: KIẾN TRÚC CÔNG TY THẬT (một bài toán quy mô lớn và cách một công ty giải nó).
+- Chỉ kể những gì có trong BÀI VIẾT NGUỒN hoặc đã được chính công ty công bố rộng rãi và bạn chắc chắn. Không bịa con số quy mô, tên công nghệ hay phiên bản.
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • MỞ BÀI ("intro", đúng 2 cảnh). Cảnh 1 layout "title": BÀI TOÁN và quy mô (ví dụ "LƯU *NGHÌN TỶ* TIN NHẮN"). Cảnh 2: cách làm thông thường và vì sao nó gãy ở quy mô này.
+  • THÂN BÀI ("body"): ràng buộc họ phải đáp ứng → THIẾT KẾ họ chọn, từng thành phần và luồng dữ liệu → KHÁI NIỆM đứng sau thiết kế đó, giải thích cơ chế → cái giá họ chấp nhận (trade-off).
+  • KẾT BÀI ("outro", 1–2 cảnh): khi nào hệ thống của bạn nên (và không nên) học theo, và một câu chốt.${tail}
+- Tiêu đề clip nêu công ty và bài toán: "Discord lưu hàng nghìn tỷ tin nhắn như thế nào".`,
+    quiz: `DẠNG CLIP: ĐOÁN LỖI (đưa một luồng xử lý có lỗi ẩn, để người xem đoán, rồi mới giải).
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • MỞ BÀI ("intro", đúng 2 cảnh). Cảnh 1 layout "title": HẬU QUẢ và lời thách ("BÁN *QUÁ* 37 ĐƠN", phụ đề "Kho còn 100, hệ thống bán 137. Lỗi ở đâu?"). Cảnh 2 layout "flow": luồng xử lý trông có vẻ đúng, từng bước một, narration kết bằng câu hỏi "Bạn thấy lỗi ở bước nào?" và mời người xem đoán trước khi xem tiếp.
+  • THÂN BÀI ("body"): một gợi ý nhỏ (điều kiện nào thì lỗi mới lộ ra) → LỜI GIẢI: chỉ đúng bước sai và diễn lại chuyện gì xảy ra ở bước đó → gọi tên KHÁI NIỆM (tên loại lỗi và cách chữa), giải thích cơ chế → cách sửa áp vào chính luồng đó, kèm 1 bẫy khi sửa.
+  • KẾT BÀI ("outro", 1–2 cảnh): luồng sau khi sửa (dùng "before-after"), một câu chốt, và hỏi người xem đã đoán đúng chưa.${tail}
+- Tiêu đề clip là câu đố: "Kho còn 100, bán 137: lỗi ở đâu?".`,
+    concept: `DẠNG CLIP: CHỦ ĐỀ / KHÁI NIỆM (người dùng muốn một clip về đúng chủ đề này, nhưng vẫn phải dẫn bằng case).
+- Giải thích khái niệm đầy đủ hơn các dạng khác (định nghĩa, cơ chế, khi nào dùng, trade-off), NHƯNG luôn mở bằng một case cụ thể nơi thiếu khái niệm này thì gây hậu quả, và mọi bước giải thích đều chiếu lại vào case đó.
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • MỞ BÀI ("intro", đúng 2 cảnh). Cảnh 1 layout "title": HẬU QUẢ của case (con số, thiệt hại), không phải tên khái niệm. Cảnh 2: tái hiện case và chỉ ra chỗ hỏng; cuối cảnh mới gọi tên khái niệm là thứ giải quyết chuyện này.
+  • THÂN BÀI ("body"): khái niệm là gì trong một câu, gắn với case → cơ chế hoạt động từng bước trên chính case → khi nào cần dùng, khi nào thừa → lỗi hay gặp và trade-off, mỗi cái kèm hậu quả cụ thể.
+  • KẾT BÀI ("outro", 1–2 cảnh): case sau khi áp dụng (trước và sau), một câu chốt hoặc mẹo nhớ nhanh, và giới hạn của giải pháp.${tail}
+- Tiêu đề clip có tên chủ đề, kèm vấn đề nó giải quyết: "Idempotency Key: retry mà không trừ tiền 2 lần".`,
+  };
+  return G[format] || G[DEFAULT_FORMAT];
+}
+function scriptPrompt(topic, category, article, note, ctx, format) {
   const existing = [...state.scripts.values()].map(s => s.title).slice(0, 80).join("; ");
   const head = article
     ? `Viết kịch bản cho clip dọc 9:16 dựa trên BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}${category && category !== "auto" && category !== "all" ? ` (lĩnh vực ${category})` : ""}.
@@ -1590,13 +1656,9 @@ ${head}
 ${ctx ? "\n" + ctx + "\n" : ""}Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
 
 Quy tắc:
-- Mỗi clip trình bày TRỌN VẸN một vấn đề/chủ đề, như một bài giải thích ngắn có người thuyết minh. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 8–14 cảnh. Tổng độ dài tất cả "narration" khoảng 800–1.500 ký tự (giọng đọc khoảng 13 ký tự mỗi giây), không vượt quá 1.500 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây). Muốn câu tự nhiên mà vẫn vừa thời lượng thì bớt cảnh, đừng nén câu.
-- Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất mà dev cần biết (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
-- CẤU TRÚC BẮT BUỘC gồm 3 phần, mỗi cảnh ghi rõ phần của nó trong trường "part":
-  • MỞ BÀI ("part": "intro", đúng 2 cảnh). Cảnh 1 dùng layout "title": hook gây tò mò (vấn đề dev hay gặp, hoặc một câu hỏi), phụ đề là câu hook. Cảnh 2 nói rõ clip sẽ trả lời những gì: layout "stack" hoặc "grid" liệt kê 2–4 ý sẽ trình bày, narration kiểu "Trong clip này, mình sẽ cùng bạn tìm hiểu...".
-  • THÂN BÀI ("part": "body"): bối cảnh / vì sao quan trọng → vấn đề → cơ chế hoạt động từng bước (đúng thứ tự) → ví dụ cụ thể → lỗi hay gặp / trade-off → cách xử lý, công cụ phổ biến. Mỗi cảnh một ý, đi đúng các ý đã hứa ở mở bài.
-  • KẾT BÀI ("part": "outro", 1–2 cảnh): tóm tắt lại các ý chính (thường dùng "compare" hoặc "before-after") và một câu chốt hoặc mẹo nhớ nhanh.
-  • KHÔNG viết cảnh kêu gọi follow, like, subscribe: hệ thống tự thêm cảnh đó ở cuối mọi clip.
+- Mỗi clip kể TRỌN VẸN một case và giải quyết nó, có người thuyết minh; không phải một bài giảng. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 8–14 cảnh. Tổng độ dài tất cả "narration" khoảng 800–1.500 ký tự (giọng đọc khoảng 13 ký tự mỗi giây), không vượt quá 1.500 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây). Muốn câu tự nhiên mà vẫn vừa thời lượng thì bớt cảnh, đừng nén câu.
+- Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất để hiểu và chữa được case (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Phần lý thuyết thuần chỉ chiếm phần nhỏ, luôn gắn vào case. Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
+${formatGuide(format)}
 - "heading": tiếng Việt hoặc thuật ngữ tiếng Anh, ngắn (tối đa 5 từ), sẽ được in hoa. Bao 1 từ quan trọng trong *dấu sao* để tô cam.
 - "subtitle": câu NHẤN MẠNH hiện trên màn hình: một câu chốt tự nhiên, đắt giá, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*. Không chứa nguyên câu lệnh hay đoạn code.
 - "narration": lời thuyết minh được đọc thành tiếng bằng giọng nam, GIẢI THÍCH RÕ cảnh đó cho người nghe hiểu: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 80–250 ký tự, theo đúng GIỌNG VĂN ở trên; nối mạch với cảnh trước và dẫn sang cảnh sau. Không lặp nguyên văn phụ đề. Viết để ĐỌC THÀNH TIẾNG: không dùng ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên; tránh viết tắt khó đọc.
@@ -1609,7 +1671,7 @@ Quy tắc:
 - "left"/"right": nhãn cột cho compare/before-after (tối đa 2 từ).
 
 Chỉ trả về JSON đúng dạng:
-{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook", "metaphor": "ví dụ kỹ thuật cụ thể dùng xuyên suốt clip (không phải ẩn dụ đời thường)", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
+{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook: hậu quả của case, có con số", "metaphor": "case xuyên suốt clip: sản phẩm, thao tác, con số, hậu quả", "concept": "tên khái niệm kỹ thuật là lời giải của case", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
 }
 function reviewPrompt(sc, ctx) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
@@ -1619,10 +1681,12 @@ Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch 
 1. Độ chính xác kỹ thuật: định nghĩa, thứ tự các bước, tên trạng thái/thuật toán, trade-off, ví dụ công cụ/sản phẩm. Sửa mọi chỗ sai hoặc gây hiểu nhầm. Bỏ số liệu không chắc chắn.
 2. Bỏ mọi ẩn dụ đời thường/công sở, thay bằng thành phần kỹ thuật thật.
 2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá 1.500 ký tự. Khi sửa, giữ câu văn tự nhiên theo GIỌNG VĂN, đừng làm câu cụt hay khô đi.
-2c. Cấu trúc: phải có MỞ BÀI (2 cảnh: hook, rồi giới thiệu clip sẽ nói gì), THÂN BÀI giải thích đúng các ý đã hứa, KẾT BÀI tóm tắt. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.500 ký tự.
+2c. Cấu trúc phải đúng dạng clip dưới đây. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.500 ký tự.
+${formatGuide(sc.format)}
+2f. Case study: clip phải mở bằng case cụ thể có hậu quả, khái niệm chỉ xuất hiện như lời giải, và mọi cảnh giải thích đều bám vào case (cùng hệ thống, cùng con số). Cảnh nào trượt sang định nghĩa chung chung thì viết lại cho gắn vào case. Xóa mọi câu mục lục kiểu "Trong clip này, mình sẽ...". Kiểm tra tính trung thực: tình huống tự dựng không được gắn tên công ty thật; sự cố thật không được có chi tiết hay số liệu bịa.
 2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (tối đa khoảng 2 phút). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
 3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
-2d. Tiêu chí chất lượng: kiểm tra từng tiêu chí trong phần TIÊU CHÍ CHẤT LƯỢNG ở trên (thuật ngữ được giải thích trước khi dùng, một ví dụ xuyên suốt, mỗi cảnh một ý, kết bài có thông điệp chính và giới hạn của giải pháp). Sửa chỗ nào chưa đạt.
+2d. Tiêu chí chất lượng: kiểm tra từng tiêu chí trong phần TIÊU CHÍ CHẤT LƯỢNG ở trên (thuật ngữ được giải thích trước khi dùng, một case xuyên suốt, mỗi cảnh một ý, kết bài có thông điệp chính và giới hạn của giải pháp). Sửa chỗ nào chưa đạt.
 ${ctx ? "2e. Đây là một phần của series, chỉ được trình bày đúng phạm vi của phần này:\n" + ctx + "\n" : ""}${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
 
 === BÀI VIẾT NGUỒN ===
@@ -1631,7 +1695,7 @@ ${sourceText}
 ` : ""}Kịch bản:
 ${JSON.stringify(body)}
 
-Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc, mỗi cảnh có cả subtitle và narration: title, category, hook, metaphor, scenes}}`;
+Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc, mỗi cảnh có cả subtitle và narration: title, category, hook, metaphor, concept, scenes}}`;
 }
 function narratePrompt(sc) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
@@ -1641,14 +1705,14 @@ Kịch bản clip dưới đây có phụ đề ngắn cho từng cảnh. Hãy v
 - Phụ đề giữ nguyên: đó là câu nhấn mạnh hiện trên màn hình.
 - Narration GIẢI THÍCH RÕ cảnh đó: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 80–250 ký tự, theo đúng GIỌNG VĂN ở trên, nối mạch giữa các cảnh, không lặp nguyên văn phụ đề.
 - Viết để đọc thành tiếng: không ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên.
-- Giữ cấu trúc 3 phần và ghi "part" cho từng cảnh: MỞ BÀI ("intro", 2 cảnh: hook, rồi giới thiệu clip sẽ nói gì, narration kiểu "Trong clip này, mình sẽ..."), THÂN BÀI ("body") giải thích, KẾT BÀI ("outro") tóm tắt và chốt ý. Không viết lời kêu gọi follow: hệ thống tự thêm cảnh đó.
+- Giữ cấu trúc 3 phần và ghi "part" cho từng cảnh: MỞ BÀI ("intro", 2 cảnh: hậu quả của case, rồi tái hiện case), THÂN BÀI ("body") chẩn đoán và giải thích cách chữa trên chính case, KẾT BÀI ("outro") chốt ý. Không viết câu mục lục "Trong clip này, mình sẽ...". Không viết lời kêu gọi follow: hệ thống tự thêm cảnh đó.
 - Tổng narration của cả clip không quá 1.500 ký tự (khoảng 2 phút, chưa tính cảnh follow). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất, đừng nén câu; nếu thiếu ý quan trọng thì thêm cảnh.
 - Phải đúng kỹ thuật; không bịa số liệu.
 ${sourceText ? `\nĐối chiếu với BÀI VIẾT NGUỒN:\n=== BÀI VIẾT NGUỒN ===\n${sourceText}\n=== HẾT BÀI VIẾT ===\n` : ""}
 Kịch bản hiện tại:
 ${JSON.stringify(body)}
 
-Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, scenes), mỗi cảnh có thêm trường "narration".`;
+Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, concept, scenes), mỗi cảnh có thêm trường "narration".`;
 }
 // Language editor: rewrites only the words (heading, subtitle, narration) for natural spoken Vietnamese.
 function polishPrompt(sc, ctx) {
@@ -1681,15 +1745,34 @@ async function aiReview(script, ctx) {
   const issues = r && Array.isArray(r.issues) ? r.issues.filter(Boolean).map(String) : [];
   return { fixed, issues };
 }
-function topicsPrompt(category) {
+function topicsPrompt(category, format) {
   const existing = [...state.scripts.values()].map(s => s.title).slice(0, 120).join("; ");
+  const scope = category && category !== "all" ? ` trong lĩnh vực ${category}` : ", trải đều các lĩnh vực " + CATEGORIES.join(", ");
+  const areas = `AI agent & tool calling, MCP, RAG, vector search, prompt caching, LLM evals; Kubernetes, autoscaling, service mesh, observability; OAuth 2.0/OIDC, JWT, passkeys; rate limiting, idempotency key, outbox pattern, CDC, saga; isolation level & MVCC, sharding, replication lag, N+1 query, connection pool; HTTP/3 & QUIC, CDN, cache stampede, WebSocket vs SSE; hydration, Core Web Vitals; circuit breaker, backpressure, consistent hashing, CAP/PACELC, event-driven`;
+  const T = {
+    symptom: `Đề xuất 10 TÌNH HUỐNG DEV HAY GẶP để làm clip case study${scope}.
+Mỗi tình huống là một TRIỆU CHỨNG cụ thể dev thấy khi làm sản phẩm thật, có hậu quả rõ, và có MỘT khái niệm kỹ thuật là cách chữa. Ví dụ: "Khách F5 trang thanh toán, bị trừ tiền 2 lần" (cách chữa: Idempotency Key); "Flash sale còn 100 sản phẩm, bán ra 137 đơn" (race condition, optimistic locking); "Cache hết hạn là database sập" (cache stampede); "Thêm server thứ hai thì user bị đăng xuất" (session trong RAM); "Trang danh sách càng về sau càng chậm" (phân trang OFFSET).
+Ưu tiên triệu chứng nhiều dev gặp và khái niệm đang thiết yếu. Các vùng khái niệm để chọn cách chữa: ${areas}.
+"topic" là TRIỆU CHỨNG viết như lời dev kể (tối đa 14 từ, có con số nếu hợp lý), KHÔNG phải tên khái niệm. "angle" ghi "Cách chữa: <tên khái niệm>".`,
+    incident: `Đề xuất 10 SỰ CỐ CÓ THẬT để làm clip case study${scope}.
+Chỉ chọn sự cố nổi tiếng, có postmortem hoặc báo cáo CÔNG KHAI từ chính công ty, và bạn chắc chắn về sự kiện chính (ví dụ: GitLab 2017 xóa nhầm database production; Facebook 2021 mất kết nối toàn cầu vì cấu hình BGP; AWS S3 2017 gõ nhầm lệnh; Knight Capital 2012; CrowdStrike 2024). Không chọn tin đồn hay sự cố bạn không chắc.
+"topic" là "<Công ty> <năm>: <chuyện gì xảy ra>" (tối đa 14 từ), không ghi số liệu bạn không chắc. "angle" ghi "Bài học: <khái niệm hoặc biện pháp kỹ thuật>".`,
+    architecture: `Đề xuất 10 BÀI TOÁN KIẾN TRÚC CỦA CÔNG TY THẬT để làm clip case study${scope}.
+Chỉ chọn những thiết kế đã được chính công ty công bố rộng rãi (engineering blog, bài nói chuyện, tài liệu API) và bạn chắc chắn về ý chính (ví dụ: Discord lưu tin nhắn, Stripe thiết kế Idempotency-Key, cách một CDN lớn định tuyến, cách một hệ thống chat fan-out tin nhắn).
+"topic" là "<Công ty>: <bài toán họ giải>" (tối đa 14 từ), không ghi số liệu bạn không chắc. "angle" ghi "Khái niệm: <khái niệm đứng sau thiết kế>".`,
+    quiz: `Đề xuất 10 CÂU ĐỐ "ĐOÁN LỖI" để làm clip${scope}.
+Mỗi câu đố là một luồng xử lý trông có vẻ đúng nhưng có lỗi ẩn, chỉ lộ ra dưới tải hoặc khi có sự cố mạng, và có hậu quả đo được. Ví dụ: "Kho còn 100, hệ thống bán 137 đơn"; "Gửi 1 webhook, đơn hàng được xử lý 2 lần"; "Vừa lưu xong, tải lại trang thì dữ liệu biến mất".
+"topic" là câu đố viết như một câu thách (tối đa 14 từ). "angle" ghi "Lỗi: <tên loại lỗi>, cách chữa: <khái niệm>".`,
+    concept: `Đề xuất 10 CHỦ ĐỀ clip mới${scope}.
+Ưu tiên chủ đề ĐANG HOT và THIẾT YẾU cho developer hiện nay: kiến thức dev gặp hằng ngày, câu hỏi phỏng vấn system design phổ biến, công nghệ đang được dùng nhiều. Ví dụ hướng chủ đề: ${areas}.
+Chủ đề phải là khái niệm có định nghĩa rõ ràng, đã được công nhận rộng rãi (không phải tin đồn hay sản phẩm chưa phát hành).
+"topic" là tên chủ đề ngắn. "angle" ghi "Case mở đầu: <tình huống cụ thể có hậu quả sẽ dùng để dẫn vào chủ đề>".`,
+  };
   return `${STYLE_RULES}
 
-Đề xuất 10 chủ đề clip mới${category && category !== "all" ? ` trong lĩnh vực ${category}` : ", trải đều các lĩnh vực " + CATEGORIES.join(", ")}.
-Ưu tiên chủ đề ĐANG HOT và THIẾT YẾU cho developer hiện nay: kiến thức dev gặp hằng ngày, câu hỏi phỏng vấn system design phổ biến, công nghệ đang được dùng nhiều. Ví dụ hướng chủ đề: AI agent & tool calling, MCP (Model Context Protocol), RAG, embedding & vector search, context window & prompt caching, LLM evals; Kubernetes, HPA, service mesh, OpenTelemetry; OAuth 2.0/OIDC, JWT, passkeys; rate limiting, idempotency key, outbox pattern, CDC, saga; isolation level & MVCC, sharding, replication lag, N+1 query, connection pool; HTTP/3 & QUIC, TLS handshake, CORS, WebSocket vs SSE, gRPC; React Server Components, hydration, edge functions; blue-green/canary deploy, feature flag.
-Chủ đề phải là khái niệm có định nghĩa rõ ràng, đã được công nhận rộng rãi (không phải tin đồn hay sản phẩm chưa phát hành).
-Không trùng với các chủ đề đã có: ${existing || "chưa có"}.
-Chỉ trả về JSON: {"topics": [{"topic": "tên chủ đề ngắn", "category": "một trong ${CATEGORIES.join("|")}", "angle": "vì sao dev cần biết hoặc góc giải thích kỹ thuật, tiếng Việt, tối đa 12 từ"}]}`;
+${T[format] || T[DEFAULT_FORMAT]}
+Không trùng với các clip đã có: ${existing || "chưa có"}.
+Chỉ trả về JSON: {"topics": [{"topic": "...", "category": "một trong ${CATEGORIES.join("|")}", "angle": "... (tiếng Việt, tối đa 14 từ)"}]}`;
 }
 // Model per task: "light" = topic ideas and captions, "write" = scripts and narration, "review" = technical check.
 // An empty value keeps the default (claude.ai picks by tier; the local server uses CODELENS_MODEL).
@@ -1715,34 +1798,46 @@ $("btn-suggest").addEventListener("click", async () => {
   if (!cap.sample || state.aiBusy) return;
   const cat = $("ai-cat").value; setAiBusy(true, "Đang nghĩ chủ đề…");
   try {
-    const r = await cap.sample.json(topicsPrompt(cat), aiOpts("light", "default"));
+    const r = await cap.sample.json(topicsPrompt(cat, curFormat()), aiOpts("light", "default"));
     state.suggestions = (r && Array.isArray(r.topics) ? r.topics : []).slice(0, 10).filter(x => x && x.topic);
-    renderSuggestions(); setAiBusy(false, state.suggestions.length ? "Bấm một chủ đề để AI viết kịch bản." : "Không có gợi ý nào. Thử lại.");
+    state.suggestions.forEach(x => { x.format = curFormat(); });
+    renderSuggestions(); setAiBusy(false, state.suggestions.length ? "Bấm một gợi ý để AI viết kịch bản." : "Không có gợi ý nào. Thử lại.");
   } catch (err) { setAiBusy(false, aiError(err)); }
 });
 function renderSuggestions() {
   $("suggest").innerHTML = state.suggestions.map((s, i) => `<button data-sug="${i}"><span><b>${esc(s.topic)}</b><br><span class="hint">${esc(s.angle || "")}</span></span><em>${esc(s.category || "")}</em></button>`).join("");
 }
-$("suggest").addEventListener("click", (e) => { const b = e.target.closest("[data-sug]"); if (!b) return; const s = state.suggestions[+b.dataset.sug]; if (s) aiWrite(s.topic + (s.angle ? ` — gợi ý: ${s.angle}` : ""), s.category, +b.dataset.sug); });
-$("btn-write").addEventListener("click", () => { const t = $("ai-topic").value.trim(); if (!t) { toast("Gõ một chủ đề trước, ví dụ: Idempotency key."); $("ai-topic").focus(); return; } aiWrite(t, $("ai-cat").value); });
+$("suggest").addEventListener("click", (e) => { const b = e.target.closest("[data-sug]"); if (!b) return; const s = state.suggestions[+b.dataset.sug]; if (s) aiWrite(s.topic + (s.angle ? ` — ${s.angle}` : ""), s.category, +b.dataset.sug, s.format); });
+$("btn-write").addEventListener("click", () => { const t = $("ai-topic").value.trim(); if (!t) { toast("Gõ một tình huống hoặc chủ đề trước."); $("ai-topic").focus(); return; } aiWrite(t, $("ai-cat").value); });
+// Clip format picker (remembered in this browser)
+const curFormat = () => normFormat($("ai-format").value) || DEFAULT_FORMAT;
+(() => {
+  const el = $("ai-format"); let saved = ""; try { saved = localStorage.getItem("codelens.format") || ""; } catch (e) {}
+  el.innerHTML = Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  el.value = normFormat(saved) || DEFAULT_FORMAT;
+  const sync = () => { $("ai-topic").placeholder = FORMAT_HINT[curFormat()]; $("btn-suggest").textContent = curFormat() === "concept" ? "Gợi ý chủ đề" : "Gợi ý case"; };
+  el.addEventListener("change", () => { try { localStorage.setItem("codelens.format", el.value); } catch (e) {} state.suggestions = []; renderSuggestions(); sync(); });
+  sync();
+})();
 $("ai-topic").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-write").click(); });
 // ---- series: plan first, then write each part with the whole plan in view ----
-function planPrompt(topic, category, article, note) {
+function planPrompt(topic, category, article, note, format) {
   return `${STYLE_RULES}
 
 Lên kế hoạch clip dọc 9:16 cho ${article ? `BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}` : `chủ đề "${topic}"`}${category && !["all", "auto"].includes(category) ? ` (lĩnh vực ${category})` : ""}.${note ? `\nYêu cầu thêm: ${note}` : ""}
+Dạng clip: ${FORMATS[format] || FORMATS[DEFAULT_FORMAT]}. Clip mở bằng một case cụ thể có hậu quả; khái niệm kỹ thuật là lời giải của case.
 Mỗi clip tối đa khoảng 2 phút (lời thuyết minh không quá 1.500 ký tự, khoảng 8–14 cảnh, gồm mở bài, thân bài, kết bài).
 Ưu tiên CHẤT LƯỢNG: nếu cần giải thích đủ sâu theo các tiêu chí ở trên mà một clip không đủ, hãy chia thành nhiều phần (tối đa 4). Chủ đề gọn thì giữ 1 phần.
-Mỗi phần phải xem riêng vẫn hiểu được; các phần không lặp ý; phần sau nối tiếp phần trước. Cả series dùng chung MỘT ví dụ xuyên suốt.
+Mỗi phần phải xem riêng vẫn hiểu được; các phần không lặp ý; phần sau nối tiếp phần trước. Cả series dùng chung MỘT case xuyên suốt; mỗi phần giải quyết một câu hỏi tiếp theo của case đó.
 ${article ? `\n=== BÀI VIẾT NGUỒN ===\n${article}\n=== HẾT BÀI VIẾT ===\n` : ""}
-Chỉ trả về JSON: {"seriesTitle": "tên chung của series", "example": "ví dụ kỹ thuật xuyên suốt", "parts": [{"title": "tiêu đề clip của phần này", "covers": ["các ý phần này trình bày, theo thứ tự"], "teaser": "một câu văn nói giới thiệu phần này, sẽ được đọc ở cuối phần trước"}]}`;
+Chỉ trả về JSON: {"seriesTitle": "tên chung của series", "example": "case xuyên suốt: sản phẩm, thao tác, con số, hậu quả", "parts": [{"title": "tiêu đề clip của phần này", "covers": ["các ý phần này trình bày, theo thứ tự"], "teaser": "một câu văn nói giới thiệu phần này, sẽ được đọc ở cuối phần trước"}]}`;
 }
 function seriesContext(plan, i) {
   const n = plan.parts.length;
-  return `Đây là PHẦN ${i + 1}/${n} của series "${plan.seriesTitle}". Ví dụ xuyên suốt cả series: ${plan.example || "giữ nguyên ví dụ giữa các phần"}.
+  return `Đây là PHẦN ${i + 1}/${n} của series "${plan.seriesTitle}". Case xuyên suốt cả series: ${plan.example || "giữ nguyên case giữa các phần"}.
 Kế hoạch cả series:
 ${plan.parts.map((p, k) => `- Phần ${k + 1}: ${p.title}: ${p.covers.join("; ")}`).join("\n")}
-Chỉ viết PHẦN ${i + 1}: trình bày đúng các ý của phần này, không lấn sang phần khác.${i > 0 ? " Mở bài nhắc ngắn phần trước đã nói gì, rồi nói phần này sẽ học gì." : ""}${i < n - 1 ? " Kết bài tóm tắt phần này; KHÔNG giới thiệu phần sau (hệ thống tự thêm lời giới thiệu ở cảnh cuối)." : ""} Tiêu đề clip ghi rõ "(Phần ${i + 1})".`;
+Chỉ viết PHẦN ${i + 1}: trình bày đúng các ý của phần này, không lấn sang phần khác.${i > 0 ? " Mở bài nhắc ngắn phần trước đã giải quyết gì, rồi nêu vấn đề tiếp theo của case mà phần này xử lý (vẫn mở bằng hậu quả, không viết mục lục)." : ""}${i < n - 1 ? " Kết bài tóm tắt phần này; KHÔNG giới thiệu phần sau (hệ thống tự thêm lời giới thiệu ở cảnh cuối)." : ""} Tiêu đề clip ghi rõ "(Phần ${i + 1})".`;
 }
 function normPlan(r, topic) {
   const parts = (r && Array.isArray(r.parts) ? r.parts : []).slice(0, 4).map(p => ({
@@ -1753,26 +1848,27 @@ function normPlan(r, topic) {
   return { seriesTitle: String((r && r.seriesTitle) || topic).slice(0, 120), example: String((r && r.example) || "").slice(0, 300), parts: parts.length ? parts : [{ title: topic, covers: [], teaser: "" }] };
 }
 // Writes one script, or a series when the topic needs it. Returns the saved scripts in order.
-async function writeScripts({ topic, category, article, note, tier = "default", status = "draft", onStatus = () => {} }) {
+async function writeScripts({ topic, category, article, note, format, tier = "default", status = "draft", onStatus = () => {} }) {
+  format = normFormat(format) || DEFAULT_FORMAT;
   onStatus("Claude đang lên kế hoạch nội dung…");
   let plan;
-  try { plan = normPlan(await cap.sample.json(planPrompt(topic, category, article, note), aiOpts("write", tier)), topic); }
+  try { plan = normPlan(await cap.sample.json(planPrompt(topic, category, article, note, format), aiOpts("write", tier)), topic); }
   catch (e) { plan = normPlan(null, topic); }
   const n = plan.parts.length; const seriesId = n > 1 ? uid() : ""; const createdAt = new Date().toISOString();
   const saved = []; let issuesTotal = 0, allReviewed = true;
   for (let i = 0; i < n; i++) {
     const part = plan.parts[i]; const ctx = n > 1 ? seriesContext(plan, i) : "";
     onStatus(n > 1 ? `Claude đang viết phần ${i + 1}/${n}: “${part.title}”…` : "Claude đang viết kịch bản…");
-    const r0 = await cap.sample.json(scriptPrompt(n > 1 ? part.title : topic, category, article, note, ctx), aiOpts("write", article ? "complex" : tier));
+    const r0 = await cap.sample.json(scriptPrompt(n > 1 ? part.title : topic, category, article, note, ctx, format), aiOpts("write", article ? "complex" : tier));
     onStatus(n > 1 ? `Đang kiểm tra kỹ thuật phần ${i + 1}/${n}…` : (article ? "Đang đối chiếu kịch bản với bài viết…" : "Claude đang kiểm tra lại độ chính xác kỹ thuật…"));
     let r = r0, issues = [], reviewed = false;
-    try { const rv = await aiReview(normScript({ ...r0, sourceText: article || "" }), ctx); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) { allReviewed = false; }
+    try { const rv = await aiReview(normScript({ ...r0, format, sourceText: article || "" }), ctx); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) { allReviewed = false; }
     issuesTotal += issues.length;
     onStatus(n > 1 ? `Đang biên tập giọng văn phần ${i + 1}/${n}…` : "Đang biên tập giọng văn cho tự nhiên…");
     let polished = false;
     try { const pz = await aiPolish(normScript(r), ctx); r = { ...r, scenes: pz.script.scenes }; polished = true; } catch (e) {}
     const cat = CATEGORIES.includes(category) ? category : (CATEGORIES.includes(r && r.category) ? r.category : undefined);
-    const s = normScript({ ...r, topic: n > 1 ? plan.seriesTitle : (topic || (r && r.title)), category: cat, createdBy: "ai", status, createdAt,
+    const s = normScript({ ...r, topic: n > 1 ? plan.seriesTitle : (topic || (r && r.title)), category: cat, createdBy: "ai", status, createdAt, format,
       source: article ? "article" : "", sourceText: article || "", reviewed, reviewNotes: issues, polished,
       series: n > 1 ? { id: seriesId, title: plan.seriesTitle, part: i + 1, total: n } : null,
       nextTeaser: i < n - 1 ? plan.parts[i + 1].teaser : "" });
@@ -1780,11 +1876,11 @@ async function writeScripts({ topic, category, article, note, tier = "default", 
   }
   return { saved, issuesTotal, allReviewed, parts: n };
 }
-async function aiWrite(topic, category, sugIdx) {
+async function aiWrite(topic, category, sugIdx, format) {
   if (!cap.sample || state.aiBusy) return;
   setAiBusy(true, "Claude đang lên kế hoạch nội dung…");
   try {
-    const out = await writeScripts({ topic, category, onStatus: (m) => setAiBusy(true, m) });
+    const out = await writeScripts({ topic, category, format: format || curFormat(), onStatus: (m) => setAiBusy(true, m) });
     const saved = out.saved[0]; const reviewed = out.allReviewed; const issues = { length: out.issuesTotal };
     if (sugIdx !== undefined) { state.suggestions.splice(sugIdx, 1); renderSuggestions(); }
     $("ai-topic").value = "";
@@ -1802,7 +1898,7 @@ async function aiFromArticle() {
   state.aiBusy = true; btn.disabled = true;
   st.innerHTML = '<span class="spin"></span> Claude đang đọc bài và viết kịch bản…';
   try {
-    const out = await writeScripts({ topic: title, category: cat, article: text, note, tier: "complex", onStatus: (m) => { st.innerHTML = '<span class="spin"></span> ' + esc(m); } });
+    const out = await writeScripts({ topic: title, category: cat, article: text, note, format: $("art-format").value, tier: "complex", onStatus: (m) => { st.innerHTML = '<span class="spin"></span> ' + esc(m); } });
     const saved = out.saved[0]; const reviewed = out.allReviewed; const issues = { length: out.issuesTotal };
     saveArticleDraft({});
     state.articleMode = false; state.aiBusy = false;
@@ -1913,14 +2009,14 @@ async function autoWriteScripts(n, cats) {
   if (state.aiBusy) return;
   try {
     setAiBusy(true, "Lịch chạy: Claude đang chọn chủ đề…");
-    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all"), aiOpts("light", "default"));
+    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all", curFormat()), aiOpts("light", "default"));
     const topics = (r && Array.isArray(r.topics) ? r.topics : []).filter(t => t && t.topic && (!cats.length || cats.includes(t.category))).slice(0, n);
     setAiBusy(false, "");
     let done = 0;
     for (const t of topics) {
       setAiBusy(true, `Lịch chạy: đang viết “${t.topic}” (${done + 1}/${topics.length})…`);
       try {
-        const out = await writeScripts({ topic: t.topic + (t.angle ? ` — gợi ý: ${t.angle}` : ""), category: CATEGORIES.includes(t.category) ? t.category : "all", status: "queued", onStatus: (m) => setAiBusy(true, "Lịch chạy: " + m) });
+        const out = await writeScripts({ topic: t.topic + (t.angle ? ` — ${t.angle}` : ""), category: CATEGORIES.includes(t.category) ? t.category : "all", format: curFormat(), status: "queued", onStatus: (m) => setAiBusy(true, "Lịch chạy: " + m) });
         if (!out.saved.length) throw new Error("empty");
         done++;
       } catch (e) { /* skip this topic, keep going */ }
@@ -1940,22 +2036,26 @@ function captionTemplate(script, clip) {
   const points = script ? script.scenes.slice(1).map(sc => plain(sc.subtitle)).filter(Boolean).slice(0, 4) : [];
   const tags = ["#CodeLens", ...(HASHTAGS[(script && script.category) || clip.category] || []), "#LapTrinh", "#Developer"];
   const sr = script && script.series;
-  return [`${title.toUpperCase()}${sr ? ` (Phần ${sr.part}/${sr.total})` : ""} — giải thích trong ${Math.round(+clip.durationSec || 60)} giây`, script && script.hook ? plain(script.hook) : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để hiểu sâu thêm các khái niệm khó cho dev.", "", tags.join(" ")].filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
+  const hook = script && script.hook ? plain(script.hook) : "";
+  return [hook, hook ? "" : null, `${title.toUpperCase()}${sr ? ` (Phần ${sr.part}/${sr.total})` : ""} — ${Math.round(+clip.durationSec || 60)} giây`, script && script.concept ? `Cách chữa: ${plain(script.concept)}.` : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để hiểu sâu thêm các khái niệm khó cho dev.", "", tags.join(" ")].filter(l => l !== null).filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
 }
 function captionPrompt(script) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = script;
   return `Viết caption tiếng Việt cho bài đăng Facebook kèm video ngắn của kênh CodeLens (kênh giải thích khái niệm công nghệ cho lập trình viên Việt Nam).
+Người xem chỉ dừng lại vì một tình huống cụ thể có hậu quả, không phải vì tên khái niệm. Caption phải dẫn bằng CASE của video.
 Cấu trúc, theo đúng thứ tự:
-1. Dòng tiêu đề: tên chủ đề viết hoa, " — giải thích trong N giây" (N là tổng thời lượng các cảnh, làm tròn).
-2. Hook: một câu hỏi đánh vào chỗ dev hay hiểu sai hoặc thấy vô lý (ví dụ: "HTTP/2 đã multiplex rồi, sao mất 1 packet cả trang vẫn khựng?").
-3. Gọi đúng tên kỹ thuật của vấn đề hoặc khái niệm trong một câu ngắn (ví dụ: "Đây là TCP Head-of-Line Blocking."), để người xem biết từ khóa mà tra cứu.
-4. 3 đến 5 dòng bắt đầu bằng "👉 ", đi theo mạch nguyên nhân → hậu quả → giải pháp → kết quả. Mỗi dòng nêu một cơ chế cụ thể, có tên thành phần (TCP, stream, packet, retransmit…), không nói chung chung kiểu "tự lo hết", "tối ưu hơn", "xịn hơn". Nói đúng phạm vi: ví dụ QUIC đảm bảo tin cậy và thứ tự theo từng stream, không phải "reliability" chung chung.
-5. Một câu kêu gọi theo dõi CodeLens, ngắn, tự nhiên, dưới 15 từ.
-6. Dòng cuối 5 đến 7 hashtag: #CodeLens, các hashtag tên công nghệ chính trong video, một hashtag lĩnh vực, #Developer.
+1. Dòng đầu là HẬU QUẢ của case, có con số, viết như một câu kể hoặc câu hỏi gây tranh luận (ví dụ: "Mạng timeout, app retry, khách bị trừ tiền 2 lần. Lỗi của ai?"). KHÔNG mở bằng tên khái niệm hay "X là gì".
+2. Một hoặc hai câu kể ngắn chuyện gì xảy ra trong case.
+3. Một câu gọi đúng tên kỹ thuật là lời giải (ví dụ: "Cách chữa là Idempotency Key."), để người xem biết từ khóa mà tra cứu.
+4. 3 đến 4 dòng bắt đầu bằng "👉 ", mỗi dòng là một thứ người xem nhận được từ video, đi theo mạch nguyên nhân → cách chữa → bẫy khi áp dụng. Mỗi dòng nêu cơ chế cụ thể, có tên thành phần, không nói chung chung kiểu "tự lo hết", "tối ưu hơn". Nói đúng phạm vi và dùng "có thể" khi hiện tượng không phải lúc nào cũng xảy ra.
+5. MỘT câu hỏi mồi bình luận gắn với case (ví dụ: "Bạn đã từng phải refund vì retry chưa? Fix thế nào?").
+6. Một câu kêu gọi theo dõi CodeLens, ngắn, tự nhiên, dưới 15 từ.
+7. Dòng cuối 4 đến 6 hashtag gọn: #CodeLens, 1–2 hashtag tên công nghệ chính, một hashtag lĩnh vực (#backend, #frontend, #database…), #developer.
 Quy tắc:
-- Mọi khẳng định kỹ thuật phải đúng và có trong kịch bản; không thêm số liệu hay tính năng ngoài kịch bản. Dùng "có thể" khi hiện tượng không phải lúc nào cũng xảy ra.
+- Mọi khẳng định kỹ thuật phải đúng và có trong kịch bản; không thêm số liệu hay tính năng ngoài kịch bản.
+- Không bịa trải nghiệm cá nhân hay chuyện của kênh ("bên mình từng…"). Tình huống tự dựng thì không gắn tên công ty thật.
 - Facebook không hiển thị markdown: không dùng **, __, #tiêu đề hay dấu gạch đầu dòng "-".
-- Giữ thuật ngữ tiếng Anh chuẩn (Multiplexing, Head-of-Line Blocking, stream…), phần còn lại tiếng Việt tự nhiên, không sến.
+- Giữ thuật ngữ tiếng Anh chuẩn, phần còn lại tiếng Việt tự nhiên, không sến.
 - Tổng dưới 900 ký tự.
 Kịch bản video:
 ${JSON.stringify(body)}

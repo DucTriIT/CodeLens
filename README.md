@@ -51,13 +51,33 @@ Mỗi lần gọi Claude, cửa sổ chạy server in ra model và số token đ
 | `CODELENS_DATA_DIR` | `data` | Nơi lưu kịch bản (`data/db/`), clip (`data/assets/`) và giọng đọc đã tạo (`data/tts/`). |
 | `CODELENS_TTS_VOICE` | `vi-VN-NamMinhNeural` | Giọng mặc định: `vi-VN-NamMinhNeural` (nam) hoặc `vi-VN-HoaiMyNeural` (nữ). Chọn được trong tab Lịch & logo. |
 
-## Cấu trúc kịch bản
+## Cấu trúc kịch bản: case study trước, lý thuyết sau
 
-Mỗi kịch bản có ba phần, ghi ở ô **Phần** của từng cảnh:
+Lý thuyết suông thì người xem hỏi AI là xong. Thứ khiến họ dừng lại là một tình huống cụ thể có hậu quả. Vì vậy mọi clip **mở bằng một case**, và khái niệm kỹ thuật xuất hiện như **lời giải** của case đó.
 
-1. **Mở bài** (2 cảnh): câu hook, rồi giới thiệu clip sẽ nói về những gì ("Trong clip này, mình sẽ…").
-2. **Thân bài:** giải thích từng bước, đi đúng các ý đã hứa ở mở bài.
-3. **Kết bài:** tóm tắt ý chính và một câu chốt hoặc mẹo nhớ.
+Chọn **Dạng clip** ở ô cạnh nút gợi ý (lựa chọn được nhớ trong trình duyệt):
+
+| Dạng clip | Mở bằng | Mạch nội dung |
+|---|---|---|
+| **Tình huống dev hay gặp** (mặc định) | Triệu chứng kèm con số: "Khách F5, bị trừ tiền 2 lần" | Triệu chứng → tái hiện → chẩn đoán → khái niệm là cách chữa → bẫy khi áp dụng |
+| **Sự cố thật (postmortem)** | Thiệt hại và tên sự cố | Diễn biến → nguyên nhân gốc → biện pháp lẽ ra đã chặn được → bài học |
+| **Kiến trúc công ty thật** | Bài toán và quy mô | Cách thường làm gãy ở đâu → thiết kế họ chọn → khái niệm đứng sau → trade-off |
+| **Đoán lỗi** | Hậu quả và lời thách | Luồng có lỗi ẩn → mời người xem đoán → lời giải → cách sửa |
+| **Chủ đề / khái niệm** | Một case nơi thiếu khái niệm đó thì gây hậu quả | Giải thích khái niệm đầy đủ hơn, nhưng mọi bước đều chiếu lại vào case |
+
+- Nút **Gợi ý case** đề xuất theo dạng đang chọn: triệu chứng kèm "Cách chữa: …", sự cố kèm "Bài học: …".
+- Gõ một khái niệm (ví dụ "Idempotency key") ở dạng *Tình huống dev hay gặp* thì AI tự chọn tình huống hay gặp nhất mà khái niệm đó chữa được.
+- Muốn làm clip về đúng một chủ đề thì chọn dạng **Chủ đề / khái niệm**; clip vẫn dẫn bằng case.
+- **Sự cố thật** và **Kiến trúc công ty thật** nên làm qua **Từ bài viết**: dán postmortem hoặc bài engineering blog gốc để AI bám theo nguồn. Không có nguồn thì AI chỉ kể những gì chắc chắn và bỏ số liệu không chắc.
+- Tình huống do AI dựng được kể như tình huống điển hình ("giả sử…"), không gắn tên công ty thật.
+
+Mỗi kịch bản vẫn có ba phần, ghi ở ô **Phần** của từng cảnh:
+
+1. **Mở bài** (2 cảnh): hậu quả của case, rồi tái hiện case. Không còn câu mục lục "Trong clip này, mình sẽ…".
+2. **Thân bài:** chẩn đoán, gọi tên khái niệm là cách chữa, giải thích cơ chế trên chính case, và bẫy khi áp dụng.
+3. **Kết bài:** trước và sau trên chính case, một câu chốt, có thể kèm một câu hỏi mời bình luận.
+
+**Caption Facebook** cũng dẫn bằng case: dòng đầu là hậu quả, rồi tên khái niệm là lời giải, 3–4 ý người xem nhận được, một câu hỏi mồi bình luận, và 4–6 hashtag gọn.
 
 Cuối mọi clip, CodeLens tự thêm **cảnh kêu gọi follow**: logo lớn, nút "Theo dõi" được bấm, kèm lời đọc. Đổi chữ hoặc tắt cảnh này ở tab **Lịch & logo → Cảnh kết**. Trình soạn hiện số cảnh của mỗi phần và báo khi kịch bản thiếu phần nào.
 
