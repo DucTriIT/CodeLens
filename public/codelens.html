@@ -214,7 +214,7 @@ a.btn { text-decoration: none; color: inherit; }
       <div class="row">
         <button class="btn small ghost" id="btn-export">Xuất kịch bản (.json)</button>
         <label class="btn small ghost" for="imp-file" style="cursor:pointer">Nhập kịch bản</label>
-        <input type="file" id="imp-file" accept=".json,application/json" hidden>
+        <input type="file" id="imp-file" accept=".json,application/json" multiple hidden>
       </div>
       <div class="slist" id="slist"></div>
     </div>
@@ -1266,6 +1266,8 @@ function renderList() {
     </div>`).join("");
   const n = state.selected.size; const b = $("btn-render-sel");
   b.disabled = !n; b.textContent = n ? `Render đã chọn (${n})` : "Render đã chọn";
+  const ex = $("btn-export"); ex.textContent = n ? `Xuất đã chọn (${n})` : `Xuất tất cả (${state.scripts.size})`; ex.disabled = !state.scripts.size;
+  ex.title = n ? "Xuất các kịch bản đang tick ra một file .json" : "Chưa tick kịch bản nào: xuất tất cả. Tick ô ở từng kịch bản để chỉ xuất những cái đã chọn.";
   $("sel-all").checked = list.length > 0 && list.every(s => state.selected.has(s.id));
   if (!state.editingId && !state.draft) renderEditor();
 }
@@ -2425,25 +2427,36 @@ $("v-test").addEventListener("click", async () => {
 
 /* ================= export / import ================= */
 $("btn-export").addEventListener("click", () => {
-  const ids = state.selected.size ? [...state.selected] : [...state.scripts.keys()];
-  if (!ids.length) { toast("Chưa có kịch bản nào để xuất."); return; }
+  const picked = state.selected.size > 0;
+  const ids = picked ? [...state.selected] : [...state.scripts.keys()];
   const list = ids.map(id => state.scripts.get(id)).filter(Boolean).map(s => ({ ...s }));
+  if (!list.length) { toast("Chưa có kịch bản nào để xuất."); return; }
   const data = JSON.stringify({ app: "codelens", version: 1, exportedAt: new Date().toISOString(), scripts: list }, null, 2);
-  saveFile(`codelens-kich-ban-${new Date().toISOString().slice(0, 10)}.json`, new Blob([data], { type: "application/json" }));
+  saveFile(`codelens-kich-ban-${list.length}-${new Date().toISOString().slice(0, 10)}.json`, new Blob([data], { type: "application/json" }));
+  toast(picked ? `Đã xuất ${list.length} kịch bản đã chọn.` : `Đã xuất tất cả ${list.length} kịch bản.`);
 });
+// Import: one or many files; each file is an export ({scripts: [...]}), a list of scripts, or a single script.
 $("imp-file").addEventListener("change", async (e) => {
-  const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
-  try {
-    const j = JSON.parse(await f.text()); const list = Array.isArray(j) ? j : (j && j.scripts) || [];
-    if (!list.length) throw new Error("File không có kịch bản nào.");
-    let n = 0;
-    for (const raw of list.slice(0, 500)) {
-      const id = /^[A-Za-z0-9_-]{1,100}$/.test(raw.id || "") ? raw.id : uid();
-      const st = raw.status === "done" || raw.status === "rendering" ? "draft" : raw.status;
-      await putScript({ ...raw, id, status: st }); n++;
-    }
-    toast(`Đã nhập ${n} kịch bản.`);
-  } catch (err) { toast("Không nhập được: " + ((err && err.message) || err)); }
+  const files = [...(e.target.files || [])]; e.target.value = ""; if (!files.length) return;
+  let added = 0, updated = 0; const bad = [];
+  for (const f of files) {
+    try {
+      const j = JSON.parse(await f.text());
+      const list = Array.isArray(j) ? j : (j && Array.isArray(j.scripts)) ? j.scripts : (j && Array.isArray(j.scenes)) ? [j] : [];
+      if (!list.length) throw new Error("không có kịch bản");
+      for (const raw of list.slice(0, 500)) {
+        if (!raw || !Array.isArray(raw.scenes)) continue;
+        const id = /^[A-Za-z0-9_-]{1,100}$/.test(raw.id || "") ? raw.id : uid();
+        const st = raw.status === "done" || raw.status === "rendering" ? "draft" : raw.status;
+        const existed = state.scripts.has(id);
+        await putScript({ ...raw, id, status: st }); existed ? updated++ : added++;
+      }
+    } catch (err) { bad.push(`${f.name} (${(err && err.message) || err})`); }
+  }
+  const parts = [];
+  if (added) parts.push(`thêm ${added} kịch bản mới`);
+  if (updated) parts.push(`cập nhật ${updated} kịch bản đã có`);
+  toast((parts.length ? "Đã " + parts.join(", ") + "." : "Không nhập được kịch bản nào.") + (bad.length ? ` File lỗi: ${bad.join("; ")}.` : ""), 7000);
 });
 
 /* ================= logo panel ================= */

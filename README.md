@@ -205,7 +205,7 @@ Lấy `FB_PAGE_ID` và `FB_PAGE_TOKEN`:
 
 Token này đăng được lên Fanpage của bạn: giữ bí mật như mật khẩu, chỉ để trong `.env`.
 
-Kịch bản viết trên bản claude.ai chuyển sang bản trên máy được: bấm **Xuất kịch bản (.json)** ở bản claude.ai, rồi bấm **Nhập kịch bản** ở bản trên máy.
+Kịch bản viết trên bản claude.ai chuyển sang bản trên máy được: tick các kịch bản cần chuyển ở bản claude.ai rồi bấm **Xuất đã chọn** (không tick thì nút là **Xuất tất cả**), sau đó bấm **Nhập kịch bản** ở bản trên máy. Nhập được nhiều file cùng lúc; kịch bản trùng mã thì được cập nhật, không bị nhân đôi.
 
 ## Chọn model AI
 
