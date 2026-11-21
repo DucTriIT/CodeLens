@@ -49,7 +49,7 @@ Mỗi lần gọi Claude, cửa sổ chạy server in ra model và số token đ
 | `PORT` | `5173` | Cổng của server. |
 | `HOST` | `127.0.0.1` | Chỉ máy bạn truy cập được. Đặt `0.0.0.0` nếu muốn mở cho máy khác trong mạng LAN; khi đó ai vào được trang cũng dùng được API key của bạn. |
 | `CODELENS_DATA_DIR` | `data` | Nơi lưu kịch bản (`data/db/`), clip (`data/assets/`) và giọng đọc đã tạo (`data/tts/`). |
-| `CODELENS_TTS_VOICE` | `vi-VN-NamMinhNeural` | Giọng mặc định: `vi-VN-NamMinhNeural` (nam) hoặc `vi-VN-HoaiMyNeural` (nữ). Chọn được trong tab Lịch & logo. |
+| `CODELENS_TTS_VOICE` | `en-US-BrianMultilingualNeural` | Giọng mặc định. Giọng đa ngôn ngữ `en-US-BrianMultilingualNeural` (nam), `en-US-AndrewMultilingualNeural` (nam), `en-US-AvaMultilingualNeural` (nữ) đọc được cả tiếng Việt lẫn từ tiếng Anh trong cùng một câu. Giọng chỉ tiếng Việt: `vi-VN-NamMinhNeural` (nam), `vi-VN-HoaiMyNeural` (nữ). Chọn được trong tab Lịch & logo. |
 
 ## Cấu trúc kịch bản: case study trước, lý thuyết sau
 
@@ -155,6 +155,12 @@ Cần biết trước khi dùng cho kênh:
 
 - Đây là dịch vụ không chính thức. Microsoft không công bố nó như một API công khai, nên có thể đổi hoặc ngừng bất cứ lúc nào, và điều khoản dùng cho mục đích thương mại (kênh có kiếm tiền) chưa rõ ràng.
 - Muốn chắc chắn về bản quyền giọng đọc, dùng dịch vụ có giấy phép: Azure AI Speech (cùng giọng NamMinh, có gói miễn phí hằng tháng), FPT.AI hoặc Viettel AI.
+
+### Giọng đa ngôn ngữ (mặc định)
+
+Mặc định CodeLens dùng giọng **Brian đa ngôn ngữ** (`en-US-BrianMultilingualNeural`). Giọng này đọc cả tiếng Việt lẫn từ tiếng Anh (request, Idempotency Key, load balancer…) trong cùng một đoạn, nên từ tiếng Anh giữ được âm tiếng Anh thay vì bị đọc theo kiểu Việt. Khi dùng giọng đa ngôn ngữ, danh sách "Cách đọc từ tiếng Anh" bên dưới được bỏ qua. Muốn quay lại giọng cũ thì chọn Nam Minh ở tab **Lịch & logo**.
+
+Nếu dùng Azure chính thức, giá của giọng đa ngôn ngữ có thể khác giọng tiếng Việt thường; xem bảng giá của Azure trước khi dùng nhiều.
 
 ### Cách đọc từ tiếng Anh
 

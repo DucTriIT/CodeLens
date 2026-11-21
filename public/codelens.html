@@ -309,7 +309,7 @@ a.btn { text-decoration: none; color: inherit; }
         </div>
         <div class="row" style="margin-top:10px"><button class="btn" id="v-test">▶ Nghe thử</button><span class="hint" id="v-msg"></span></div>
         <div class="f" style="margin-top:12px"><span class="hint" style="font-weight:600">Cách đọc từ tiếng Anh</span>
-          <span class="hint">Giọng tiếng Việt đọc từ tiếng Anh theo kiểu tiếng Việt. Mỗi dòng: <code>từ = cách đọc</code>. Chỉ áp dụng cho giọng đọc, phụ đề vẫn giữ chữ gốc.</span>
+          <span class="hint">Giọng chỉ-tiếng-Việt đọc từ tiếng Anh theo kiểu tiếng Việt. Mỗi dòng: <code>từ = cách đọc</code>. Chỉ áp dụng cho giọng đọc, phụ đề vẫn giữ chữ gốc. <b>Giọng đa ngôn ngữ (Brian, Andrew, Ava) tự đọc từ tiếng Anh nên danh sách này được bỏ qua.</b></span>
           <textarea id="v-dict" rows="8" spellcheck="false"></textarea>
           <div class="row"><input type="text" id="v-dict-test" class="grow" value="Request đi qua proxy, đọc cache trong Redis rồi trả response cho client."><button class="btn small" id="v-dict-play">▶ Nghe câu này</button></div>
           <div class="row"><button class="btn small" id="v-dict-save">Lưu cách đọc</button><button class="btn small" id="v-dict-ai">AI gợi ý từ kịch bản đang mở</button><button class="btn small ghost" id="v-dict-reset">Khôi phục mặc định</button><span class="hint" id="v-dict-msg"></span></div>
@@ -1007,7 +1007,11 @@ function pronounceRules() {
   return txt.split(/\r?\n/).map(l => l.split("=")).filter(p => p.length === 2 && p[0].trim() && p[1].trim())
     .map(([a, b]) => ({ term: a.trim(), say: b.trim() })).sort((x, y) => y.term.length - x.term.length);
 }
+// Multilingual voices already say English terms the English way, so the Vietnamese respelling list is skipped for them.
+let serverVoice = "";
+const isMultilingual = (v) => /multilingual/i.test(v || "");
 function ttsText(text) {
+  if (isMultilingual(state.settings.voice || serverVoice)) return text;
   let out = text;
   for (const r of pronounceRules()) {
     const esc = r.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1187,6 +1191,7 @@ async function initCaps() {
   const get = (n) => C.use(n).catch(() => null);
   const [db, sample, assets, downloads, user, voice] = await Promise.all([get("db"), get("sample"), get("assets"), get("downloads"), get("user"), LOCAL ? get("voice") : Promise.resolve(null)]);
   Object.assign(cap, { db, sample, assets, downloads, user, voice });
+  if (voice) voice.info().then(i => { serverVoice = (i && i.defaultVoice) || ""; }).catch(() => {});
   renderVoicePanel(); if (state.draft) renderEditor();
   if (!sample) { $("ai-box").querySelectorAll("button, input, select").forEach(el => el.disabled = true); $("ai-status").textContent = "AI viết kịch bản không khả dụng ở chế độ xem này. Bạn vẫn có thể tự soạn kịch bản."; }
   if (!db) { goLocal("Không kết nối được bộ nhớ chung (cần đăng nhập claude.ai). Kịch bản chỉ lưu tạm trong tab này."); return; }
@@ -2409,6 +2414,7 @@ async function renderVoicePanel() {
     } else {
       $("v-provider").innerHTML = `Nguồn: <b>Microsoft Edge</b> (miễn phí, không chính thức, đôi khi từ chối khi gọi nhiều). Thêm <code>AZURE_SPEECH_KEY</code> và <code>AZURE_SPEECH_REGION</code> vào .env để dùng Azure AI Speech chính thức.`;
     }
+    serverVoice = info.defaultVoice || serverVoice;
     const cur = st.voice || info.defaultVoice;
     $("v-voice").innerHTML = Object.entries(info.voices).map(([k, v]) => `<option value="${esc(k)}"${k === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
   } catch (e) {}

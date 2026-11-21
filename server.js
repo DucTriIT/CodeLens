@@ -113,11 +113,15 @@ function apiError(err) {
 }
 
 // ---- voice-over: free Vietnamese neural voices through Microsoft Edge's Read Aloud service ----
+// The Multilingual voices read Vietnamese and English in one text, so English terms keep their English sound.
 const TTS_VOICES = {
-  "vi-VN-NamMinhNeural": "Nam Minh (nam)",
-  "vi-VN-HoaiMyNeural": "Hoài My (nữ)",
+  "en-US-BrianMultilingualNeural": "Brian đa ngôn ngữ (nam, đọc cả Anh và Việt)",
+  "en-US-AndrewMultilingualNeural": "Andrew đa ngôn ngữ (nam)",
+  "en-US-AvaMultilingualNeural": "Ava đa ngôn ngữ (nữ)",
+  "vi-VN-NamMinhNeural": "Nam Minh (nam, chỉ tiếng Việt)",
+  "vi-VN-HoaiMyNeural": "Hoài My (nữ, chỉ tiếng Việt)",
 };
-const TTS_DEFAULT_VOICE = TTS_VOICES[process.env.CODELENS_TTS_VOICE] ? process.env.CODELENS_TTS_VOICE : "vi-VN-NamMinhNeural";
+const TTS_DEFAULT_VOICE = TTS_VOICES[process.env.CODELENS_TTS_VOICE] ? process.env.CODELENS_TTS_VOICE : "en-US-BrianMultilingualNeural";
 const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
 const ttsAgent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
 const xmlEscape = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
