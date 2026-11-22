@@ -321,12 +321,13 @@ async function uploadCaptions(videoId, srt, locale = "vi_VN") {
       const form = new FormData();
       form.append("access_token", FB_PAGE_TOKEN);
       form.append("default_locale", locale);
-      form.append("captions_file", new Blob([data], { type: "application/x-subrip" }), `codelens.${locale}.srt`);
+      // Facebook accepts only application/octet-stream or text/plain for this file
+      form.append("captions_file", new Blob([data], { type: "application/octet-stream" }), `codelens.${locale}.srt`);
       await fbJson(await fetch(`${FB_GRAPH_BASE}/${FB_GRAPH_VERSION}/${videoId}/captions`, { method: "POST", body: form }));
       return { ok: true };
     } catch (err) {
       last = err;
-      if (err.fbCode === 190 || err.fbCode === 482 || err.fbCode === 385 || err.fbCode === 386) break; // not transient
+      if ([190, 482, 385, 386].includes(err.fbCode) || /invalid file|expected file/i.test(err.message)) break; // not transient
     }
   }
   return { ok: false, message: last ? last.message : "Không tải được phụ đề." };
