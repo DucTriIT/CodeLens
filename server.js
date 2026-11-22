@@ -261,13 +261,14 @@ const FB_PAGE_NAME = process.env.FB_PAGE_NAME || "";
 const FB_GRAPH_VERSION = process.env.FB_GRAPH_VERSION || "v26.0";
 const FB_VIDEO_BASE = process.env.FB_GRAPH_VIDEO_BASE || "https://graph-video.facebook.com"; // overridable for testing
 const fbConfigured = Boolean(FB_PAGE_ID && FB_PAGE_TOKEN);
-async function publishToPage(file, caption, title) {
+async function publishToPage(file, caption, title, publishAt) {
   const buf = await fs.readFile(file);
   const form = new FormData();
   form.append("access_token", FB_PAGE_TOKEN);
   form.append("description", caption);
   if (title) form.append("title", title.slice(0, 250));
-  form.append("published", "true");
+  if (publishAt) { form.append("published", "false"); form.append("scheduled_publish_time", String(publishAt)); }
+  else form.append("published", "true");
   form.append("source", new Blob([buf], { type: "video/mp4" }), "codelens.mp4");
   const res = await fetch(`${FB_VIDEO_BASE}/${FB_GRAPH_VERSION}/${encodeURIComponent(FB_PAGE_ID)}/videos`, { method: "POST", body: form });
   const body = await res.json().catch(() => ({}));
@@ -291,7 +292,7 @@ async function fbJson(res) {
   }
   return body;
 }
-async function publishReel(file, caption, title) {
+async function publishReel(file, caption, title, publishAt) {
   const reels = `${FB_GRAPH_BASE}/${FB_GRAPH_VERSION}/${encodeURIComponent(FB_PAGE_ID)}/video_reels`;
   const start = await fbJson(await fetch(reels, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ upload_phase: "start", access_token: FB_PAGE_TOKEN }) }));
   const videoId = String(start.video_id || "");
@@ -302,7 +303,8 @@ async function publishReel(file, caption, title) {
     headers: { authorization: `OAuth ${FB_PAGE_TOKEN}`, offset: "0", file_size: String(buf.length), "content-type": "application/octet-stream" },
   }));
   if (up.success === false) throw new Error("Facebook không nhận file video (rupload).");
-  const fin = new URLSearchParams({ access_token: FB_PAGE_TOKEN, video_id: videoId, upload_phase: "finish", video_state: "PUBLISHED", description: caption });
+  const fin = new URLSearchParams({ access_token: FB_PAGE_TOKEN, video_id: videoId, upload_phase: "finish", video_state: publishAt ? "SCHEDULED" : "PUBLISHED", description: caption });
+  if (publishAt) fin.set("scheduled_publish_time", String(publishAt));
   if (title) fin.set("title", title.slice(0, 250));
   await fbJson(await fetch(reels, { method: "POST", body: fin }));
   return { id: videoId };
@@ -367,16 +369,20 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/facebook/publish") {
       if (!fbConfigured) return send(res, 400, { code: "fb_not_configured", message: "Chưa cấu hình Fanpage: thêm FB_PAGE_ID và FB_PAGE_TOKEN vào file .env rồi khởi động lại server." });
-      const { assetId, caption, title, kind, srt } = JSON.parse((await readBody(req, 1024 * 1024)).toString("utf8") || "{}");
+      const { assetId, caption, title, kind, srt, scheduleHours } = JSON.parse((await readBody(req, 1024 * 1024)).toString("utf8") || "{}");
       const reel = kind === "reel";
+      // Optional scheduling: 1-24 hours from now (Facebook needs at least 10 minutes ahead)
+      const hrs = Math.round(Number(scheduleHours) || 0);
+      if (scheduleHours != null && scheduleHours !== 0 && !(hrs >= 1 && hrs <= 24)) return send(res, 400, { code: "invalid_request", message: "Hẹn giờ phải từ 1 đến 24 giờ." });
+      const publishAt = hrs ? Math.floor(Date.now() / 1000) + hrs * 3600 : 0;
       if (!/^[0-9a-f]{32}$/.test(assetId || "")) return send(res, 400, { code: "invalid_request", message: "Thiếu file video." });
       const file = path.join(DATA, "assets", assetId);
       if (!existsSync(file)) return send(res, 404, { code: "not_found", message: "Không tìm thấy file video trong thư viện." });
       let out;
       try {
-        out = reel ? await publishReel(file, String(caption || "").slice(0, 2200), String(title || ""))
-          : await publishToPage(file, String(caption || "").slice(0, 5000), String(title || ""));
-        console.log(`[facebook] published ${reel ? "reel" : "video"} ${out.id}`);
+        out = reel ? await publishReel(file, String(caption || "").slice(0, 2200), String(title || ""), publishAt)
+          : await publishToPage(file, String(caption || "").slice(0, 5000), String(title || ""), publishAt);
+        console.log(`[facebook] ${publishAt ? "scheduled" : "published"} ${reel ? "reel" : "video"} ${out.id}`);
       } catch (err) {
         console.error("[facebook]", err.message);
         return send(res, 502, { code: "fb_failed", message: err.message + fbHint(err, reel) });
@@ -384,7 +390,7 @@ const server = http.createServer(async (req, res) => {
       const captions = srt ? await uploadCaptions(out.id, srt) : null;
       if (captions && !captions.ok) console.error("[facebook] captions:", captions.message);
       const link = reel ? `https://www.facebook.com/reel/${encodeURIComponent(out.id)}` : `https://www.facebook.com/${encodeURIComponent(out.id)}`;
-      return send(res, 200, { id: out.id, url: link, captions });
+      return send(res, 200, { id: out.id, url: link, captions, scheduledAt: publishAt ? new Date(publishAt * 1000).toISOString() : "" });
     }
 
     if (req.method === "POST" && url.pathname === "/api/tts") {

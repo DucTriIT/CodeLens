@@ -342,6 +342,7 @@ a.btn { text-decoration: none; color: inherit; }
         <span class="hint" id="fb-page-desc"></span>
         <div class="row"><button class="btn primary" id="fb-reel">Đăng lên Reels</button><button class="btn" id="fb-publish">Đăng lên Fanpage</button></div>
         <label class="chk" style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="fb-with-subs" checked> Kèm phụ đề tiếng Việt (tự tải file .srt lên Facebook)</label>
+        <label class="chk" style="display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap"><input type="checkbox" id="fb-sched"> Hẹn giờ đăng sau <select id="fb-sched-h" style="width:auto"></select> giờ <span class="hint" id="fb-sched-at"></span></label>
         <span class="hint" id="fb-reel-note"></span>
         <span class="hint" id="fb-pub-msg"></span>
       </div>
@@ -2088,7 +2089,7 @@ async function openFbShare(clipId) {
     if (fb.configured) {
       $("fb-page-opt").hidden = false;
       $("fb-page-desc").textContent = `Đăng video kèm caption lên ${fb.pageName ? "Fanpage “" + fb.pageName + "”" : "Fanpage đã cấu hình"} ngay từ máy bạn. Facebook không cho phép phần mềm tự đăng lên trang cá nhân.`;
-      $("fb-publish").disabled = $("fb-reel").disabled = !c.assetId;
+      $("fb-publish").disabled = $("fb-reel").disabled = !c.assetId; syncFbSched();
       const long = (+c.durationSec || 0) > 90;
       $("fb-reel-note").textContent = long
         ? `Clip dài ${(+c.durationSec).toFixed(0)} giây: API Reels của Meta ghi giới hạn 90 giây nên có thể bị từ chối. Khi đó tải video về đăng Reels bằng app Facebook, hoặc dùng nút Đăng lên Fanpage.`
@@ -2223,21 +2224,33 @@ $("fb-native").addEventListener("click", async () => {
     await navigator.share({ files: [file], text: $("fb-caption").value, title: fbClip.title });
   } catch (err) { if (err && err.name === "AbortError") return; $("fb-msg").textContent = (err && err.message) || "Không mở được bảng chia sẻ. Dùng cách tự đăng bên dưới."; }
 });
+const fbSchedHours = () => $("fb-sched").checked ? clamp(Math.round(+$("fb-sched-h").value) || 1, 1, 24) : 0;
+const fmtWhen = (d) => d.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+function syncFbSched() {
+  const h = fbSchedHours(); $("fb-sched-h").disabled = !$("fb-sched").checked;
+  $("fb-sched-at").textContent = h ? `(khoảng ${fmtWhen(new Date(Date.now() + h * 3600e3))})` : "";
+  $("fb-reel").textContent = h ? "Hẹn đăng Reels" : "Đăng lên Reels"; $("fb-publish").textContent = h ? "Hẹn đăng Fanpage" : "Đăng lên Fanpage";
+}
+$("fb-sched-h").innerHTML = Array.from({ length: 24 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+$("fb-sched").addEventListener("change", syncFbSched); $("fb-sched-h").addEventListener("change", syncFbSched);
 async function fbPublish(kind) {
   const b = $(kind === "reel" ? "fb-reel" : "fb-publish"); const msg = $("fb-pub-msg");
-  const label = kind === "reel" ? "Đăng lên Reels" : "Đăng lên Fanpage";
-  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Bấm lần nữa để đăng công khai"; setTimeout(() => { b.dataset.confirm = ""; b.textContent = label; }, 4000); return; }
+  const hours = fbSchedHours(); const what = kind === "reel" ? "Reels" : "video";
+  const label = hours ? (kind === "reel" ? "Hẹn đăng Reels" : "Hẹn đăng Fanpage") : (kind === "reel" ? "Đăng lên Reels" : "Đăng lên Fanpage");
+  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = hours ? `Bấm lần nữa để hẹn đăng sau ${hours} giờ` : "Bấm lần nữa để đăng công khai"; setTimeout(() => { if (b.dataset.confirm === "1") { b.dataset.confirm = ""; b.textContent = label; } }, 4000); return; }
   b.dataset.confirm = ""; b.textContent = label;
   $("fb-reel").disabled = $("fb-publish").disabled = true;
   let srt = "";
   if ($("fb-with-subs").checked) { const { cues } = clipCues(fbClip); if (cues.length) srt = toSrt(cues); }
-  msg.innerHTML = `<span class="spin"></span> Đang tải ${kind === "reel" ? "Reels" : "video"} lên Facebook${srt ? " rồi gắn phụ đề" : ""}…`;
+  msg.innerHTML = `<span class="spin"></span> Đang tải ${what} lên Facebook${srt ? " rồi gắn phụ đề" : ""}…`;
   try {
-    const r = await fetch("/api/facebook/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, assetId: fbClip.assetId, caption: $("fb-caption").value, title: fbClip.title, srt }) });
+    const r = await fetch("/api/facebook/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, assetId: fbClip.assetId, caption: $("fb-caption").value, title: fbClip.title, srt, scheduleHours: hours }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.message || `Lỗi ${r.status}`);
     const subs = !j.captions ? "" : j.captions.ok ? " Đã gắn phụ đề tiếng Việt." : ` Chưa gắn được phụ đề (${esc(j.captions.message)}): tải file phụ đề bên dưới rồi thêm tay trong Meta Business Suite.`;
-    msg.innerHTML = `Đã đăng ${kind === "reel" ? "Reels" : "video"}. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem trên Facebook</a>.${subs}`;
+    msg.innerHTML = j.scheduledAt
+      ? `Đã hẹn đăng ${what} lúc <b>${esc(fmtWhen(new Date(j.scheduledAt)))}</b>. Xem, đổi giờ hoặc hủy trong Meta Business Suite, mục bài đã lên lịch.${subs}`
+      : `Đã đăng ${what}. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem trên Facebook</a>.${subs}`;
   } catch (err) { msg.textContent = "Không đăng được: " + err.message; }
   $("fb-reel").disabled = $("fb-publish").disabled = false;
 }
