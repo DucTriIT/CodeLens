@@ -117,6 +117,18 @@ CodeLens ưu tiên chất lượng hơn độ ngắn. Khi viết từ chủ đ�
 
 Ví dụ có sẵn: series **Outbox Pattern** gồm 3 phần: lỗi dual write, cách outbox hoạt động, gửi trùng và thứ tự event.
 
+## Bộ ảnh (carousel) từ kịch bản
+
+Mỗi kịch bản có nút **Bộ ảnh (carousel)** trong trình soạn. Nút này dựng kịch bản thành một bộ ảnh tĩnh 1080×1350 để đăng dạng bài nhiều ảnh:
+
+- **Giao diện:** nền sáng, màu xanh theo logo, logo CodeLens ở góc trên bên trái, số trang ở góc trên bên phải, cụm quan trọng trong tiêu đề được tô nền xanh.
+- **Cấu trúc 7 ảnh:** hook (hậu quả có con số) → chuyện gì xảy ra → sai ở đâu → cách chữa → nó chạy thế nào → lưới ô "cần nhớ" → "tới lượt bạn" với ba câu tự kiểm tra và câu hỏi mời bình luận.
+- **Hình minh họa** lấy từ sơ đồ của các cảnh trong kịch bản, tự cắt sát phần sơ đồ.
+- **AI tạo bộ ảnh** viết chữ cho cả 7 ảnh, mô tả riêng của từng ảnh và caption của bài. **Tạo nhanh từ kịch bản** dựng bộ ảnh không cần AI.
+- Sửa được từng ảnh: nhãn, tiêu đề, câu dẫn, hình, gạch đầu dòng, lưới ô, thẻ câu, mẹo, mô tả. Thêm, xóa, đổi thứ tự ảnh (tối đa 10).
+- **Tải bộ ảnh (.zip):** các file `01.jpg`… kèm `caption-va-mo-ta.txt`.
+- **Đăng bài ảnh** (bản chạy trên máy, khi đã cấu hình Fanpage): một bài nhiều ảnh, caption là nội dung bài, mỗi ảnh mang mô tả riêng. Hẹn giờ được từ 1 đến 24 giờ. Server tải từng ảnh lên `/{page}/photos` ở trạng thái chưa đăng rồi tạo một bài `/{page}/feed` gắn tất cả ảnh.
+
 ## Giọng đọc (thuyết minh)
 
 Mỗi cảnh có hai lớp chữ:

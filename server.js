@@ -334,6 +334,25 @@ async function uploadCaptions(videoId, srt, locale = "vi_VN") {
   }
   return { ok: false, message: last ? last.message : "Không tải được phụ đề." };
 }
+// A multi-photo post: upload each photo unpublished with its own caption, then one feed post
+// that attaches them all. Scheduled posts need the photos marked temporary.
+async function publishPhotos(photos, caption, publishAt) {
+  const base = `${FB_GRAPH_BASE}/${FB_GRAPH_VERSION}/${encodeURIComponent(FB_PAGE_ID)}`; const ids = [];
+  for (const [i, ph] of photos.entries()) {
+    const form = new FormData();
+    form.append("access_token", FB_PAGE_TOKEN); form.append("published", "false");
+    if (publishAt) form.append("temporary", "true");
+    if (ph.description) form.append("caption", ph.description);
+    form.append("source", new Blob([ph.buf], { type: "image/jpeg" }), `codelens-${i + 1}.jpg`);
+    const r = await fbJson(await fetch(`${base}/photos`, { method: "POST", body: form }));
+    if (!r.id) throw new Error(`Facebook không trả về mã cho ảnh ${i + 1}.`);
+    ids.push(String(r.id));
+  }
+  const feed = new URLSearchParams({ access_token: FB_PAGE_TOKEN, message: caption });
+  ids.forEach((id, i) => feed.set(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
+  if (publishAt) { feed.set("published", "false"); feed.set("scheduled_publish_time", String(publishAt)); }
+  return fbJson(await fetch(`${base}/feed`, { method: "POST", body: feed })); // { id: <page id>_<post id> }
+}
 function fbHint(err, reel) {
   const c = err.fbCode, sub = err.fbSub;
   if (c === 1363128 || sub === 1363128 || /duration/i.test(err.message) && reel)
@@ -391,6 +410,25 @@ const server = http.createServer(async (req, res) => {
       if (captions && !captions.ok) console.error("[facebook] captions:", captions.message);
       const link = reel ? `https://www.facebook.com/reel/${encodeURIComponent(out.id)}` : `https://www.facebook.com/${encodeURIComponent(out.id)}`;
       return send(res, 200, { id: out.id, url: link, captions, scheduledAt: publishAt ? new Date(publishAt * 1000).toISOString() : "" });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/facebook/photos") {
+      if (!fbConfigured) return send(res, 400, { code: "fb_not_configured", message: "Chưa cấu hình Fanpage: thêm FB_PAGE_ID và FB_PAGE_TOKEN vào file .env rồi khởi động lại server." });
+      const { caption, photos, scheduleHours } = JSON.parse((await readBody(req, 60 * 1024 * 1024)).toString("utf8") || "{}");
+      if (!Array.isArray(photos) || !photos.length || photos.length > 10) return send(res, 400, { code: "invalid_request", message: "Một bài cần từ 1 đến 10 ảnh." });
+      const list = photos.map((ph) => ({ buf: Buffer.from(String((ph && ph.data) || ""), "base64"), description: String((ph && ph.description) || "").slice(0, 2000) }));
+      if (list.some((ph) => ph.buf.length < 100 || ph.buf.length > 8 * 1024 * 1024)) return send(res, 400, { code: "invalid_request", message: "Có ảnh rỗng hoặc quá lớn (tối đa 8 MB mỗi ảnh)." });
+      const hrs = Math.round(Number(scheduleHours) || 0);
+      if (scheduleHours != null && scheduleHours !== 0 && !(hrs >= 1 && hrs <= 24)) return send(res, 400, { code: "invalid_request", message: "Hẹn giờ phải từ 1 đến 24 giờ." });
+      const publishAt = hrs ? Math.floor(Date.now() / 1000) + hrs * 3600 : 0;
+      try {
+        const out = await publishPhotos(list, String(caption || "").slice(0, 5000), publishAt);
+        console.log(`[facebook] ${publishAt ? "scheduled" : "published"} photo post ${out.id} (${list.length} photos)`);
+        return send(res, 200, { id: out.id, url: `https://www.facebook.com/${encodeURIComponent(out.id)}`, scheduledAt: publishAt ? new Date(publishAt * 1000).toISOString() : "" });
+      } catch (err) {
+        console.error("[facebook]", err.message);
+        return send(res, 502, { code: "fb_failed", message: err.message + fbHint(err, false) });
+      }
     }
 
     if (req.method === "POST" && url.pathname === "/api/tts") {

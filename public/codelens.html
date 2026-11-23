@@ -167,6 +167,15 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
 .modal { position: fixed; inset: 0; background: rgba(3, 6, 14, 0.72); z-index: 40; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .modal-box { width: min(640px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; }
 .fb-actions { display: grid; gap: 10px; }
+.modal-box.wide { width: min(1120px, 100%); }
+.car-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.car-strip button { flex: 0 0 auto; padding: 0; border: 2px solid var(--line); border-radius: 8px; background: none; cursor: pointer; line-height: 0; }
+.car-strip button[aria-selected="true"] { border-color: var(--orange, #FF8A1F); }
+.car-strip canvas { width: 108px; height: 135px; border-radius: 6px; }
+.car-grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.car-grid canvas { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
+.car-fields { display: grid; gap: 8px; }
+@media (max-width: 760px) { .car-grid { grid-template-columns: 1fr; } }
 .fb-opt { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
 a.btn { text-decoration: none; color: inherit; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.4); z-index: 50; max-width: min(520px, calc(100% - 32px)); font-size: 13px; }
@@ -333,6 +342,37 @@ a.btn { text-decoration: none; color: inherit; }
   </section>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="modal" id="car-modal" hidden role="dialog" aria-modal="true" aria-labelledby="car-title">
+  <div class="modal-box wide">
+    <div class="panel-head"><h2 id="car-title">Bộ ảnh (carousel)</h2><button class="btn small ghost" id="car-close" aria-label="Đóng">Đóng</button></div>
+    <p class="hint" id="car-name"></p>
+    <div class="row"><button class="btn primary" id="car-ai">AI tạo bộ ảnh</button><button class="btn" id="car-quick">Tạo nhanh từ kịch bản</button><span class="hint" id="car-msg"></span></div>
+    <div class="car-strip" id="car-strip" role="tablist" aria-label="Các ảnh"></div>
+    <div class="car-grid">
+      <canvas id="car-prev" width="540" height="675" aria-label="Xem trước ảnh đang chọn"></canvas>
+      <div class="car-fields">
+        <div class="row"><b id="car-pos"></b><button class="btn small" id="car-up">← Lên trước</button><button class="btn small" id="car-down">Ra sau →</button><button class="btn small" id="car-add">Thêm ảnh</button><button class="btn small ghost danger" id="car-del">Xóa ảnh</button></div>
+        <label class="f"><span>Nhãn nhỏ phía trên</span><input type="text" id="car-eyebrow"></label>
+        <label class="f"><span>Tiêu đề (bao cụm cần tô nền trong *dấu sao*)</span><textarea id="car-headline" rows="2"></textarea></label>
+        <label class="f"><span>Câu dẫn dưới tiêu đề</span><textarea id="car-sub" rows="2"></textarea></label>
+        <label class="f"><span>Hình minh họa (lấy từ một cảnh của kịch bản)</span><select id="car-scene"></select></label>
+        <label class="f"><span>Gạch đầu dòng (mỗi dòng một ý, cụm *in đậm* đặt trong dấu sao)</span><textarea id="car-bullets" rows="3"></textarea></label>
+        <label class="f"><span>Lưới ô (mỗi dòng: Tiêu đề | Nội dung)</span><textarea id="car-cards" rows="3"></textarea></label>
+        <label class="f"><span>Thẻ câu (mỗi dòng một thẻ, dùng cho ảnh “Tới lượt bạn”)</span><textarea id="car-items" rows="2"></textarea></label>
+        <label class="f"><span>Dòng mẹo cuối ảnh</span><input type="text" id="car-tip"></label>
+        <label class="f"><span>Mô tả của ảnh này (đăng kèm từng ảnh)</span><textarea id="car-desc" rows="2"></textarea></label>
+      </div>
+    </div>
+    <label class="f"><span>Caption của bài đăng</span><textarea id="car-caption" rows="7"></textarea></label>
+    <div class="row"><button class="btn" id="car-save">Lưu bộ ảnh</button><button class="btn" id="car-zip">Tải bộ ảnh (.zip)</button><span class="hint" id="car-save-msg"></span></div>
+    <div class="fb-opt" id="car-fb" hidden>
+      <b>Đăng bài ảnh lên Fanpage</b>
+      <span class="hint">Một bài nhiều ảnh: caption ở trên là nội dung bài, mỗi ảnh mang mô tả riêng của nó.</span>
+      <label class="chk" style="display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap"><input type="checkbox" id="car-sched"> Hẹn giờ đăng sau <select id="car-sched-h" style="width:auto"></select> giờ <span class="hint" id="car-sched-at"></span></label>
+      <div class="row"><button class="btn primary" id="car-post">Đăng bài ảnh</button><span class="hint" id="car-post-msg"></span></div>
+    </div>
+  </div>
+</div>
 <div class="modal" id="fb-modal" hidden role="dialog" aria-modal="true" aria-labelledby="fb-title">
   <div class="modal-box">
     <div class="panel-head"><h2 id="fb-title">Chia sẻ lên Facebook</h2><button class="btn small ghost" id="fb-close" aria-label="Đóng">Đóng</button></div>
@@ -520,7 +560,7 @@ function normScript(s) {
     category: CATEGORIES.includes(s.category) ? s.category : "Architecture",
     hook: String(s.hook || "").slice(0, 200),
     metaphor: String(s.metaphor || "").slice(0, 300),
-    concept: String(s.concept || "").slice(0, 80), format: normFormat(s.format),
+    concept: String(s.concept || "").slice(0, 80), format: normFormat(s.format), carousel: normCarousel(s.carousel),
     sourceUrl: /^https?:\/\//.test(String(s.sourceUrl || "")) ? String(s.sourceUrl).slice(0, 400) : "",
     scenes: scenes.length ? scenes : [normScene({ layout: "title", heading: s.title || "CHỦ ĐỀ MỚI", subtitle: "Phụ đề tiếng Việt ở đây" })],
     status: STATUS_LABEL[s.status] ? s.status : "draft",
@@ -812,6 +852,212 @@ function drawOutro(c, s, sc, tl, t) {
     c.save(); c.translate(px, py); c.fillStyle = COL.white; c.strokeStyle = COL.ink; c.lineWidth = 4;
     c.beginPath(); c.moveTo(0, 0); c.lineTo(0, 64); c.lineTo(16, 50); c.lineTo(28, 76); c.lineTo(40, 70); c.lineTo(28, 46); c.lineTo(48, 44); c.closePath(); c.fill(); c.stroke(); c.restore();
   }
+}
+/* ================= carousel: a script as a set of still images (1080×1350) ================= */
+const CW = 1080, CH = 1350;
+const CAR = { bg: "#EEF6FF", card: "#FFFFFF", ink: "#0B1730", muted: "#52627D", blue: "#4DB8FF", deep: "#0E6FD0", line: "#C6DBF5", dark: "#0B1120" };
+const lines_ = (v, n, len) => (Array.isArray(v) ? v : String(v || "").split(/\r?\n/)).map(x => String(x || "").trim()).filter(Boolean).slice(0, n).map(x => x.slice(0, len));
+function normSlide(x) {
+  x = x && typeof x === "object" ? x : {};
+  const cards = (Array.isArray(x.cards) ? x.cards : []).map(c => ({ title: String((c && c.title) || "").slice(0, 60), text: String((c && c.text) || "").slice(0, 160) })).filter(c => c.title || c.text).slice(0, 6);
+  const sc = Math.round(+x.scene);
+  return { eyebrow: String(x.eyebrow || "").slice(0, 60), headline: String(x.headline || "").slice(0, 140), sub: String(x.sub || "").slice(0, 260),
+    scene: Number.isFinite(sc) && sc >= 0 && x.scene !== "" && x.scene !== null ? sc : -1, bullets: lines_(x.bullets, 4, 180), cards, items: lines_(x.items, 4, 160),
+    tip: String(x.tip || "").slice(0, 200), description: String(x.description || "").slice(0, 500) };
+}
+function normCarousel(c) {
+  if (!c || !Array.isArray(c.slides) || !c.slides.length) return null;
+  return { caption: String(c.caption || "").slice(0, 2200), slides: c.slides.slice(0, 10).map(normSlide) };
+}
+// Rich text: "*run*" marks an accent run; lines wrap by measured width with a separate font for accents.
+function wrapRich(c, text, maxW, font, accFont) {
+  const toks = parseAccent(text); const out = []; let cur = [], w = 0;
+  c.font = font; const sp = c.measureText(" ").width;
+  for (const t of toks) {
+    c.font = t.acc && accFont ? accFont : font; const tw = c.measureText(t.w).width; const gap = cur.length && !t.glue ? sp : 0;
+    if (cur.length && !t.glue && w + gap + tw > maxW) { out.push({ toks: cur, w }); cur = []; w = 0; }
+    const g = cur.length ? (t.glue ? 0 : sp) : 0; cur.push({ ...t, tw, g }); w += g + tw;
+  }
+  if (cur.length) out.push({ toks: cur, w });
+  return out;
+}
+// Draws from the top edge y; returns the y below the last line. o: font, accFont, color, accColor, hl, dry
+function drawRich(c, text, x, y, maxW, lineH, o) {
+  const rows = wrapRich(c, text, maxW, o.font, o.accFont);
+  if (!o.dry) rows.forEach((ln, i) => {
+    const cy = y + i * lineH + lineH / 2;
+    if (o.hl) { // one rounded box behind each run of accent words
+      let rx = x, run = null; const boxes = [];
+      for (const t of ln.toks) { rx += t.g; if (t.acc) { if (!run) run = { a: rx, b: rx }; run.b = rx + t.tw; } else if (run) { boxes.push(run); run = null; } rx += t.tw; }
+      if (run) boxes.push(run);
+      c.fillStyle = o.hl; boxes.forEach(r => { c.beginPath(); c.roundRect(r.a - 14, cy - lineH * 0.45, r.b - r.a + 28, lineH * 0.9, 14); c.fill(); });
+    }
+    let px = x; c.textAlign = "left"; c.textBaseline = "middle";
+    for (const t of ln.toks) { px += t.g; c.font = t.acc && o.accFont ? o.accFont : o.font; c.fillStyle = t.acc ? (o.accColor || o.color) : o.color; c.fillText(t.w, px, cy + 2); px += t.tw; }
+  });
+  return y + rows.length * lineH;
+}
+// One scene of the clip, fully revealed, as the picture inside a slide.
+const shotCache = new Map();
+function sceneShot(s, idx) {
+  const sc = s.scenes[idx]; if (!sc || sc.layout === "outro") return null;
+  const key = JSON.stringify([s.title, sc]); if (shotCache.has(key)) return shotCache.get(key);
+  // drawn on a transparent canvas, then cropped to what was actually drawn so the diagram fills the picture
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const c = cv.getContext("2d");
+  drawScene(c, s, { ...sc, duration: 99 }, 60, 3);
+  const y0 = sc.layout === "title" ? 1010 : 545; // skip the scene's own heading: the slide has its headline
+  const k = 4; const sm = document.createElement("canvas"); sm.width = W / k; sm.height = H / k;
+  const sx = sm.getContext("2d", { willReadFrequently: true }); sx.drawImage(cv, 0, 0, sm.width, sm.height);
+  const px = sx.getImageData(0, 0, sm.width, sm.height).data; let x1 = sm.width, x2 = -1, ya = sm.height, yb = -1;
+  for (let yy = Math.ceil(y0 / k); yy < Math.floor(1560 / k); yy++) for (let xx = 0; xx < sm.width; xx++) if (px[(yy * sm.width + xx) * 4 + 3] > 24) { if (xx < x1) x1 = xx; if (xx > x2) x2 = xx; if (yy < ya) ya = yy; if (yy > yb) yb = yy; }
+  let out = null;
+  if (x2 >= x1 && yb >= ya) { const pad = 40; const l = Math.max(0, x1 * k - pad), t = Math.max(y0, ya * k - pad); out = { cv, x: l, y: t, w: Math.min(W, x2 * k + k + pad) - l, h: Math.min(1560, yb * k + k + pad) - t }; }
+  if (shotCache.size > 80) shotCache.clear(); shotCache.set(key, out); return out;
+}
+function drawSlide(c, s, sl, i, n) {
+  const X = 60, MW = CW - 120; const F = (w, px) => `${w} ${px}px ${FONT}`;
+  // background: light, tinted with the logo blue
+  c.fillStyle = CAR.bg; c.fillRect(0, 0, CW, CH);
+  const rg = c.createRadialGradient(CW - 80, 60, 0, CW - 80, 60, 760); rg.addColorStop(0, "rgba(77,184,255,0.30)"); rg.addColorStop(1, "rgba(77,184,255,0)");
+  c.fillStyle = rg; c.fillRect(0, 0, CW, CH);
+  c.strokeStyle = "rgba(14,111,208,0.055)"; c.lineWidth = 2; c.beginPath();
+  for (let x = 0; x <= CW; x += 90) { c.moveTo(x, 0); c.lineTo(x, CH); } for (let y = 0; y <= CH; y += 90) { c.moveTo(0, y); c.lineTo(CW, y); } c.stroke();
+  // watermark: the CodeLens logo on a dark chip, top left
+  c.save();
+  if (logoState.img) {
+    const im = logoState.img; const h = 60, w = Math.min(h * ((im.width || 1) / (im.height || 1)), 320);
+    c.beginPath(); c.roundRect(X, 44, w + 36, 84, 18); c.fillStyle = CAR.dark; c.fill(); c.drawImage(im, X + 18, 56, w, h);
+  } else {
+    c.beginPath(); c.roundRect(X, 44, 300, 84, 18); c.fillStyle = CAR.dark; c.fill();
+    const mx = X + 44, my = 82; c.strokeStyle = COL.cyan; c.lineCap = "round"; c.lineWidth = 5;
+    c.beginPath(); c.arc(mx, my, 20, 0, Math.PI * 2); c.stroke(); c.lineWidth = 7; c.beginPath(); c.moveTo(mx + 15, my + 15); c.lineTo(mx + 26, my + 26); c.stroke();
+    c.lineWidth = 3.5; c.beginPath(); c.moveTo(mx - 5, my - 8); c.lineTo(mx - 12, my); c.lineTo(mx - 5, my + 8); c.moveTo(mx + 5, my - 8); c.lineTo(mx + 12, my); c.lineTo(mx + 5, my + 8); c.stroke();
+    c.font = F(800, 32); c.fillStyle = COL.cyan; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText("CODELENS", mx + 42, my + 2);
+  }
+  c.restore();
+  // page number, top right (and again in the footer)
+  c.font = F(700, 28); c.textAlign = "right"; c.textBaseline = "middle"; c.fillStyle = CAR.deep; c.fillText(`${i + 1}/${n}`, CW - X, 86);
+  let y = 178;
+  if (sl.eyebrow) {
+    c.save(); try { c.letterSpacing = "4px"; } catch (e) {}
+    c.font = F(700, 27); c.fillStyle = CAR.deep; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(sl.eyebrow.toLocaleUpperCase("vi"), X, y + 16, MW); c.restore();
+    y += 58;
+  }
+  if (sl.headline) {
+    let size = i === 0 ? 96 : 84;
+    while (size > 54 && wrapRich(c, sl.headline, MW - 20, F(800, size), F(800, size)).length > (i === 0 ? 4 : 3)) size -= 8;
+    y = drawRich(c, sl.headline, X + 6, y, MW - 20, size * 1.2, { font: F(800, size), accFont: F(800, size), color: CAR.ink, accColor: CAR.ink, hl: CAR.blue }) + 22;
+  }
+  if (sl.sub) y = drawRich(c, sl.sub, X, y, MW, 54, { font: F(500, 39), accFont: F(700, 39), color: CAR.muted, accColor: CAR.ink }) + 26;
+  // measure the blocks under the picture first, so the picture takes what is left
+  const FOOT = 1262; const BX = X + 48, BW = MW - 48;
+  const bulletH = sl.bullets.reduce((a, b) => a + drawRich(c, b, BX, 0, BW, 52, { font: F(500, 37), accFont: F(800, 37), dry: true }) + 20, 0);
+  const colW = (MW - 24) / 2; const cardGeo = [];
+  for (let k = 0; k < sl.cards.length; k += 2) {
+    const pair = sl.cards.slice(k, k + 2); const full = pair.length === 1; const w = full ? MW : colW;
+    const hs = pair.map(cd => 34 + (cd.title ? drawRich(c, cd.title, 0, 0, w - 64, 52, { font: F(800, 40), dry: true }) : 0) + (cd.text ? 10 + drawRich(c, cd.text, 0, 0, w - 64, 46, { font: F(500, 33), dry: true }) : 0) + 34);
+    cardGeo.push({ pair, w, h: Math.max(...hs) });
+  }
+  const cardsH = cardGeo.reduce((a, r) => a + r.h + 20, 0);
+  const itemHs = sl.items.map(t => 28 + drawRich(c, `“${t}”`, 0, 0, MW - 64, 50, { font: F(600, 36), dry: true }) + 28);
+  const itemsH = itemHs.reduce((a, h) => a + h + 18, 0);
+  const tipH = sl.tip ? drawRich(c, sl.tip, X, 0, MW, 50, { font: F(500, 35), dry: true }) + 10 : 0;
+  const below = bulletH + cardsH + itemsH + tipH;
+  // picture
+  const shot = sl.scene >= 0 ? sceneShot(s, sl.scene) : null;
+  const room = FOOT - y - below - (below ? 28 : 0);
+  if (shot && room >= 240) {
+    const maxH = Math.min(room, 760); const k = Math.min((MW - 90) / shot.w, (maxH - 70) / shot.h, 1.7);
+    let hh = clamp(Math.round(shot.h * k + 70), Math.min(300, maxH), maxH);
+    hh = Math.round(hh + (maxH - hh) * 0.7); // a wide diagram leaves room below: let the picture take most of it
+    c.save(); c.shadowColor = "rgba(14,60,120,0.22)"; c.shadowBlur = 36; c.shadowOffsetY = 14;
+    c.beginPath(); c.roundRect(X, y, MW, hh, 28); c.fillStyle = CAR.dark; c.fill(); c.restore();
+    c.save(); c.beginPath(); c.roundRect(X, y, MW, hh, 28); c.clip();
+    const g = c.createLinearGradient(0, y, 0, y + hh); g.addColorStop(0, COL.bg); g.addColorStop(1, COL.bg2); c.fillStyle = g; c.fillRect(X, y, MW, hh);
+    c.strokeStyle = COL.grid; c.lineWidth = 2; c.beginPath(); for (let gx = X; gx < X + MW; gx += 72) { c.moveTo(gx, y); c.lineTo(gx, y + hh); } for (let gy = y; gy < y + hh; gy += 72) { c.moveTo(X, gy); c.lineTo(X + MW, gy); } c.stroke();
+    const dw = shot.w * k, dh = shot.h * k;
+    c.drawImage(shot.cv, shot.x, shot.y, shot.w, shot.h, X + (MW - dw) / 2, y + (hh - dh) / 2, dw, dh);
+    c.restore();
+    y += hh + 30;
+  } else if (below && room > 80) y += Math.min(room * 0.3, 120); // no picture: let the blocks sit lower instead of leaving the bottom empty
+  for (const b of sl.bullets) {
+    c.save(); c.translate(X + 16, y + 26); c.rotate(Math.PI / 4); c.fillStyle = CAR.deep; c.fillRect(-11, -11, 22, 22); c.restore();
+    y = drawRich(c, b, BX, y, BW, 52, { font: F(500, 37), accFont: F(800, 37), color: CAR.ink, accColor: CAR.ink }) + 20;
+  }
+  for (const r of cardGeo) {
+    r.pair.forEach((cd, k) => {
+      const cx = X + k * (colW + 24);
+      c.beginPath(); c.roundRect(cx, y, r.w, r.h, 24); c.fillStyle = CAR.card; c.fill(); c.strokeStyle = CAR.line; c.lineWidth = 2.5; c.stroke();
+      let ty = y + 34;
+      if (cd.title) ty = drawRich(c, cd.title, cx + 32, ty, r.w - 64, 52, { font: F(800, 40), color: CAR.ink });
+      if (cd.text) drawRich(c, cd.text, cx + 32, ty + 10, r.w - 64, 46, { font: F(500, 33), color: CAR.muted });
+    });
+    y += r.h + 20;
+  }
+  sl.items.forEach((t, k) => {
+    c.beginPath(); c.roundRect(X, y, MW, itemHs[k], 24); c.fillStyle = CAR.card; c.fill(); c.strokeStyle = CAR.line; c.lineWidth = 2.5; c.stroke();
+    drawRich(c, `“${t}”`, X + 32, y + 28, MW - 64, 50, { font: F(600, 36), color: CAR.ink });
+    y += itemHs[k] + 18;
+  });
+  if (sl.tip) drawRich(c, sl.tip, X, y + 4, MW, 50, { font: F(500, 35), accFont: F(700, 35), color: CAR.muted, accColor: CAR.ink });
+  // footer
+  c.font = F(600, 26); c.textBaseline = "middle"; c.fillStyle = CAR.muted;
+  c.textAlign = "left"; c.fillText(i === 0 && n > 1 ? "Vuốt để xem →" : `CodeLens · ${s.category || ""}`, X, 1302);
+}
+function slideCanvas(s, sl, i, n, scale = 1) {
+  const cv = document.createElement("canvas"); cv.width = Math.round(CW * scale); cv.height = Math.round(CH * scale);
+  const c = cv.getContext("2d"); c.scale(scale, scale); drawSlide(c, s, sl, i, n); return cv;
+}
+const canvasBlob = (cv, type = "image/jpeg", q = 0.92) => new Promise(res => cv.toBlob(res, type, q));
+// A usable set without the AI: the hook, up to five key scenes, and a closing card.
+function quickSlides(s) {
+  const plain = (t) => String(t || "").replace(/\*/g, "").trim();
+  const body = s.scenes.map((sc, i) => ({ sc, i })).filter(x => x.sc.layout !== "outro");
+  const first = body[0], rest = body.slice(1);
+  const pick = rest.length <= 5 ? rest : [0, 1, 2, 3, 4].map(k => rest[Math.round(k * (rest.length - 1) / 4)]);
+  const slides = [{ eyebrow: `${s.category || "Tech"} · case study`, headline: first ? first.sc.heading || s.title : s.title, sub: plain(s.hook), scene: first ? first.i : -1, description: plain(s.hook) || s.title }];
+  pick.forEach(x => slides.push({ eyebrow: PARTS[x.sc.part] || "", headline: x.sc.heading, scene: x.i, bullets: [x.sc.subtitle].filter(Boolean), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
+  slides.push({ eyebrow: "Tới lượt bạn", headline: "Hệ thống của bạn *đã chặn* lỗi này chưa?", sub: s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}.` : "", scene: -1, tip: "Bình luận cách team bạn đang xử lý nhé.", description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
+  const tags = ["#CodeLens", ...(HASHTAGS[s.category] || []), "#developer"];
+  const caption = [plain(s.hook) || s.title, "", s.concept ? `Cách chữa: ${plain(s.concept)}.` : "", "", ...pick.slice(0, 4).map(x => `👉 ${plain(x.sc.subtitle)}`).filter(l => l.length > 3), "", "Bạn đã gặp tình huống này chưa?", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
+  return normCarousel({ caption, slides });
+}
+function carouselPrompt(sc) {
+  const scenes = sc.scenes.map((x, i) => ({ i, part: x.part, layout: x.layout, heading: x.heading, subtitle: x.subtitle, narration: x.narration, actors: x.actors.map(a => a.label).filter(Boolean) })).filter(x => x.layout !== "outro");
+  return `${STYLE_RULES}
+
+Từ kịch bản clip dưới đây, hãy soạn MỘT BÀI ĐĂNG ẢNH nhiều trang (carousel) cho Facebook: đúng 7 ảnh và một caption. Mỗi ảnh được dựng tự động từ dữ liệu bạn trả về, nên chỉ viết chữ.
+Người xem lướt rất nhanh: mỗi ảnh MỘT ý, chữ ít, nói bằng LỢI ÍCH và HẬU QUẢ cụ thể chứ không nói bằng thuật ngữ suông. Bài phải thật sự cuốn: người xem thấy "chuyện này mình từng gặp".
+
+CẤU TRÚC 7 ẢNH (theo đúng thứ tự):
+1. HOOK: hậu quả của case, có con số. "sub" là 1–2 câu kể tình huống. Có hình.
+2. CHUYỆN GÌ XẢY RA: tái hiện case. Có hình, 2–3 gạch đầu dòng.
+3. SAI Ở ĐÂU: chẩn đoán đúng bước hỏng. Có hình, 2–3 gạch đầu dòng.
+4. CÁCH CHỮA: gọi tên khái niệm và nói nó là gì trong một câu. Có hình, 2–3 gạch đầu dòng.
+5. NÓ CHẠY THẾ NÀO: cơ chế áp vào chính case. Có hình, 2–3 gạch đầu dòng.
+6. CẦN NHỚ: lưới 4 ô ("cards"), mỗi ô một bẫy, một giới hạn hoặc một điều kiện áp dụng. Không có hình.
+7. TỚI LƯỢT BẠN: 3 thẻ ("items"), mỗi thẻ là một việc người xem tự kiểm tra được ngay trong hệ thống của mình, viết như một câu tự hỏi. "tip" là một mẹo ngắn. "sub" là câu hỏi mời bình luận. Không có hình.
+Với kịch bản dạng sự cố thật hoặc kiến trúc công ty thật, giữ đúng tinh thần đó: 2 là bối cảnh, 3 là diễn biến hoặc bài toán, 4 là nguyên nhân gốc hoặc thiết kế, 5 là bài học kỹ thuật.
+
+MỖI ẢNH là một object:
+- "eyebrow": nhãn nhỏ phía trên, tối đa 5 từ (ví dụ "Chuyện gì xảy ra", "Cách chữa · Idempotency Key").
+- "headline": tiêu đề lớn, tối đa 12 từ, viết thường như một câu nói (không viết hoa toàn bộ). Bao MỘT cụm 1–4 từ quan trọng nhất trong *dấu sao* để tô nền xanh.
+- "sub": câu dẫn dưới tiêu đề, tối đa 30 từ; để "" nếu không cần.
+- "scene": chỉ số "i" của cảnh trong kịch bản dùng làm hình minh họa cho ảnh này (chọn cảnh có sơ đồ khớp ý nhất, mỗi cảnh chỉ dùng một lần); -1 nếu ảnh không có hình.
+- "bullets": 0–3 gạch đầu dòng, mỗi dòng tối đa 22 từ, mở bằng một cụm *in đậm* trong dấu sao rồi tới phần giải thích.
+- "cards": chỉ dùng ở ảnh 6: 4 object {"title": tối đa 5 từ, "text": tối đa 20 từ}.
+- "items": chỉ dùng ở ảnh 7: 3 câu, mỗi câu tối đa 20 từ.
+- "tip": chỉ dùng ở ảnh 7, tối đa 25 từ.
+- "description": mô tả đăng kèm riêng ảnh này, 1–2 câu trọn ý (tối đa 220 ký tự), người chỉ xem một ảnh vẫn hiểu.
+
+"caption" là nội dung bài đăng, đi ĐÚNG THỨ TỰ các ảnh: dòng đầu là hook (hậu quả, có con số) kết bằng 👇; một câu gọi tên khái niệm là lời giải; 3–4 dòng mở bằng "👉 " tóm các ảnh giữa; câu hỏi mời bình luận của ảnh 7; dòng cuối 4–6 hashtag gọn có #CodeLens. Dưới 900 ký tự. Không dùng markdown (**, __, gạch đầu dòng "-").
+
+Quy tắc: mọi thông tin phải có trong kịch bản, không thêm số liệu hay tên công ty; giữ thuật ngữ tiếng Anh chuẩn; tiếng Việt tự nhiên; không bịa trải nghiệm cá nhân.
+
+Kịch bản:
+${JSON.stringify({ title: sc.title, category: sc.category, format: sc.format, hook: sc.hook, case: sc.metaphor, concept: sc.concept, scenes })}
+
+Chỉ trả về JSON: {"caption": "...", "slides": [7 object như mô tả]}`;
 }
 function drawScene(c, s, sc, tl, t) {
   if (sc.layout === "outro") { drawOutro(c, s, sc, tl, t); return; }
@@ -1353,6 +1599,7 @@ function renderEditor() {
         <button class="btn" data-act="polish" ${cap.sample ? "" : "disabled"}>AI biên tập giọng văn</button>
         ${cap.voice ? `<button class="btn" data-act="voice-sync">Khớp thời lượng với giọng đọc</button>` : ""}
         <button class="btn" data-act="render" ${d.id ? "" : "disabled"}>Render clip này</button>
+        <button class="btn blue" data-act="carousel" ${d.id ? "" : "disabled"}>Bộ ảnh (carousel)</button>
         <button class="btn ghost danger" data-act="delete" ${d.id ? "" : "disabled"}>Xóa</button>
       </div>
     </div>
@@ -1516,6 +1763,7 @@ $("editor").addEventListener("click", async (e) => {
     } catch (err) { toast(aiError(err), 5000); renderEditor(); }
     state.aiBusy = false;
   }
+  else if (act === "carousel") { if (state.dirty) { const ok = await saveDraft(); if (!ok) return; } openCarousel(state.editingId); }
   else if (act === "render") { if (state.dirty) { const ok = await saveDraft(); if (!ok) return; } enqueue([state.editingId]); }
   else if (act === "delete") {
     if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Bấm lần nữa để xóa"; setTimeout(() => { if (b.isConnected) { b.dataset.confirm = ""; b.textContent = "Xóa"; } }, 3500); return; }
@@ -2260,6 +2508,114 @@ async function fbPublish(kind) {
 $("fb-publish").addEventListener("click", () => fbPublish("video"));
 $("fb-reel").addEventListener("click", () => fbPublish("reel"));
 
+/* ================= carousel panel ================= */
+const car = { id: "", script: null, caption: "", slides: [], sel: 0 };
+const carFields = { eyebrow: "car-eyebrow", headline: "car-headline", sub: "car-sub", tip: "car-tip", description: "car-desc" };
+function carDrawThumbs() {
+  const el = $("car-strip"); const n = car.slides.length;
+  el.innerHTML = car.slides.map((_, i) => `<button role="tab" data-car="${i}" aria-selected="${i === car.sel}" aria-label="Ảnh ${i + 1}"></button>`).join("");
+  [...el.children].forEach((b, i) => b.appendChild(slideCanvas(car.script, car.slides[i], i, n, 0.2)));
+}
+function carDrawSel() {
+  const sl = car.slides[car.sel]; const cv = $("car-prev"); const c = cv.getContext("2d");
+  c.setTransform(0.5, 0, 0, 0.5, 0, 0); if (sl) drawSlide(c, car.script, sl, car.sel, car.slides.length); else { c.fillStyle = CAR.bg; c.fillRect(0, 0, CW, CH); }
+  const b = $("car-strip").children[car.sel]; if (b && sl) { b.replaceChildren(slideCanvas(car.script, sl, car.sel, car.slides.length, 0.2)); }
+}
+function carFill() {
+  const sl = car.slides[car.sel]; const has = !!sl;
+  $("car-pos").textContent = has ? `Ảnh ${car.sel + 1}/${car.slides.length}` : "Chưa có ảnh";
+  for (const [k, id] of Object.entries(carFields)) { $(id).value = has ? sl[k] : ""; $(id).disabled = !has; }
+  $("car-scene").innerHTML = `<option value="-1">Không có hình</option>` + car.script.scenes.map((sc, i) => sc.layout === "outro" ? "" : `<option value="${i}">Cảnh ${i + 1}: ${esc(String(sc.heading || "").replace(/\*/g, ""))}</option>`).join("");
+  $("car-scene").value = has ? String(sl.scene) : "-1";
+  $("car-bullets").value = has ? sl.bullets.join("\n") : ""; $("car-items").value = has ? sl.items.join("\n") : "";
+  $("car-cards").value = has ? sl.cards.map(cd => `${cd.title} | ${cd.text}`).join("\n") : "";
+  ["car-scene", "car-bullets", "car-items", "car-cards", "car-up", "car-down", "car-del"].forEach(id => $(id).disabled = !has);
+  ["car-zip", "car-save", "car-post"].forEach(id => $(id).disabled = !car.slides.length);
+  carDrawSel();
+}
+function carSet(c) { car.caption = c ? c.caption : ""; car.slides = c ? c.slides.map(x => ({ ...x })) : []; car.sel = 0; $("car-caption").value = car.caption; carDrawThumbs(); carFill(); }
+function carReadFields() {
+  const sl = car.slides[car.sel]; if (!sl) return;
+  const cards = $("car-cards").value.split(/\r?\n/).map(l => { const k = l.indexOf("|"); return k < 0 ? { title: l.trim(), text: "" } : { title: l.slice(0, k).trim(), text: l.slice(k + 1).trim() }; });
+  car.slides[car.sel] = normSlide({ eyebrow: $("car-eyebrow").value, headline: $("car-headline").value, sub: $("car-sub").value, tip: $("car-tip").value, description: $("car-desc").value,
+    scene: $("car-scene").value, bullets: $("car-bullets").value, items: $("car-items").value, cards });
+}
+let carTimer = 0;
+["car-eyebrow", "car-headline", "car-sub", "car-tip", "car-desc", "car-bullets", "car-items", "car-cards", "car-scene"].forEach(id => {
+  $(id).addEventListener(id === "car-scene" ? "change" : "input", () => { carReadFields(); clearTimeout(carTimer); carTimer = setTimeout(carDrawSel, 120); });
+});
+$("car-caption").addEventListener("input", () => { car.caption = $("car-caption").value; });
+$("car-strip").addEventListener("click", (e) => { const b = e.target.closest("[data-car]"); if (!b) return; car.sel = +b.dataset.car; [...$("car-strip").children].forEach((x, i) => x.setAttribute("aria-selected", i === car.sel)); carFill(); });
+const carMove = (d) => { const j = car.sel + d; if (j < 0 || j >= car.slides.length) return; [car.slides[car.sel], car.slides[j]] = [car.slides[j], car.slides[car.sel]]; car.sel = j; carDrawThumbs(); carFill(); };
+$("car-up").addEventListener("click", () => carMove(-1)); $("car-down").addEventListener("click", () => carMove(1));
+$("car-add").addEventListener("click", () => { if (car.slides.length >= 10) { toast("Một bài tối đa 10 ảnh."); return; } car.slides.splice(car.sel + 1, 0, normSlide({ eyebrow: "", headline: "Tiêu đề *ảnh mới*" })); car.sel = Math.min(car.sel + 1, car.slides.length - 1); carDrawThumbs(); carFill(); });
+$("car-del").addEventListener("click", () => { if (!car.slides.length) return; car.slides.splice(car.sel, 1); car.sel = Math.max(0, Math.min(car.sel, car.slides.length - 1)); carDrawThumbs(); carFill(); });
+async function openCarousel(id) {
+  const s = state.scripts.get(id); if (!s) { toast("Lưu kịch bản trước đã."); return; }
+  await ensureFonts();
+  car.id = id; car.script = s; $("car-name").textContent = `${s.title} · ảnh 1080×1350, nền sáng, logo ở góc trên, số trang ở bên phải`;
+  $("car-msg").textContent = s.carousel ? "" : "Chưa có bộ ảnh đã lưu: đây là bản tạo nhanh từ kịch bản. Bấm “AI tạo bộ ảnh” để AI viết lại cho cuốn hơn.";
+  $("car-save-msg").textContent = ""; $("car-post-msg").textContent = ""; $("car-ai").disabled = !cap.sample;
+  carSet(s.carousel || quickSlides(s));
+  $("car-fb").hidden = true;
+  if (cap.voice) { try { fbStatus = fbStatus || await fetch("/api/status").then(r => r.json()); } catch (e) { fbStatus = {}; } if ((fbStatus.facebook || {}).configured) { $("car-fb").hidden = false; carSyncSched(); } }
+  $("car-modal").hidden = false;
+}
+$("car-close").addEventListener("click", () => { $("car-modal").hidden = true; });
+$("car-modal").addEventListener("click", (e) => { if (e.target.id === "car-modal") $("car-modal").hidden = true; });
+$("car-quick").addEventListener("click", () => { carSet(quickSlides(car.script)); $("car-msg").textContent = "Đã tạo nhanh từ kịch bản."; });
+$("car-ai").addEventListener("click", async () => {
+  if (!cap.sample) return; const b = $("car-ai"); b.disabled = true; $("car-msg").innerHTML = '<span class="spin"></span> Claude đang soạn bộ ảnh…';
+  try {
+    const r = await cap.sample.json(carouselPrompt(car.script), aiOpts("write", "complex"));
+    const c = normCarousel(r); if (!c) throw { code: "invalid_json" };
+    carSet(c); $("car-msg").textContent = `Đã soạn ${c.slides.length} ảnh. Xem từng ảnh, sửa chữ nếu cần rồi bấm Lưu.`;
+  } catch (err) { $("car-msg").textContent = aiError(err); }
+  b.disabled = false;
+});
+async function carSave() {
+  carReadFields(); const data = normCarousel({ caption: car.caption, slides: car.slides });
+  if (state.draft && state.editingId === car.id) state.draft.carousel = data;
+  car.script = { ...car.script, carousel: data };
+  await patchScript(car.id, { carousel: data });
+  return data;
+}
+$("car-save").addEventListener("click", async () => { try { await carSave(); $("car-save-msg").textContent = "Đã lưu bộ ảnh vào kịch bản."; } catch (e) { $("car-save-msg").textContent = "Không lưu được."; } });
+async function carImages() { // rendered at full size, as JPEG
+  const n = car.slides.length; const out = [];
+  for (let i = 0; i < n; i++) out.push(await canvasBlob(slideCanvas(car.script, car.slides[i], i, n, 1)));
+  return out;
+}
+$("car-zip").addEventListener("click", async () => {
+  carReadFields(); const b = $("car-zip"); b.disabled = true; $("car-save-msg").textContent = "Đang dựng ảnh…";
+  try {
+    const blobs = await carImages(); const files = [];
+    for (let i = 0; i < blobs.length; i++) files.push({ name: `${String(i + 1).padStart(2, "0")}.jpg`, data: new Uint8Array(await blobs[i].arrayBuffer()) });
+    files.push({ name: "caption-va-mo-ta.txt", data: `CAPTION BÀI ĐĂNG\n${car.caption}\n\nMÔ TẢ TỪNG ẢNH\n` + car.slides.map((sl, i) => `${i + 1}. ${sl.description}`).join("\n") + "\n" });
+    saveFile(`${slug(car.script.title)}-bo-anh.zip`, makeZip(files)); $("car-save-msg").textContent = `Đã tải ${blobs.length} ảnh kèm caption và mô tả.`;
+  } catch (e) { $("car-save-msg").textContent = "Không dựng được ảnh: " + ((e && e.message) || e); }
+  b.disabled = false;
+});
+const carSchedHours = () => $("car-sched").checked ? clamp(Math.round(+$("car-sched-h").value) || 1, 1, 24) : 0;
+function carSyncSched() { const h = carSchedHours(); $("car-sched-h").disabled = !$("car-sched").checked; $("car-sched-at").textContent = h ? `(khoảng ${fmtWhen(new Date(Date.now() + h * 3600e3))})` : ""; $("car-post").textContent = h ? "Hẹn đăng bài ảnh" : "Đăng bài ảnh"; }
+$("car-sched-h").innerHTML = Array.from({ length: 24 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+$("car-sched").addEventListener("change", carSyncSched); $("car-sched-h").addEventListener("change", carSyncSched);
+const blobB64 = (blob) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+$("car-post").addEventListener("click", async () => {
+  const b = $("car-post"); const msg = $("car-post-msg"); const hours = carSchedHours(); const label = hours ? "Hẹn đăng bài ảnh" : "Đăng bài ảnh";
+  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = hours ? `Bấm lần nữa để hẹn đăng sau ${hours} giờ` : "Bấm lần nữa để đăng công khai"; setTimeout(() => { if (b.dataset.confirm === "1") { b.dataset.confirm = ""; b.textContent = label; } }, 4000); return; }
+  b.dataset.confirm = ""; b.textContent = label; b.disabled = true; msg.innerHTML = '<span class="spin"></span> Đang dựng và tải ảnh lên Facebook…';
+  try {
+    await carSave(); const blobs = await carImages(); const photos = [];
+    for (let i = 0; i < blobs.length; i++) photos.push({ data: await blobB64(blobs[i]), description: car.slides[i].description });
+    const r = await fetch("/api/facebook/photos", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ caption: car.caption, photos, scheduleHours: hours }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || `Lỗi ${r.status}`);
+    msg.innerHTML = j.scheduledAt ? `Đã hẹn đăng bài ${photos.length} ảnh lúc <b>${esc(fmtWhen(new Date(j.scheduledAt)))}</b>. Xem hoặc hủy trong Meta Business Suite.`
+      : `Đã đăng bài ${photos.length} ảnh. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem trên Facebook</a>.`;
+  } catch (err) { msg.textContent = "Không đăng được: " + err.message; }
+  b.disabled = false;
+});
+
 /* ================= library ================= */
 function renderLibrary() {
   const el = $("clips"); const list = [...state.clips.values()].sort((a, b) => String(b.renderedAt).localeCompare(String(a.renderedAt)));
@@ -2568,6 +2924,6 @@ fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelP
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
+window.__codelens = { drawSlide, quickSlides, normCarousel, slideCanvas, carouselPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
 })();
 </script>
