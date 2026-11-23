@@ -147,6 +147,9 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
 .clip { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .clip video { width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: 10px; border: 1px solid var(--line); max-width: 100%; }
 .clip .name { font-weight: 600; overflow-wrap: anywhere; }
+.clip .clip-ph { width: 100%; aspect-ratio: 9 / 16; background: #05080f; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); display: grid; place-content: center; justify-items: center; gap: 8px; font: inherit; cursor: pointer; }
+.clip .clip-ph:hover { border-color: var(--blue); color: var(--text, #fff); }
+.clip .clip-ph b { font-size: 42px; line-height: 1; color: var(--blue); }
 
 /* Schedule */
 .sched { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
@@ -2100,7 +2103,7 @@ async function openFbShare(clipId) {
 }
 async function clipBlob(c) {
   let blob = state.sessionBlobs.get(c.id);
-  if (!blob && c.assetId) { const r = await fetch("/_blob/" + c.assetId); if (!r.ok) throw new Error("Không đọc được file video."); blob = await r.blob(); }
+  if (!blob && c.assetId) { try { blob = await fetchClipBlob(c.assetId); } catch (e) { throw new Error(`Không đọc được file video (${e.message}).`); } }
   if (!blob) throw new Error("Clip này không còn file video.");
   return blob;
 }
@@ -2262,17 +2265,42 @@ function renderLibrary() {
   const el = $("clips"); const list = [...state.clips.values()].sort((a, b) => String(b.renderedAt).localeCompare(String(a.renderedAt)));
   $("cnt-clips").textContent = list.length || "";
   if (!list.length) { el.innerHTML = `<div class="empty" style="grid-column:1/-1"><strong>Chưa có clip nào</strong>Clip render xong sẽ xuất hiện ở đây để xem lại và tải về.</div>`; return; }
-  el.innerHTML = list.map(c => {
-    const blob = state.sessionBlobs.get(c.id); let src = c.assetId ? "/_blob/" + c.assetId : "";
-    if (blob) { if (!c._url) c._url = URL.createObjectURL(blob); src = c._url; }
-    return `<div class="clip">
-      ${src ? `<video src="${esc(src)}" controls playsinline preload="metadata"></video>` : `<div class="empty">Không còn bản xem trước</div>`}
+  // Only the clips the viewer opens get a <video>: a library of dozens of players loading at once
+  // stalls the page (phones allow only a few) and makes the downloads fail too.
+  for (const id of [...openClips]) if (!state.clips.has(id)) openClips.delete(id);
+  const shown = list.slice(0, libShown);
+  el.innerHTML = shown.map(c => `<div class="clip" data-clip="${c.id}">
+      ${clipPlayerHtml(c)}
       <div class="name">${esc(c.title)}</div>
       <div class="meta"><span class="chip cat">${esc(c.category || "")}</span><span>${(+c.durationSec || 0).toFixed(1)}s · ${((+c.sizeBytes || 0) / 1048576).toFixed(1)} MB</span><span>${esc(fmtDate(c.renderedAt))}</span>${c.sessionOnly ? "<span>chỉ trong tab này</span>" : ""}</div>
       <div class="row"><button class="btn small primary" data-cdl="${c.id}">Tải về</button><button class="btn small blue" data-cfb="${c.id}">Chia sẻ Facebook</button><button class="btn small ghost danger" data-cdel="${c.id}">Xóa</button></div>
-    </div>`;
-  }).join("");
+    </div>`).join("") + (list.length > shown.length ? `<div style="grid-column:1/-1;text-align:center"><button class="btn" data-cmore="1">Xem thêm ${Math.min(LIB_PAGE, list.length - shown.length)} clip (còn ${list.length - shown.length})</button></div>` : "");
   refreshUsage();
+}
+const LIB_PAGE = 12, MAX_OPEN_CLIPS = 2;
+let libShown = LIB_PAGE; const openClips = new Set();
+function clipPlayerHtml(c) {
+  const blob = state.sessionBlobs.get(c.id); let src = c.assetId ? "/_blob/" + c.assetId : "";
+  if (blob) { if (!c._url) c._url = URL.createObjectURL(blob); src = c._url; }
+  if (!src) return `<div class="empty">Không còn bản xem trước</div>`;
+  return openClips.has(c.id)
+    ? `<video src="${esc(src)}" controls playsinline autoplay preload="auto"></video>`
+    : `<button class="clip-ph" data-cplay="${c.id}" aria-label="Xem clip ${esc(c.title)}"><b>▶</b><span>Bấm để xem</span></button>`;
+}
+function setClipPlayer(id) { // swap one card's player without rebuilding the whole library
+  const c = state.clips.get(id); const card = c && $("clips").querySelector(`[data-clip="${id}"]`); if (!card) return;
+  const old = card.firstElementChild; if (old && old.tagName === "VIDEO") { try { old.pause(); old.removeAttribute("src"); old.load(); } catch (e) {} }
+  const t = document.createElement("template"); t.innerHTML = clipPlayerHtml(c).trim(); old.replaceWith(t.content.firstElementChild);
+}
+// A stored clip can take a moment or hit a brief limit: try a few times before giving up.
+async function fetchClipBlob(assetId) {
+  let last = "";
+  for (const wait of [0, 1200, 3000]) {
+    if (wait) await new Promise(r => setTimeout(r, wait));
+    try { const r = await fetch("/_blob/" + assetId); if (r.ok) return await r.blob(); last = "HTTP " + r.status; if (r.status === 404) break; }
+    catch (e) { last = (e && e.message) || "lỗi mạng"; }
+  }
+  throw new Error(last || "không rõ");
 }
 async function refreshUsage() {
   if (!cap.assets) { $("lib-usage").textContent = ""; return; }
@@ -2281,11 +2309,18 @@ async function refreshUsage() {
 const fmtDate = (iso) => { try { return new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }); } catch (e) { return ""; } };
 $("clips").addEventListener("click", async (e) => {
   const fb = e.target.closest("[data-cfb]"); if (fb) { openFbShare(fb.dataset.cfb); return; }
+  if (e.target.closest("[data-cmore]")) { libShown += LIB_PAGE; renderLibrary(); return; }
+  const play = e.target.closest("[data-cplay]");
+  if (play) {
+    const id = play.dataset.cplay; openClips.add(id);
+    while (openClips.size > MAX_OPEN_CLIPS) { const first = openClips.values().next().value; openClips.delete(first); setClipPlayer(first); }
+    setClipPlayer(id); return;
+  }
   const dl = e.target.closest("[data-cdl]"), del = e.target.closest("[data-cdel]");
   if (dl) {
     const c = state.clips.get(dl.dataset.cdl); if (!c) return;
     let blob = state.sessionBlobs.get(c.id);
-    if (!blob && c.assetId) { try { dl.disabled = true; const r = await fetch("/_blob/" + c.assetId); if (!r.ok) throw new Error(r.status); blob = await r.blob(); } catch (err) { toast("Không tải được clip từ thư viện."); dl.disabled = false; return; } dl.disabled = false; }
+    if (!blob && c.assetId) { const lbl = dl.textContent; try { dl.disabled = true; dl.textContent = "Đang tải…"; blob = await fetchClipBlob(c.assetId); } catch (err) { toast(`Không tải được clip từ thư viện (${err.message}). Thử lại sau ít phút.`, 6000); dl.disabled = false; dl.textContent = lbl; return; } dl.disabled = false; dl.textContent = lbl; }
     if (blob) saveFile(c.filename || slug(c.title) + ".mp4", blob);
   }
   if (del) {
