@@ -123,7 +123,8 @@ Mỗi kịch bản có nút **Bộ ảnh (carousel)** trong trình soạn. Nút 
 
 - **Giao diện:** nền sáng, màu xanh theo logo, logo CodeLens ở góc trên bên trái, số trang ở góc trên bên phải, cụm quan trọng trong tiêu đề được tô nền xanh.
 - **Cấu trúc 7 ảnh:** hook (hậu quả có con số) → chuyện gì xảy ra → sai ở đâu → cách chữa → nó chạy thế nào → lưới ô "cần nhớ" → "tới lượt bạn" với ba câu tự kiểm tra và câu hỏi mời bình luận.
-- **Hình minh họa** lấy từ sơ đồ của các cảnh trong kịch bản, tự cắt sát phần sơ đồ.
+- **Mỗi ảnh có một ví dụ đọc được**, không dùng lại sơ đồ icon và mũi tên của clip. Khối minh họa được dựng riêng cho ảnh, gồm các kiểu: cửa sổ log / terminal (dòng lỗi tô đỏ, dòng đúng tô xanh), đoạn code hoặc request, bảng dữ liệu có dòng tô nổi, các bước đánh số kèm lời giải thích, so sánh hai cột, con số lớn, và lưới ô có icon. Ảnh được phép nhiều chữ để đọc là hiểu; ảnh nào quá đầy thì nội dung tự co lại cho vừa khung.
+- Vẫn chèn được sơ đồ từ một cảnh của clip nếu muốn (ô "Sơ đồ từ một cảnh của clip").
 - **AI tạo bộ ảnh** viết chữ cho cả 7 ảnh, mô tả riêng của từng ảnh và caption của bài. **Tạo nhanh từ kịch bản** dựng bộ ảnh không cần AI.
 - Sửa được từng ảnh: nhãn, tiêu đề, câu dẫn, hình, gạch đầu dòng, lưới ô, thẻ câu, mẹo, mô tả. Thêm, xóa, đổi thứ tự ảnh (tối đa 10).
 - **Tải bộ ảnh (.zip):** các file `01.jpg`… kèm `caption-va-mo-ta.txt`.

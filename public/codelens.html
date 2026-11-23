@@ -355,9 +355,11 @@ a.btn { text-decoration: none; color: inherit; }
         <label class="f"><span>Nhãn nhỏ phía trên</span><input type="text" id="car-eyebrow"></label>
         <label class="f"><span>Tiêu đề (bao cụm cần tô nền trong *dấu sao*)</span><textarea id="car-headline" rows="2"></textarea></label>
         <label class="f"><span>Câu dẫn dưới tiêu đề</span><textarea id="car-sub" rows="2"></textarea></label>
-        <label class="f"><span>Hình minh họa (lấy từ một cảnh của kịch bản)</span><select id="car-scene"></select></label>
+        <div class="scene-grid"><label class="f"><span>Khối minh họa</span><select id="car-vtype"></select></label><label class="f"><span>Tên khối (ví dụ: payment-api · log)</span><input type="text" id="car-vtitle"></label></div>
+        <label class="f"><span id="car-vhint">Nội dung khối minh họa</span><textarea id="car-vlines" rows="5" spellcheck="false" style="font-family:ui-monospace,Menlo,Consolas,monospace"></textarea></label>
+        <label class="f"><span>Sơ đồ từ một cảnh của clip (không bắt buộc)</span><select id="car-scene"></select></label>
         <label class="f"><span>Gạch đầu dòng (mỗi dòng một ý, cụm *in đậm* đặt trong dấu sao)</span><textarea id="car-bullets" rows="3"></textarea></label>
-        <label class="f"><span>Lưới ô (mỗi dòng: Tiêu đề | Nội dung)</span><textarea id="car-cards" rows="3"></textarea></label>
+        <label class="f"><span>Lưới ô (mỗi dòng: icon | Tiêu đề | Nội dung; icon có thể bỏ)</span><textarea id="car-cards" rows="3"></textarea></label>
         <label class="f"><span>Thẻ câu (mỗi dòng một thẻ, dùng cho ảnh “Tới lượt bạn”)</span><textarea id="car-items" rows="2"></textarea></label>
         <label class="f"><span>Dòng mẹo cuối ảnh</span><input type="text" id="car-tip"></label>
         <label class="f"><span>Mô tả của ảnh này (đăng kèm từng ảnh)</span><textarea id="car-desc" rows="2"></textarea></label>
@@ -857,13 +859,27 @@ function drawOutro(c, s, sc, tl, t) {
 /* ================= carousel: a script as a set of still images (1080×1350) ================= */
 const CW = 1080, CH = 1350;
 const CAR = { bg: "#EEF6FF", card: "#FFFFFF", ink: "#0B1730", muted: "#52627D", blue: "#4DB8FF", deep: "#0E6FD0", line: "#C6DBF5", dark: "#0B1120" };
+// Illustration blocks built for the image itself (a readable example, not the clip's icon diagram).
+const VIS = { terminal: "Cửa sổ log / terminal", code: "Đoạn code", table: "Bảng", steps: "Các bước có giải thích", compare: "So sánh hai cột", stat: "Con số lớn" };
+const VIS_HINT = {
+  terminal: "Mỗi dòng một dòng log. Mở đầu bằng “! ” là dòng lỗi (đỏ), “+ ” là dòng đúng (xanh), “# ” là ghi chú.",
+  code: "Mỗi dòng một dòng code, giữ thụt đầu dòng. “! ” đánh dấu dòng sai, “+ ” dòng đúng, “# ” ghi chú.",
+  table: "Dòng đầu là tiêu đề cột, các cột cách nhau bằng “|”. Mở đầu dòng bằng “> ” để tô nổi dòng đó.",
+  steps: "Mỗi dòng một bước: Tiêu đề | lời giải thích.",
+  compare: "Dòng đầu: Tiêu đề trái | Tiêu đề phải. Các dòng sau: ý bên trái | ý bên phải.",
+  stat: "Dòng 1 là con số lớn, dòng 2 là chú thích, các dòng sau là ghi chú nhỏ.",
+};
+const MONOF = 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace';
 const lines_ = (v, n, len) => (Array.isArray(v) ? v : String(v || "").split(/\r?\n/)).map(x => String(x || "").trim()).filter(Boolean).slice(0, n).map(x => x.slice(0, len));
 function normSlide(x) {
   x = x && typeof x === "object" ? x : {};
-  const cards = (Array.isArray(x.cards) ? x.cards : []).map(c => ({ title: String((c && c.title) || "").slice(0, 60), text: String((c && c.text) || "").slice(0, 160) })).filter(c => c.title || c.text).slice(0, 6);
+  const cards = (Array.isArray(x.cards) ? x.cards : []).map(c => ({ icon: c && c.icon && ICONS[String(c.icon).toLowerCase().trim()] ? String(c.icon).toLowerCase().trim() : "", title: String((c && c.title) || "").slice(0, 60), text: String((c && c.text) || "").slice(0, 220) })).filter(c => c.title || c.text).slice(0, 6);
+  const v = x.visual && typeof x.visual === "object" ? x.visual : {};
+  const visual = VIS[v.type] ? { type: v.type, title: String(v.title || "").slice(0, 70), lines: (Array.isArray(v.lines) ? v.lines : String(v.lines || "").split(/\r?\n/)).map(l => String(l == null ? "" : l).replace(/\s+$/, "").slice(0, 170)).filter(l => l.trim()).slice(0, 9) } : null;
   const sc = Math.round(+x.scene);
-  return { eyebrow: String(x.eyebrow || "").slice(0, 60), headline: String(x.headline || "").slice(0, 140), sub: String(x.sub || "").slice(0, 260),
-    scene: Number.isFinite(sc) && sc >= 0 && x.scene !== "" && x.scene !== null ? sc : -1, bullets: lines_(x.bullets, 4, 180), cards, items: lines_(x.items, 4, 160),
+  return { eyebrow: String(x.eyebrow || "").slice(0, 60), headline: String(x.headline || "").slice(0, 140), sub: String(x.sub || "").slice(0, 380),
+    scene: Number.isFinite(sc) && sc >= 0 && x.scene !== "" && x.scene !== null ? sc : -1, bullets: lines_(x.bullets, 5, 240), cards, items: lines_(x.items, 4, 200),
+    visual: visual && visual.lines.length ? visual : null,
     tip: String(x.tip || "").slice(0, 200), description: String(x.description || "").slice(0, 500) };
 }
 function normCarousel(c) {
@@ -897,6 +913,84 @@ function drawRich(c, text, x, y, maxW, lineH, o) {
     for (const t of ln.toks) { px += t.g; c.font = t.acc && o.accFont ? o.accFont : o.font; c.fillStyle = t.acc ? (o.accColor || o.color) : o.color; c.fillText(t.w, px, cy + 2); px += t.tw; }
   });
   return y + rows.length * lineH;
+}
+function wrapPlain(c, text, maxW, font) {
+  c.font = font; const words = String(text).split(/\s+/).filter(Boolean); const out = []; let cur = "";
+  for (const w of words) { const t = cur ? cur + " " + w : w; if (cur && c.measureText(t).width > maxW) { out.push(cur); cur = w; } else cur = t; }
+  if (cur) out.push(cur); return out.length ? out : [""];
+}
+function paintLines(c, ls, x, y, lh, font, color) { c.font = font; c.fillStyle = color; c.textAlign = "left"; c.textBaseline = "middle"; ls.forEach((l, i) => c.fillText(l, x, y + i * lh + lh / 2 + 1)); }
+// Draws one illustration block at (x, y) with width w; returns its height. With draw=false it only measures.
+function drawVisual(c, v, x, y, w, draw) {
+  const F = (wt, px) => `${wt} ${px}px ${FONT}`; const card = (h, fill, stroke) => { c.beginPath(); c.roundRect(x, y, w, h, 24); c.fillStyle = fill; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = 2.5; c.stroke(); } };
+  if (v.type === "terminal" || v.type === "code") {
+    const font = `500 29px ${MONOF}`; c.font = font; const chW = c.measureText("0").width; const head = 60, pad = 30, lh = 42;
+    const rows = v.lines.map(raw => { const m = /^([!+#])\s/.exec(raw); const body = m ? raw.slice(2) : raw; const ind = v.type === "code" ? Math.min(8, (/^\s*/.exec(body)[0] || "").length) : 0; return { mark: m ? m[1] : "", ind, ls: wrapPlain(c, body.trim(), w - pad * 2 - ind * chW - 16, font) }; });
+    const h = head + 16 + rows.reduce((a, r) => a + r.ls.length * lh + 6, 0) + 20;
+    if (draw) {
+      c.save(); c.shadowColor = "rgba(14,60,120,0.22)"; c.shadowBlur = 30; c.shadowOffsetY = 12; card(h, CAR.dark); c.restore();
+      c.save(); c.beginPath(); c.roundRect(x, y, w, h, 24); c.clip(); c.fillStyle = "#16223A"; c.fillRect(x, y, w, head); c.restore();
+      ["#FF5C6C", "#FFD43B", "#34D399"].forEach((col, k) => { c.beginPath(); c.arc(x + 34 + k * 30, y + head / 2, 9, 0, Math.PI * 2); c.fillStyle = col; c.fill(); });
+      c.font = `600 24px ${MONOF}`; c.fillStyle = "#9FB0CC"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(v.title || (v.type === "code" ? "code" : "log"), x + 132, y + head / 2 + 1, w - 170);
+      let ty = y + head + 16;
+      for (const r of rows) {
+        const rh = r.ls.length * lh;
+        if (r.mark === "!") { c.fillStyle = "rgba(255,92,108,0.17)"; c.fillRect(x, ty - 2, w, rh + 4); c.fillStyle = "#FF5C6C"; c.fillRect(x, ty - 2, 8, rh + 4); }
+        if (r.mark === "+") { c.fillStyle = "rgba(52,211,153,0.13)"; c.fillRect(x, ty - 2, w, rh + 4); c.fillStyle = "#34D399"; c.fillRect(x, ty - 2, 8, rh + 4); }
+        paintLines(c, r.ls, x + pad + r.ind * chW, ty, lh, font, r.mark === "!" ? "#FFA0AA" : r.mark === "+" ? "#7BE8B9" : r.mark === "#" ? "#8C9BB5" : "#E6EDF7");
+        ty += rh + 6;
+      }
+    }
+    return h;
+  }
+  if (v.type === "table") {
+    const rowsRaw = v.lines.map(l => { const hi = /^>\s?/.test(l); return { hi, cells: l.replace(/^>\s?/, "").split("|").map(t => t.trim()).slice(0, 4) }; });
+    const cols = Math.max(1, ...rowsRaw.map(r => r.cells.length)); const cw = (w - 24) / cols; const lh = 38;
+    const rows = rowsRaw.map((r, k) => { const font = k === 0 || r.hi ? F(800, 29) : F(500, 29); const cells = Array.from({ length: cols }, (_, j) => wrapPlain(c, r.cells[j] || "", cw - 28, font)); return { ...r, font, cells, h: Math.max(...cells.map(x => x.length)) * lh + 26 }; });
+    const title = v.title ? 56 : 0; const h = title + rows.reduce((a, r) => a + r.h, 0) + 12;
+    if (draw) {
+      card(h, CAR.card, CAR.line); c.save(); c.beginPath(); c.roundRect(x, y, w, h, 24); c.clip();
+      let ty = y; if (title) { paintLines(c, [v.title], x + 26, ty + 6, 50, F(700, 26), CAR.deep); ty += title; }
+      rows.forEach((r, k) => {
+        if (k === 0) { c.fillStyle = "#DCEBFC"; c.fillRect(x, ty, w, r.h); } else if (r.hi) { c.fillStyle = "rgba(77,184,255,0.30)"; c.fillRect(x, ty, w, r.h); c.fillStyle = CAR.deep; c.fillRect(x, ty, 8, r.h); }
+        else { c.strokeStyle = "#E3ECF8"; c.lineWidth = 2; c.beginPath(); c.moveTo(x + 20, ty); c.lineTo(x + w - 20, ty); c.stroke(); }
+        r.cells.forEach((ls, j) => paintLines(c, ls, x + 26 + j * cw, ty + 13, lh, r.font, k === 0 ? CAR.deep : CAR.ink));
+        ty += r.h;
+      });
+      c.restore();
+    }
+    return h;
+  }
+  if (v.type === "steps") {
+    const tw = w - 96; const rows = v.lines.map(l => { const k = l.indexOf("|"); const t = (k < 0 ? l : l.slice(0, k)).trim(), d = k < 0 ? "" : l.slice(k + 1).trim(); const tl = wrapPlain(c, t, tw, F(800, 36)), dl = d ? wrapPlain(c, d, tw, F(500, 31)) : []; return { tl, dl, h: tl.length * 46 + dl.length * 42 + 30 }; });
+    const h = rows.reduce((a, r) => a + r.h, 0);
+    if (draw) { let ty = y; rows.forEach((r, k) => {
+      if (k < rows.length - 1) { c.strokeStyle = CAR.line; c.lineWidth = 4; c.beginPath(); c.moveTo(x + 30, ty + 56); c.lineTo(x + 30, ty + r.h + 4); c.stroke(); }
+      c.beginPath(); c.arc(x + 30, ty + 28, 28, 0, Math.PI * 2); c.fillStyle = CAR.deep; c.fill();
+      c.font = F(800, 30); c.fillStyle = "#fff"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(k + 1), x + 30, ty + 30);
+      paintLines(c, r.tl, x + 86, ty + 4, 46, F(800, 36), CAR.ink); paintLines(c, r.dl, x + 86, ty + 4 + r.tl.length * 46, 42, F(500, 31), CAR.muted);
+      ty += r.h; }); }
+    return h;
+  }
+  if (v.type === "compare") {
+    const [lt, rt] = (v.lines[0] || "|").split("|").map(t => t.trim()); const cw = (w - 24) / 2; const lh = 40;
+    const side = (k) => v.lines.slice(1).map(l => (l.split("|")[k] || "").trim()).filter(Boolean).map(t => wrapPlain(c, t, cw - 96, F(500, 30)));
+    const L = side(0), R = side(1); const hOf = (a) => 84 + a.reduce((s2, ls) => s2 + ls.length * lh + 16, 0) + 16; const h = Math.max(hOf(L), hOf(R));
+    if (draw) [[L, lt, "#FF5C6C", "✕", "#FFF1F2", "#FFC9CE"], [R, rt, "#12A970", "✓", "#EFFBF5", "#BDEBD6"]].forEach(([arr, title, col, sym, bg, bd], k) => {
+      const cx = x + k * (cw + 24); c.beginPath(); c.roundRect(cx, y, cw, h, 24); c.fillStyle = bg; c.fill(); c.strokeStyle = bd; c.lineWidth = 2.5; c.stroke();
+      paintLines(c, [title || (k ? "Sau" : "Trước")], cx + 28, y + 16, 54, F(800, 34), col);
+      let ty = y + 84; arr.forEach(ls => { c.font = F(800, 30); c.fillStyle = col; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(sym, cx + 28, ty + lh / 2 + 1); paintLines(c, ls, cx + 68, ty, lh, F(500, 30), CAR.ink); ty += ls.length * lh + 16; });
+    });
+    return h;
+  }
+  if (v.type === "stat") {
+    let size = 150; c.font = F(800, size); const num = v.lines[0] || ""; while (size > 70 && c.measureText(num).width > w - 80) { size -= 10; c.font = F(800, size); }
+    const cap2 = v.lines[1] ? wrapPlain(c, v.lines[1], w - 80, F(700, 40)) : []; const notes = v.lines.slice(2).map(t => wrapPlain(c, t, w - 80, F(500, 31)));
+    const h = 36 + size * 1.08 + cap2.length * 52 + notes.reduce((a, ls) => a + ls.length * 42 + 8, 0) + 34;
+    if (draw) { card(h, CAR.card, CAR.line); paintLines(c, [num], x + 40, y + 36, size * 1.08, F(800, size), CAR.deep); let ty = y + 36 + size * 1.08; paintLines(c, cap2, x + 40, ty, 52, F(700, 40), CAR.ink); ty += cap2.length * 52; notes.forEach(ls => { paintLines(c, ls, x + 40, ty + 8, 42, F(500, 31), CAR.muted); ty += ls.length * 42 + 8; }); }
+    return h;
+  }
+  return 0;
 }
 // One scene of the clip, fully revealed, as the picture inside a slide.
 const shotCache = new Map();
@@ -946,63 +1040,78 @@ function drawSlide(c, s, sl, i, n, noBg) {
     c.font = F(700, 27); c.fillStyle = CAR.deep; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(sl.eyebrow.toLocaleUpperCase("vi"), X, y + 16, MW); c.restore();
     y += 58;
   }
-  if (sl.headline) {
-    let size = i === 0 ? 96 : 84;
-    while (size > 54 && wrapRich(c, sl.headline, MW - 20, F(800, size), F(800, size)).length > (i === 0 ? 4 : 3)) size -= 8;
-    y = drawRich(c, sl.headline, X + 6, y, MW - 20, size * 1.2, { font: F(800, size), accFont: F(800, size), color: CAR.ink, accColor: CAR.ink, hl: CAR.blue }) + 22;
-  }
-  if (sl.sub) y = drawRich(c, sl.sub, X, y, MW, 54, { font: F(500, 39), accFont: F(700, 39), color: CAR.muted, accColor: CAR.ink }) + 26;
-  // measure the blocks under the picture first, so the picture takes what is left
-  const FOOT = 1262; const BX = X + 48, BW = MW - 48;
-  const bulletH = sl.bullets.reduce((a, b) => a + drawRich(c, b, BX, 0, BW, 52, { font: F(500, 37), accFont: F(800, 37), dry: true }) + 20, 0);
-  const colW = (MW - 24) / 2; const cardGeo = [];
-  for (let k = 0; k < sl.cards.length; k += 2) {
-    const pair = sl.cards.slice(k, k + 2); const full = pair.length === 1; const w = full ? MW : colW;
-    const hs = pair.map(cd => 34 + (cd.title ? drawRich(c, cd.title, 0, 0, w - 64, 52, { font: F(800, 40), dry: true }) : 0) + (cd.text ? 10 + drawRich(c, cd.text, 0, 0, w - 64, 46, { font: F(500, 33), dry: true }) : 0) + 34);
-    cardGeo.push({ pair, w, h: Math.max(...hs) });
-  }
-  const cardsH = cardGeo.reduce((a, r) => a + r.h + 20, 0);
-  const itemHs = sl.items.map(t => 28 + drawRich(c, `“${t}”`, 0, 0, MW - 64, 50, { font: F(600, 36), dry: true }) + 28);
-  const itemsH = itemHs.reduce((a, h) => a + h + 18, 0);
-  const tipH = sl.tip ? drawRich(c, sl.tip, X, 0, MW, 50, { font: F(500, 35), dry: true }) + 10 : 0;
-  const below = bulletH + cardsH + itemsH + tipH;
-  // picture
-  const shot = sl.scene >= 0 ? sceneShot(s, sl.scene) : null;
-  const room = FOOT - y - below - (below ? 28 : 0);
-  if (shot && room >= 240) {
-    const maxH = Math.min(room, 760); const k = Math.min((MW - 90) / shot.w, (maxH - 70) / shot.h, 1.7);
-    let hh = clamp(Math.round(shot.h * k + 70), Math.min(300, maxH), maxH);
-    hh = Math.round(hh + (maxH - hh) * 0.7); // a wide diagram leaves room below: let the picture take most of it
-    c.save(); c.shadowColor = "rgba(14,60,120,0.22)"; c.shadowBlur = 36; c.shadowOffsetY = 14;
-    c.beginPath(); c.roundRect(X, y, MW, hh, 28); c.fillStyle = CAR.dark; c.fill(); c.restore();
-    c.save(); c.beginPath(); c.roundRect(X, y, MW, hh, 28); c.clip();
-    const g = c.createLinearGradient(0, y, 0, y + hh); g.addColorStop(0, COL.bg); g.addColorStop(1, COL.bg2); c.fillStyle = g; c.fillRect(X, y, MW, hh);
-    c.strokeStyle = COL.grid; c.lineWidth = 2; c.beginPath(); for (let gx = X; gx < X + MW; gx += 72) { c.moveTo(gx, y); c.lineTo(gx, y + hh); } for (let gy = y; gy < y + hh; gy += 72) { c.moveTo(X, gy); c.lineTo(X + MW, gy); } c.stroke();
-    const dw = shot.w * k, dh = shot.h * k;
-    c.drawImage(shot.cv, shot.x, shot.y, shot.w, shot.h, X + (MW - dw) / 2, y + (hh - dh) / 2, dw, dh);
-    c.restore();
-    y += hh + 30;
-  } else if (below && room > 80) y += Math.min(room * 0.3, 120); // no picture: let the blocks sit lower instead of leaving the bottom empty
-  for (const b of sl.bullets) {
-    c.save(); c.translate(X + 16, y + 26); c.rotate(Math.PI / 4); c.fillStyle = CAR.deep; c.fillRect(-11, -11, 22, 22); c.restore();
-    y = drawRich(c, b, BX, y, BW, 52, { font: F(500, 37), accFont: F(800, 37), color: CAR.ink, accColor: CAR.ink }) + 20;
-  }
-  for (const r of cardGeo) {
-    r.pair.forEach((cd, k) => {
-      const cx = X + k * (colW + 24);
-      c.beginPath(); c.roundRect(cx, y, r.w, r.h, 24); c.fillStyle = CAR.card; c.fill(); c.strokeStyle = CAR.line; c.lineWidth = 2.5; c.stroke();
-      let ty = y + 34;
-      if (cd.title) ty = drawRich(c, cd.title, cx + 32, ty, r.w - 64, 52, { font: F(800, 40), color: CAR.ink });
-      if (cd.text) drawRich(c, cd.text, cx + 32, ty + 10, r.w - 64, 46, { font: F(500, 33), color: CAR.muted });
+  // Everything under the eyebrow is laid out by one function, so a crowded slide can be drawn smaller:
+  // it is laid out on a wider column and scaled down until it fits above the footer.
+  const y0 = y; const AVAIL = 1262 - y0;
+  const layout = (c, MW, FOOT) => {
+    let y = y0;
+    if (sl.headline) {
+      let size = i === 0 ? 96 : 84;
+      while (size > 54 && wrapRich(c, sl.headline, MW - 20, F(800, size), F(800, size)).length > (i === 0 ? 4 : 3)) size -= 8;
+      y = drawRich(c, sl.headline, X + 6, y, MW - 20, size * 1.2, { font: F(800, size), accFont: F(800, size), color: CAR.ink, accColor: CAR.ink, hl: CAR.blue }) + 22;
+    }
+    if (sl.sub) y = drawRich(c, sl.sub, X, y, MW, 54, { font: F(500, 39), accFont: F(700, 39), color: CAR.muted, accColor: CAR.ink }) + 26;
+    // measure the blocks under the picture first, so the picture takes what is left
+    const BX = X + 48, BW = MW - 48;
+    const bulletH = sl.bullets.reduce((a, b) => a + drawRich(c, b, BX, 0, BW, 52, { font: F(500, 37), accFont: F(800, 37), dry: true }) + 20, 0);
+    const colW = (MW - 24) / 2; const cardGeo = [];
+    for (let k = 0; k < sl.cards.length; k += 2) {
+      const pair = sl.cards.slice(k, k + 2); const full = pair.length === 1; const w = full ? MW : colW;
+      const hs = pair.map(cd => 34 + (cd.icon ? 74 : 0) + (cd.title ? drawRich(c, cd.title, 0, 0, w - 64, 50, { font: F(800, 38), dry: true }) : 0) + (cd.text ? 10 + drawRich(c, cd.text, 0, 0, w - 64, 44, { font: F(500, 31), dry: true }) : 0) + 34);
+      cardGeo.push({ pair, w, h: Math.max(...hs) });
+    }
+    const cardsH = cardGeo.reduce((a, r) => a + r.h + 20, 0);
+    const itemHs = sl.items.map(t => 28 + drawRich(c, `“${t}”`, 0, 0, MW - 64, 50, { font: F(600, 36), dry: true }) + 28);
+    const itemsH = itemHs.reduce((a, h) => a + h + 18, 0);
+    const tipH = sl.tip ? drawRich(c, sl.tip, X, 0, MW, 50, { font: F(500, 35), dry: true }) + 10 : 0;
+    const visH = sl.visual ? drawVisual(c, sl.visual, X, 0, MW, false) + 30 : 0;
+    const below = bulletH + cardsH + itemsH + tipH;
+    // picture
+    const shot = sl.scene >= 0 ? sceneShot(s, sl.scene) : null;
+    const room = FOOT - y - visH - below - (below ? 28 : 0);
+    if (!(shot && room >= 240) && room > 60) y += Math.min(room * 0.32, 110); // spare height: sit the content a little lower
+    if (sl.visual) y += drawVisual(c, sl.visual, X, y, MW, true) + 30;
+    if (shot && room >= 240) {
+      const maxH = Math.min(room, 760); const k = Math.min((MW - 90) / shot.w, (maxH - 70) / shot.h, 1.7);
+      let hh = clamp(Math.round(shot.h * k + 70), Math.min(300, maxH), maxH);
+      hh = Math.round(hh + (maxH - hh) * 0.7); // a wide diagram leaves room below: let the picture take most of it
+      c.save(); c.shadowColor = "rgba(14,60,120,0.22)"; c.shadowBlur = 36; c.shadowOffsetY = 14;
+      c.beginPath(); c.roundRect(X, y, MW, hh, 28); c.fillStyle = CAR.dark; c.fill(); c.restore();
+      c.save(); c.beginPath(); c.roundRect(X, y, MW, hh, 28); c.clip();
+      const g = c.createLinearGradient(0, y, 0, y + hh); g.addColorStop(0, COL.bg); g.addColorStop(1, COL.bg2); c.fillStyle = g; c.fillRect(X, y, MW, hh);
+      c.strokeStyle = COL.grid; c.lineWidth = 2; c.beginPath(); for (let gx = X; gx < X + MW; gx += 72) { c.moveTo(gx, y); c.lineTo(gx, y + hh); } for (let gy = y; gy < y + hh; gy += 72) { c.moveTo(X, gy); c.lineTo(X + MW, gy); } c.stroke();
+      const dw = shot.w * k, dh = shot.h * k;
+      c.drawImage(shot.cv, shot.x, shot.y, shot.w, shot.h, X + (MW - dw) / 2, y + (hh - dh) / 2, dw, dh);
+      c.restore();
+      y += hh + 30;
+    }
+    for (const b of sl.bullets) {
+      c.save(); c.translate(X + 16, y + 26); c.rotate(Math.PI / 4); c.fillStyle = CAR.deep; c.fillRect(-11, -11, 22, 22); c.restore();
+      y = drawRich(c, b, BX, y, BW, 52, { font: F(500, 37), accFont: F(800, 37), color: CAR.ink, accColor: CAR.ink }) + 20;
+    }
+    for (const r of cardGeo) {
+      r.pair.forEach((cd, k) => {
+        const cx = X + k * (colW + 24);
+        c.beginPath(); c.roundRect(cx, y, r.w, r.h, 24); c.fillStyle = CAR.card; c.fill(); c.strokeStyle = CAR.line; c.lineWidth = 2.5; c.stroke();
+        let ty = y + 34;
+        if (cd.icon) { c.save(); c.translate(cx + 32 + 30, ty + 30); c.scale(0.62, 0.62); ICONS[cd.icon].d(c, CAR.deep); c.restore(); ty += 74; }
+        if (cd.title) ty = drawRich(c, cd.title, cx + 32, ty, r.w - 64, 50, { font: F(800, 38), color: CAR.ink });
+        if (cd.text) drawRich(c, cd.text, cx + 32, ty + 10, r.w - 64, 44, { font: F(500, 31), color: CAR.muted });
+      });
+      y += r.h + 20;
+    }
+    sl.items.forEach((t, k) => {
+      c.beginPath(); c.roundRect(X, y, MW, itemHs[k], 24); c.fillStyle = CAR.card; c.fill(); c.strokeStyle = CAR.line; c.lineWidth = 2.5; c.stroke();
+      drawRich(c, `“${t}”`, X + 32, y + 28, MW - 64, 50, { font: F(600, 36), color: CAR.ink });
+      y += itemHs[k] + 18;
     });
-    y += r.h + 20;
-  }
-  sl.items.forEach((t, k) => {
-    c.beginPath(); c.roundRect(X, y, MW, itemHs[k], 24); c.fillStyle = CAR.card; c.fill(); c.strokeStyle = CAR.line; c.lineWidth = 2.5; c.stroke();
-    drawRich(c, `“${t}”`, X + 32, y + 28, MW - 64, 50, { font: F(600, 36), color: CAR.ink });
-    y += itemHs[k] + 18;
-  });
-  if (sl.tip) drawRich(c, sl.tip, X, y + 4, MW, 50, { font: F(500, 35), accFont: F(700, 35), color: CAR.muted, accColor: CAR.ink });
+    if (sl.tip) y = drawRich(c, sl.tip, X, y + 4, MW, 50, { font: F(500, 35), accFont: F(700, 35), color: CAR.muted, accColor: CAR.ink });
+    return y;
+  };
+  const scratch = (drawSlide._m || (drawSlide._m = new OffscreenCanvas(8, 8))).getContext("2d");
+  let k = 1;
+  for (const t of [1, 0.94, 0.88, 0.82, 0.76, 0.7, 0.64, 0.58]) { k = t; if ((layout(scratch, (CW - 120) / t, y0 + AVAIL / t) - y0) * t <= AVAIL) break; }
+  c.save(); c.translate(X, y0); c.scale(k, k); c.translate(-X, -y0); layout(c, (CW - 120) / k, y0 + AVAIL / k); c.restore();
   // footer
   c.font = F(600, 26); c.textBaseline = "middle"; c.fillStyle = CAR.muted;
   c.textAlign = "left"; c.fillText(i === 0 && n > 1 ? "Vuốt để xem →" : `CodeLens · ${s.category || ""}`, X, 1302);
@@ -1057,11 +1166,13 @@ const canvasBlob = (cv, type = "image/jpeg", q = 0.92) => new Promise(res => cv.
 // A usable set without the AI: the hook, up to five key scenes, and a closing card.
 function quickSlides(s) {
   const plain = (t) => String(t || "").replace(/\*/g, "").trim();
+  const sentences0 = (t) => String(t || "").split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean).slice(0, 3);
   const body = s.scenes.map((sc, i) => ({ sc, i })).filter(x => x.sc.layout !== "outro");
   const first = body[0], rest = body.slice(1);
   const pick = rest.length <= 5 ? rest : [0, 1, 2, 3, 4].map(k => rest[Math.round(k * (rest.length - 1) / 4)]);
-  const slides = [{ eyebrow: `${s.category || "Tech"} · case study`, headline: first ? first.sc.heading || s.title : s.title, sub: plain(s.hook), scene: first ? first.i : -1, description: plain(s.hook) || s.title }];
-  pick.forEach(x => slides.push({ eyebrow: PARTS[x.sc.part] || "", headline: x.sc.heading, scene: x.i, bullets: [x.sc.subtitle].filter(Boolean), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
+  const slides = [{ eyebrow: `${s.category || "Tech"} · case study`, headline: first ? first.sc.heading || s.title : s.title, sub: plain(s.hook), scene: -1, bullets: first ? sentences0(narrationText(first.sc)) : [], description: plain(s.hook) || s.title }];
+  const sentences = (t) => String(t || "").split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean).slice(0, 3);
+  pick.forEach(x => slides.push({ eyebrow: PARTS[x.sc.part] || "", headline: x.sc.heading, sub: plain(x.sc.subtitle), scene: -1, bullets: sentences(narrationText(x.sc)), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
   slides.push({ eyebrow: "Tới lượt bạn", headline: "Hệ thống của bạn *đã chặn* lỗi này chưa?", sub: s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}.` : "", scene: -1, tip: "Bình luận cách team bạn đang xử lý nhé.", description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
   const tags = ["#CodeLens", ...(HASHTAGS[s.category] || []), "#developer"];
   // one caption line per image, in the same order
@@ -1076,24 +1187,34 @@ Từ kịch bản clip dưới đây, hãy soạn MỘT BÀI ĐĂNG ẢNH nhiề
 Người xem lướt rất nhanh: mỗi ảnh MỘT ý, chữ ít, nói bằng LỢI ÍCH và HẬU QUẢ cụ thể chứ không nói bằng thuật ngữ suông. Bài phải thật sự cuốn: người xem thấy "chuyện này mình từng gặp".
 
 CẤU TRÚC 7 ẢNH (theo đúng thứ tự):
-1. HOOK: hậu quả của case, có con số. "sub" là 1–2 câu kể tình huống. Có hình.
-2. CHUYỆN GÌ XẢY RA: tái hiện case. Có hình, 2–3 gạch đầu dòng.
-3. SAI Ở ĐÂU: chẩn đoán đúng bước hỏng. Có hình, 2–3 gạch đầu dòng.
-4. CÁCH CHỮA: gọi tên khái niệm và nói nó là gì trong một câu. Có hình, 2–3 gạch đầu dòng.
-5. NÓ CHẠY THẾ NÀO: cơ chế áp vào chính case. Có hình, 2–3 gạch đầu dòng.
-6. CẦN NHỚ: lưới 4 ô ("cards"), mỗi ô một bẫy, một giới hạn hoặc một điều kiện áp dụng. Không có hình.
-7. TỚI LƯỢT BẠN: 3 thẻ ("items"), mỗi thẻ là một việc người xem tự kiểm tra được ngay trong hệ thống của mình, viết như một câu tự hỏi. "tip" là một mẹo ngắn. "sub" là câu hỏi mời bình luận. Không có hình.
+1. HOOK: hậu quả của case, có con số. "sub" là 1–2 câu kể tình huống. Khối minh họa cho thấy ngay thiệt hại.
+2. CHUYỆN GÌ XẢY RA: tái hiện case bằng một ví dụ đọc được (thường là log hoặc các bước), kèm gạch đầu dòng giải thích.
+3. SAI Ở ĐÂU: chỉ đúng bước hỏng trên ví dụ đó, kèm gạch đầu dòng giải thích vì sao.
+4. CÁCH CHỮA: gọi tên khái niệm, nói nó là gì trong một câu, và cho thấy nó trông ra sao (request có key, dòng dữ liệu, đoạn code).
+5. NÓ CHẠY THẾ NÀO: cơ chế áp vào chính case, thường là bảng dữ liệu hoặc so sánh trước và sau.
+6. CẦN NHỚ: lưới 4 ô ("cards") có icon, mỗi ô một bẫy, một giới hạn hoặc một điều kiện áp dụng, giải thích bằng câu trọn ý. Không có khối minh họa.
+7. TỚI LƯỢT BẠN: 3 thẻ ("items"), mỗi thẻ là một việc người xem tự kiểm tra được ngay trong hệ thống của mình, viết như một câu tự hỏi. "tip" là một mẹo ngắn. "sub" là câu hỏi mời bình luận. Không có khối minh họa.
 Với kịch bản dạng sự cố thật hoặc kiến trúc công ty thật, giữ đúng tinh thần đó: 2 là bối cảnh, 3 là diễn biến hoặc bài toán, 4 là nguyên nhân gốc hoặc thiết kế, 5 là bài học kỹ thuật.
+
+MỖI ẢNH PHẢI CÓ MỘT VÍ DỤ ĐỌC ĐƯỢC. Đừng minh họa bằng icon và mũi tên: người xem cần nhìn thấy đúng thứ một dev thấy trên màn hình khi gặp case này (dòng log, request, bảng dữ liệu, đoạn code, các bước có lời giải thích). Chữ nhiều một chút cũng được, miễn đọc xong là HIỂU: viết câu trọn ý, giải thích vì sao, đừng viết cụt lủn.
 
 MỖI ẢNH là một object:
 - "eyebrow": nhãn nhỏ phía trên, tối đa 5 từ (ví dụ "Chuyện gì xảy ra", "Cách chữa · Idempotency Key").
 - "headline": tiêu đề lớn, tối đa 12 từ, viết thường như một câu nói (không viết hoa toàn bộ). Bao MỘT cụm 1–4 từ quan trọng nhất trong *dấu sao* để tô nền xanh.
-- "sub": câu dẫn dưới tiêu đề, tối đa 30 từ; để "" nếu không cần.
-- "scene": chỉ số "i" của cảnh trong kịch bản dùng làm hình minh họa cho ảnh này (chọn cảnh có sơ đồ khớp ý nhất, mỗi cảnh chỉ dùng một lần); -1 nếu ảnh không có hình.
-- "bullets": 0–3 gạch đầu dòng, mỗi dòng tối đa 22 từ, mở bằng một cụm *in đậm* trong dấu sao rồi tới phần giải thích.
-- "cards": chỉ dùng ở ảnh 6: 4 object {"title": tối đa 5 từ, "text": tối đa 20 từ}.
-- "items": chỉ dùng ở ảnh 7: 3 câu, mỗi câu tối đa 20 từ.
-- "tip": chỉ dùng ở ảnh 7, tối đa 25 từ.
+- "sub": 1–2 câu dẫn dưới tiêu đề, tối đa 40 từ, nói rõ ảnh này cho thấy điều gì.
+- "visual": khối minh họa của ảnh, BẮT BUỘC cho ảnh 1 đến 5, là object {"type", "title", "lines"} với tối đa 8 dòng. Chọn "type" hợp ý nhất và dùng đúng số liệu của case:
+  • "terminal": cửa sổ log. "title" là tên file hay service (ví dụ "payment-api · log"). Mỗi dòng là một dòng log ngắn, có giờ, có giá trị cụ thể. Dòng mở đầu bằng "! " là dòng lỗi (tô đỏ), "+ " là dòng đúng (tô xanh), "# " là ghi chú giải thích.
+  • "code": đoạn code hoặc request ngắn (giả mã, HTTP, SQL), giữ thụt đầu dòng; "! " đánh dấu dòng sai, "+ " dòng sửa đúng, "# " ghi chú. Đây là minh họa cơ chế, không phải bài dạy cú pháp.
+  • "table": bảng dữ liệu. Dòng đầu là tiêu đề cột, các cột cách nhau bằng " | " (tối đa 4 cột), tối đa 5 dòng dữ liệu. Mở đầu một dòng bằng "> " để tô nổi dòng cần chú ý.
+  • "steps": 3–4 bước theo thứ tự, mỗi dòng "Tiêu đề bước | một câu giải thích chuyện gì xảy ra và vì sao".
+  • "compare": so sánh hai cột. Dòng đầu "Tiêu đề trái | Tiêu đề phải" (trái là cách sai hoặc trước, phải là cách đúng hoặc sau), 2–4 dòng sau "ý bên trái | ý bên phải".
+  • "stat": một con số lớn. Dòng 1 là con số (ví dụ "1.000.000đ"), dòng 2 là chú thích, 1–2 dòng sau là ghi chú.
+  Ảnh 1 nên dùng "stat" hoặc "terminal" để thấy ngay hậu quả. Các ảnh 2–5 dùng ít nhất ba kiểu khác nhau. Ví dụ trong "visual" phải khớp case (cùng số tiền, cùng tên service); mã đơn, mốc giờ, key minh họa thì tự đặt cho hợp lý.
+- "bullets": 2–4 gạch đầu dòng GIẢI THÍCH khối minh họa, mỗi dòng tối đa 28 từ, mở bằng một cụm *in đậm* trong dấu sao rồi tới phần giải thích vì sao.
+- "cards": chỉ dùng ở ảnh 6: 4 object {"icon", "title": tối đa 5 từ, "text": 1–2 câu, tối đa 28 từ}. "icon" chọn trong: ${ICON_NAMES.join(", ")}.
+- "items": chỉ dùng ở ảnh 7: 3 câu, mỗi câu tối đa 22 từ.
+- "tip": chỉ dùng ở ảnh 7, tối đa 28 từ.
+- "scene": luôn để -1.
 - "description": mô tả đăng kèm riêng ảnh này, 1–2 câu trọn ý (tối đa 220 ký tự), người chỉ xem một ảnh vẫn hiểu.
 
 "caption" là nội dung bài đăng. ẢNH PHẢI BÁM SÁT CAPTION: viết caption trước, rồi mỗi phần của caption ứng với ĐÚNG MỘT ảnh, cùng thứ tự, cùng ý, cùng từ khóa. Người đọc caption rồi vuốt ảnh phải thấy ảnh nào cũng là một dòng của caption được mở rộng ra. Cấu trúc caption:
@@ -2577,24 +2698,28 @@ function carFill() {
   const sl = car.slides[car.sel]; const has = !!sl;
   $("car-pos").textContent = has ? `Ảnh ${car.sel + 1}/${car.slides.length}` : "Chưa có ảnh";
   for (const [k, id] of Object.entries(carFields)) { $(id).value = has ? sl[k] : ""; $(id).disabled = !has; }
-  $("car-scene").innerHTML = `<option value="-1">Không có hình</option>` + car.script.scenes.map((sc, i) => sc.layout === "outro" ? "" : `<option value="${i}">Cảnh ${i + 1}: ${esc(String(sc.heading || "").replace(/\*/g, ""))}</option>`).join("");
+  $("car-scene").innerHTML = `<option value="-1">Không dùng</option>` + car.script.scenes.map((sc, i) => sc.layout === "outro" ? "" : `<option value="${i}">Cảnh ${i + 1}: ${esc(String(sc.heading || "").replace(/\*/g, ""))}</option>`).join("");
   $("car-scene").value = has ? String(sl.scene) : "-1";
   $("car-bullets").value = has ? sl.bullets.join("\n") : ""; $("car-items").value = has ? sl.items.join("\n") : "";
-  $("car-cards").value = has ? sl.cards.map(cd => `${cd.title} | ${cd.text}`).join("\n") : "";
-  ["car-scene", "car-bullets", "car-items", "car-cards", "car-up", "car-down", "car-del"].forEach(id => $(id).disabled = !has);
+  $("car-cards").value = has ? sl.cards.map(cd => `${cd.icon ? cd.icon + " | " : ""}${cd.title} | ${cd.text}`).join("\n") : "";
+  $("car-vtype").innerHTML = `<option value="">Không có</option>` + Object.entries(VIS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("car-vtype").value = has && sl.visual ? sl.visual.type : ""; $("car-vtitle").value = has && sl.visual ? sl.visual.title : ""; $("car-vlines").value = has && sl.visual ? sl.visual.lines.join("\n") : "";
+  $("car-vhint").textContent = VIS_HINT[$("car-vtype").value] || "Nội dung khối minh họa (chọn kiểu khối trước)";
+  ["car-scene", "car-bullets", "car-items", "car-cards", "car-up", "car-down", "car-del", "car-vtype", "car-vtitle", "car-vlines"].forEach(id => $(id).disabled = !has);
   ["car-zip", "car-save", "car-post", "car-reel", "car-mp4"].forEach(id => $(id).disabled = !car.slides.length);
   carDrawSel();
 }
 function carSet(c) { car.caption = c ? c.caption : ""; car.slides = c ? c.slides.map(x => ({ ...x })) : []; car.sel = 0; $("car-caption").value = car.caption; carDrawThumbs(); carFill(); }
 function carReadFields() {
   const sl = car.slides[car.sel]; if (!sl) return;
-  const cards = $("car-cards").value.split(/\r?\n/).map(l => { const k = l.indexOf("|"); return k < 0 ? { title: l.trim(), text: "" } : { title: l.slice(0, k).trim(), text: l.slice(k + 1).trim() }; });
+  const cards = $("car-cards").value.split(/\r?\n/).map(l => { const p = l.split("|").map(t => t.trim()); return p.length >= 3 ? { icon: p[0], title: p[1], text: p.slice(2).join(" | ") } : { title: p[0] || "", text: p[1] || "" }; });
+  const visual = $("car-vtype").value ? { type: $("car-vtype").value, title: $("car-vtitle").value, lines: $("car-vlines").value.split(/\r?\n/) } : null;
   car.slides[car.sel] = normSlide({ eyebrow: $("car-eyebrow").value, headline: $("car-headline").value, sub: $("car-sub").value, tip: $("car-tip").value, description: $("car-desc").value,
-    scene: $("car-scene").value, bullets: $("car-bullets").value, items: $("car-items").value, cards });
+    scene: $("car-scene").value, bullets: $("car-bullets").value, items: $("car-items").value, cards, visual });
 }
 let carTimer = 0;
-["car-eyebrow", "car-headline", "car-sub", "car-tip", "car-desc", "car-bullets", "car-items", "car-cards", "car-scene"].forEach(id => {
-  $(id).addEventListener(id === "car-scene" ? "change" : "input", () => { carReadFields(); clearTimeout(carTimer); carTimer = setTimeout(carDrawSel, 120); });
+["car-eyebrow", "car-headline", "car-sub", "car-tip", "car-desc", "car-bullets", "car-items", "car-cards", "car-scene", "car-vtype", "car-vtitle", "car-vlines"].forEach(id => {
+  $(id).addEventListener(id === "car-scene" || id === "car-vtype" ? "change" : "input", () => { if (id === "car-vtype") $("car-vhint").textContent = VIS_HINT[$("car-vtype").value] || "Nội dung khối minh họa (chọn kiểu khối trước)"; carReadFields(); clearTimeout(carTimer); carTimer = setTimeout(carDrawSel, 120); });
 });
 $("car-caption").addEventListener("input", () => { car.caption = $("car-caption").value; });
 $("car-strip").addEventListener("click", (e) => { const b = e.target.closest("[data-car]"); if (!b) return; car.sel = +b.dataset.car; [...$("car-strip").children].forEach((x, i) => x.setAttribute("aria-selected", i === car.sel)); carFill(); });
