@@ -384,6 +384,11 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && url.pathname === "/") return send(res, 200, renderPage(), "text/html; charset=utf-8");
     if (req.method === "GET" && url.pathname === "/local-adapter.js") return send(res, 200, readFileSync(adapterPath), "text/javascript; charset=utf-8");
+    if (req.method === "GET" && /^\/fonts\/bvp-(latin|vietnamese)-[4-8]00\.woff2$/.test(url.pathname)) { // embedded in exported carousel images
+      const f = path.join(here, "public", url.pathname);
+      if (!existsSync(f)) return send(res, 404, { code: "not_found", message: "Không có file font." });
+      res.writeHead(200, { "content-type": "font/woff2", "cache-control": "public, max-age=604800" }); return res.end(readFileSync(f));
+    }
     if (req.method === "GET" && url.pathname === "/api/status") return send(res, 200, { hasKey, model: MODEL, voices: TTS_VOICES, defaultVoice: TTS_DEFAULT_VOICE, facebook: { configured: fbConfigured, pageName: FB_PAGE_NAME }, tts: await ttsStatus() });
 
     if (req.method === "POST" && url.pathname === "/api/facebook/publish") {

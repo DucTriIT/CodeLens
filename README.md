@@ -119,20 +119,29 @@ Ví dụ có sẵn: series **Outbox Pattern** gồm 3 phần: lỗi dual write, 
 
 ## Bộ ảnh (carousel) từ kịch bản
 
-Mỗi kịch bản có nút **Bộ ảnh (carousel)** trong trình soạn. Nút này dựng kịch bản thành một bộ ảnh tĩnh 1080×1350 để đăng dạng bài nhiều ảnh:
+Mỗi kịch bản có nút **Bộ ảnh (carousel)** trong trình soạn. Nút này làm một bài đăng ảnh nhiều trang, mỗi ảnh 1080×1350.
 
-- **Giao diện:** nền sáng, màu xanh theo logo, logo CodeLens ở góc trên bên trái, số trang ở góc trên bên phải, cụm quan trọng trong tiêu đề được tô nền xanh.
-- **Không có khuôn chung cho mọi ảnh.** AI chọn số ảnh (5–9) và cách trình bày theo việc mỗi ảnh cần làm: kể diễn biến thì dùng log hoặc các bước, đưa ví dụ thì dùng log, code hoặc bảng, liệt kê tính năng hay điều cần nhớ thì dùng lưới ô có icon, so sánh thì dùng hai cột, nhấn hậu quả thì dùng con số lớn. Chỉ cố định ảnh đầu là hook và ảnh cuối là "tới lượt bạn". Ô **Ghi chú cho AI** để nói bài nhằm làm gì (ví dụ "giới thiệu tính năng, liệt kê 5 lợi ích").
-- **Mỗi ảnh có một ví dụ đọc được**, không dùng lại sơ đồ icon và mũi tên của clip. Khối minh họa được dựng riêng cho ảnh, gồm các kiểu: cửa sổ log / terminal (dòng lỗi tô đỏ, dòng đúng tô xanh), đoạn code hoặc request, bảng dữ liệu có dòng tô nổi, các bước đánh số kèm lời giải thích, so sánh hai cột, con số lớn, và lưới ô có icon. Ảnh được phép nhiều chữ để đọc là hiểu; ảnh nào quá đầy thì nội dung tự co lại cho vừa khung.
-- Vẫn chèn được sơ đồ từ một cảnh của clip nếu muốn (ô "Sơ đồ từ một cảnh của clip").
-- **AI tạo bộ ảnh** viết chữ cho cả 7 ảnh, mô tả riêng của từng ảnh và caption của bài. **Tạo nhanh từ kịch bản** dựng bộ ảnh không cần AI.
-- Sửa được từng ảnh: nhãn, tiêu đề, câu dẫn, hình, gạch đầu dòng, lưới ô, thẻ câu, mẹo, mô tả. Thêm, xóa, đổi thứ tự ảnh (tối đa 10).
+**Caption nói, ảnh chứng minh.** Ảnh không chép lại caption thành chữ. Mỗi ảnh cho người xem *thấy* điều caption vừa nói:
+- **Bằng chứng, kết quả trực quan:** mô phỏng màn hình thật (điện thoại nhận hai tin trừ tiền, trang thanh toán đang quay, dashboard có hai dòng trùng, terminal, bảng dữ liệu), hoặc ảnh chụp màn hình thật bạn tải lên.
+- **Diễn giải thêm:** hình tự vẽ làm rõ cơ chế (dòng thời gian, hai cửa sổ đặt cạnh nhau, biểu đồ, request được chú thích).
+- **Liệt kê:** lưới thẻ có emoji khi nội dung là danh sách tính năng hay điều cần nhớ.
+
+**AI tự thiết kế từng ảnh bằng HTML.** Không có khuôn điền chữ: AI chọn số ảnh (5–9) và bố cục riêng cho mỗi ảnh, dùng một bộ class có sẵn (cửa sổ trình duyệt, điện thoại, thông báo, tin nhắn, dòng log, bảng, thẻ, nhãn) cùng style và SVG inline. App giữ phần khung cố định: nền sáng màu xanh theo logo, logo CodeLens góc trên trái, số trang góc trên phải. HTML của AI được lọc (bỏ script và mọi tài nguyên ngoài) rồi dựng thành ảnh ngay trong trình duyệt; nội dung quá đầy thì tự co lại cho vừa khung.
+
+Cách dùng:
+- **Bài này nhằm làm gì:** một dòng định hướng cho AI, ví dụ "giới thiệu tính năng, lấy 2 app mình đã làm làm ví dụ".
+- **Ảnh chụp màn hình thật:** tải lên tối đa 6 ảnh và ghi mỗi ảnh là gì. AI đặt chúng vào khung trình duyệt hoặc điện thoại làm bằng chứng. Không có ảnh thì AI tự nghĩ và dựng hình ví dụ.
+- **AI thiết kế bộ ảnh:** viết caption trước, rồi mỗi phần của caption ứng với đúng một ảnh, cùng thứ tự.
+- **Sửa ảnh này bằng lời:** chọn một ảnh rồi nhắn, ví dụ "bớt chữ, thêm màn hình điện thoại báo trừ tiền 2 lần". Chỉ ảnh đó được dựng lại.
+- Sửa được mô tả của từng ảnh (đăng kèm ảnh đó), caption, thứ tự ảnh, và cả HTML nếu muốn sửa tay.
+- **Tạo nhanh (không AI, chỉ chữ):** dựng bộ ảnh từ chữ của kịch bản, không có hình thiết kế.
 - **Tải bộ ảnh (.zip):** các file `01.jpg`… kèm `caption-va-mo-ta.txt`.
-- **Ảnh bám sát caption:** mỗi phần của caption ứng với đúng một ảnh, cùng thứ tự. Ảnh dùng lưới ô thì caption có một dòng dẫn và mỗi ô một dòng ✅.
-- **Tải clip ảnh cho Reels (.mp4):** ghép các ảnh thành một clip dọc 1080×1920 không có âm thanh, mỗi ảnh hiện 3–8 giây (mặc định 5).
-- **Đăng thẳng lên Fanpage** (bản chạy trên máy, khi đã cấu hình Fanpage), có hai nút và ô hẹn giờ 1–24 giờ:
-  - **Đăng bài ảnh:** một bài nhiều ảnh, caption là nội dung bài, mỗi ảnh mang mô tả riêng. Server tải từng ảnh lên `/{page}/photos` ở trạng thái chưa đăng rồi tạo một bài `/{page}/feed` gắn tất cả ảnh.
-  - **Đăng Reels:** Reels chỉ nhận video, nên app ghép các ảnh thành clip im lặng như trên, lưu clip vào Thư viện rồi đăng kèm caption. Bảy ảnh ở 5 giây mỗi ảnh là 35 giây, nằm trong giới hạn 90 giây của API.
+- **Tải clip ảnh cho Reels (.mp4):** ghép các ảnh thành clip dọc 1080×1920 không có âm thanh, mỗi ảnh 3–8 giây.
+- **Đăng thẳng lên Fanpage** (bản chạy trên máy, khi đã cấu hình Fanpage), có ô hẹn giờ 1–24 giờ:
+  - **Đăng bài ảnh:** một bài nhiều ảnh, caption là nội dung bài, mỗi ảnh mang mô tả riêng (`/{page}/photos` chưa đăng, rồi một bài `/{page}/feed` gắn tất cả ảnh).
+  - **Đăng Reels:** Reels chỉ nhận video, nên app ghép các ảnh thành clip im lặng, lưu vào Thư viện rồi đăng kèm caption.
+
+Font Be Vietnam Pro nằm sẵn trong `public/fonts` (giấy phép OFL) và được nhúng vào từng ảnh xuất ra, nên ảnh trông giống nhau trên mọi máy. Việc dựng ảnh cần Chrome hoặc Edge.
 
 ## Giọng đọc (thuyết minh)
 
