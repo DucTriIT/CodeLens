@@ -346,6 +346,7 @@ a.btn { text-decoration: none; color: inherit; }
   <div class="modal-box wide">
     <div class="panel-head"><h2 id="car-title">Bộ ảnh (carousel)</h2><button class="btn small ghost" id="car-close" aria-label="Đóng">Đóng</button></div>
     <p class="hint" id="car-name"></p>
+    <label class="f"><span>Ghi chú cho AI (không bắt buộc): bài này nhằm làm gì, muốn nhấn gì</span><input type="text" id="car-note" placeholder="Ví dụ: bài giới thiệu tính năng, liệt kê 5 lợi ích và đưa 2 ví dụ thật"></label>
     <div class="row"><button class="btn primary" id="car-ai">AI tạo bộ ảnh</button><button class="btn" id="car-quick">Tạo nhanh từ kịch bản</button><span class="hint" id="car-msg"></span></div>
     <div class="car-strip" id="car-strip" role="tablist" aria-label="Các ảnh"></div>
     <div class="car-grid">
@@ -1179,58 +1180,63 @@ function quickSlides(s) {
   const caption = [(plain(s.hook) || s.title) + " 👇", "", ...pick.map(x => `👉 ${plain(x.sc.subtitle) || plain(x.sc.heading)}`), "", "Hệ thống của bạn đã chặn lỗi này chưa? 👇", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
   return normCarousel({ caption, slides });
 }
-function carouselPrompt(sc) {
+function carouselPrompt(sc, note) {
   const scenes = sc.scenes.map((x, i) => ({ i, part: x.part, layout: x.layout, heading: x.heading, subtitle: x.subtitle, narration: x.narration, actors: x.actors.map(a => a.label).filter(Boolean) })).filter(x => x.layout !== "outro");
   return `${STYLE_RULES}
 
-Từ kịch bản clip dưới đây, hãy soạn MỘT BÀI ĐĂNG ẢNH nhiều trang (carousel) cho Facebook: đúng 7 ảnh và một caption. Mỗi ảnh được dựng tự động từ dữ liệu bạn trả về, nên chỉ viết chữ.
-Người xem lướt rất nhanh: mỗi ảnh MỘT ý, chữ ít, nói bằng LỢI ÍCH và HẬU QUẢ cụ thể chứ không nói bằng thuật ngữ suông. Bài phải thật sự cuốn: người xem thấy "chuyện này mình từng gặp".
+Từ kịch bản clip dưới đây, hãy soạn MỘT BÀI ĐĂNG ẢNH nhiều trang (carousel) cho Facebook: một caption và từ 5 đến 9 ảnh. Mỗi ảnh được dựng tự động từ dữ liệu bạn trả về, nên chỉ viết chữ.
+Người xem lướt rất nhanh. Bài phải thật sự cuốn: nói bằng LỢI ÍCH và HẬU QUẢ cụ thể, có ví dụ nhìn thấy được, để người xem nghĩ "chuyện này mình từng gặp" hoặc "cái này mình dùng được".${note ? `\nYêu cầu thêm của người dùng (ưu tiên làm theo): ${note}` : ""}
 
-CẤU TRÚC 7 ẢNH (theo đúng thứ tự):
-1. HOOK: hậu quả của case, có con số. "sub" là 1–2 câu kể tình huống. Khối minh họa cho thấy ngay thiệt hại.
-2. CHUYỆN GÌ XẢY RA: tái hiện case bằng một ví dụ đọc được (thường là log hoặc các bước), kèm gạch đầu dòng giải thích.
-3. SAI Ở ĐÂU: chỉ đúng bước hỏng trên ví dụ đó, kèm gạch đầu dòng giải thích vì sao.
-4. CÁCH CHỮA: gọi tên khái niệm, nói nó là gì trong một câu, và cho thấy nó trông ra sao (request có key, dòng dữ liệu, đoạn code).
-5. NÓ CHẠY THẾ NÀO: cơ chế áp vào chính case, thường là bảng dữ liệu hoặc so sánh trước và sau.
-6. CẦN NHỚ: lưới 4 ô ("cards") có icon, mỗi ô một bẫy, một giới hạn hoặc một điều kiện áp dụng, giải thích bằng câu trọn ý. Không có khối minh họa.
-7. TỚI LƯỢT BẠN: 3 thẻ ("items"), mỗi thẻ là một việc người xem tự kiểm tra được ngay trong hệ thống của mình, viết như một câu tự hỏi. "tip" là một mẹo ngắn. "sub" là câu hỏi mời bình luận. Không có khối minh họa.
-Với kịch bản dạng sự cố thật hoặc kiến trúc công ty thật, giữ đúng tinh thần đó: 2 là bối cảnh, 3 là diễn biến hoặc bài toán, 4 là nguyên nhân gốc hoặc thiết kế, 5 là bài học kỹ thuật.
+KHÔNG CÓ MỘT KHUÔN CHUNG CHO MỌI ẢNH. Với mỗi ảnh, hãy tự hỏi "ảnh này cần làm việc gì?" rồi chọn cách trình bày hợp với việc đó:
+- KỂ một chuyện đã xảy ra theo thời gian → khối "terminal" (log có giờ) hoặc "steps" (các bước có lời giải thích).
+- ĐƯA VÍ DỤ cụ thể để người xem thấy tận mắt → khối "terminal", "code" (request, câu lệnh, đoạn cấu hình) hoặc "table" (vài dòng dữ liệu).
+- LIỆT KÊ tính năng, lợi ích, điều cần nhớ, bẫy hay gặp → lưới ô "cards" có icon, mỗi ô một ý kèm 1–2 câu giải thích.
+- SO SÁNH hai cách làm, trước và sau, đúng và sai → khối "compare".
+- NHẤN một con số hay một hậu quả → khối "stat".
+- GIẢI THÍCH một cơ chế từng bước → khối "steps".
+- MỜI người xem làm thử hoặc tự kiểm tra → các thẻ câu "items", có thể kèm "tip".
+Một bài nên dùng ít nhất ba cách trình bày khác nhau, và không ép ý vào kiểu không hợp: nội dung là danh sách thì dùng lưới ô, nội dung là diễn biến thì dùng log hoặc các bước. Đừng minh họa bằng icon và mũi tên.
 
-MỖI ẢNH PHẢI CÓ MỘT VÍ DỤ ĐỌC ĐƯỢC. Đừng minh họa bằng icon và mũi tên: người xem cần nhìn thấy đúng thứ một dev thấy trên màn hình khi gặp case này (dòng log, request, bảng dữ liệu, đoạn code, các bước có lời giải thích). Chữ nhiều một chút cũng được, miễn đọc xong là HIỂU: viết câu trọn ý, giải thích vì sao, đừng viết cụt lủn.
+SỐ ẢNH VÀ THỨ TỰ do nội dung quyết định, chỉ có ba điều cố định:
+- Ảnh đầu là HOOK: hậu quả hoặc kết quả đáng chú ý nhất, có con số, đủ để người xem dừng lại.
+- Các ảnh giữa đi theo mạch tự nhiên của nội dung, mỗi ảnh MỘT ý. Kịch bản kể một sự cố thì đi theo diễn biến rồi tới nguyên nhân và cách chữa; kịch bản giới thiệu một công cụ hay kỹ thuật thì đi theo "nó là gì → ví dụ thật → nó làm được gì → khác gì cách cũ"; kịch bản so sánh thì đi theo từng tiêu chí.
+- Ảnh cuối là TỚI LƯỢT BẠN: vài việc người xem làm thử hoặc tự kiểm tra được ngay, và một câu hỏi mời bình luận.
+Ý nào kịch bản không có thì không làm ảnh cho ý đó; đừng thêm ảnh cho đủ số.
 
-MỖI ẢNH là một object:
-- "eyebrow": nhãn nhỏ phía trên, tối đa 5 từ (ví dụ "Chuyện gì xảy ra", "Cách chữa · Idempotency Key").
+Chữ nhiều một chút cũng được, miễn đọc xong là HIỂU: viết câu trọn ý, giải thích vì sao, đừng viết cụt lủn.
+
+MỖI ẢNH là một object (trường nào không dùng thì để rỗng):
+- "eyebrow": nhãn nhỏ phía trên nói ảnh này là gì, tối đa 5 từ (ví dụ "Chuyện gì xảy ra", "Ví dụ 1 · Trang thanh toán", "Khác gì cách cũ?").
 - "headline": tiêu đề lớn, tối đa 12 từ, viết thường như một câu nói (không viết hoa toàn bộ). Bao MỘT cụm 1–4 từ quan trọng nhất trong *dấu sao* để tô nền xanh.
 - "sub": 1–2 câu dẫn dưới tiêu đề, tối đa 40 từ, nói rõ ảnh này cho thấy điều gì.
-- "visual": khối minh họa của ảnh, BẮT BUỘC cho ảnh 1 đến 5, là object {"type", "title", "lines"} với tối đa 8 dòng. Chọn "type" hợp ý nhất và dùng đúng số liệu của case:
+- "visual": khối minh họa, object {"type", "title", "lines"} với tối đa 8 dòng, hoặc null nếu ảnh dùng lưới ô hay thẻ câu. Dùng đúng số liệu của case:
   • "terminal": cửa sổ log. "title" là tên file hay service (ví dụ "payment-api · log"). Mỗi dòng là một dòng log ngắn, có giờ, có giá trị cụ thể. Dòng mở đầu bằng "! " là dòng lỗi (tô đỏ), "+ " là dòng đúng (tô xanh), "# " là ghi chú giải thích.
-  • "code": đoạn code hoặc request ngắn (giả mã, HTTP, SQL), giữ thụt đầu dòng; "! " đánh dấu dòng sai, "+ " dòng sửa đúng, "# " ghi chú. Đây là minh họa cơ chế, không phải bài dạy cú pháp.
+  • "code": đoạn code, request hoặc câu lệnh ngắn (giả mã, HTTP, SQL), giữ thụt đầu dòng; "! " đánh dấu dòng sai, "+ " dòng sửa đúng, "# " ghi chú. Đây là minh họa cơ chế, không phải bài dạy cú pháp.
   • "table": bảng dữ liệu. Dòng đầu là tiêu đề cột, các cột cách nhau bằng " | " (tối đa 4 cột), tối đa 5 dòng dữ liệu. Mở đầu một dòng bằng "> " để tô nổi dòng cần chú ý.
-  • "steps": 3–4 bước theo thứ tự, mỗi dòng "Tiêu đề bước | một câu giải thích chuyện gì xảy ra và vì sao".
+  • "steps": 3–5 bước theo thứ tự, mỗi dòng "Tiêu đề bước | một câu giải thích chuyện gì xảy ra và vì sao".
   • "compare": so sánh hai cột. Dòng đầu "Tiêu đề trái | Tiêu đề phải" (trái là cách sai hoặc trước, phải là cách đúng hoặc sau), 2–4 dòng sau "ý bên trái | ý bên phải".
   • "stat": một con số lớn. Dòng 1 là con số (ví dụ "1.000.000đ"), dòng 2 là chú thích, 1–2 dòng sau là ghi chú.
-  Ảnh 1 nên dùng "stat" hoặc "terminal" để thấy ngay hậu quả. Các ảnh 2–5 dùng ít nhất ba kiểu khác nhau. Ví dụ trong "visual" phải khớp case (cùng số tiền, cùng tên service); mã đơn, mốc giờ, key minh họa thì tự đặt cho hợp lý.
-- "bullets": 2–4 gạch đầu dòng GIẢI THÍCH khối minh họa, mỗi dòng tối đa 28 từ, mở bằng một cụm *in đậm* trong dấu sao rồi tới phần giải thích vì sao.
-- "cards": chỉ dùng ở ảnh 6: 4 object {"icon", "title": tối đa 5 từ, "text": 1–2 câu, tối đa 28 từ}. "icon" chọn trong: ${ICON_NAMES.join(", ")}.
-- "items": chỉ dùng ở ảnh 7: 3 câu, mỗi câu tối đa 22 từ.
-- "tip": chỉ dùng ở ảnh 7, tối đa 28 từ.
+  Ví dụ trong "visual" phải khớp case (cùng số tiền, cùng tên service); mã đơn, mốc giờ, key minh họa thì tự đặt cho hợp lý.
+- "bullets": 0–4 gạch đầu dòng GIẢI THÍCH khối minh họa, mỗi dòng tối đa 28 từ, mở bằng một cụm *in đậm* trong dấu sao rồi tới phần giải thích vì sao.
+- "cards": lưới 3–6 ô, mỗi ô {"icon", "title": tối đa 5 từ, "text": 1–2 câu, tối đa 28 từ}. "icon" chọn trong: ${ICON_NAMES.join(", ")}.
+- "items": 2–4 thẻ câu, mỗi câu tối đa 22 từ, viết như lời người xem tự hỏi hoặc tự nhắn.
+- "tip": một mẹo ngắn cuối ảnh, tối đa 28 từ.
 - "scene": luôn để -1.
 - "description": mô tả đăng kèm riêng ảnh này, 1–2 câu trọn ý (tối đa 220 ký tự), người chỉ xem một ảnh vẫn hiểu.
 
-"caption" là nội dung bài đăng. ẢNH PHẢI BÁM SÁT CAPTION: viết caption trước, rồi mỗi phần của caption ứng với ĐÚNG MỘT ảnh, cùng thứ tự, cùng ý, cùng từ khóa. Người đọc caption rồi vuốt ảnh phải thấy ảnh nào cũng là một dòng của caption được mở rộng ra. Cấu trúc caption:
-- Dòng 1 (ứng với ảnh 1): hook, hậu quả có con số, kết bằng 👇.
-- Bốn dòng tiếp theo, mỗi dòng mở bằng "👉 " (ứng với ảnh 2, 3, 4, 5 theo đúng thứ tự): mỗi dòng nói đúng ý chính của ảnh đó trong một câu. Dòng của ảnh 4 phải gọi tên khái niệm.
-- Một dòng "Cần nhớ:" rồi đúng 4 dòng mở bằng "✅ " (ứng với 4 ô của ảnh 6, đúng thứ tự, mỗi dòng là tiêu đề ô viết thành câu ngắn).
-- Một câu hỏi mời bình luận (chính là câu "sub" của ảnh 7), kết bằng 👇.
+"caption" là nội dung bài đăng. ẢNH PHẢI BÁM SÁT CAPTION: viết caption trước, rồi mỗi phần của caption ứng với ĐÚNG MỘT ảnh, cùng thứ tự, cùng ý, cùng từ khóa. Người đọc caption rồi vuốt ảnh phải thấy ảnh nào cũng là một phần của caption được mở rộng ra. Cách viết caption:
+- Dòng 1 (ứng với ảnh đầu): hook, kết bằng 👇.
+- Mỗi ảnh giữa ứng với một dòng: ảnh kể chuyện, đưa ví dụ, so sánh hay giải thích thì là một dòng mở bằng "👉 " hoặc một emoji hợp nội dung; ảnh dùng lưới ô thì là một dòng dẫn rồi mỗi ô một dòng mở bằng "✅ ", đúng thứ tự các ô.
+- Câu hỏi mời bình luận của ảnh cuối, kết bằng 👇.
 - Dòng cuối 4–6 hashtag gọn, có #CodeLens.
-Dưới 1.000 ký tự. Không dùng markdown (**, __, gạch đầu dòng "-"). "headline" của mỗi ảnh diễn đạt lại đúng dòng caption tương ứng (ngắn hơn, có cụm tô nền); "description" của ảnh là dòng caption đó viết đầy đủ hơn.
+Dưới 1.100 ký tự. Không dùng markdown (**, __, gạch đầu dòng "-"). "headline" của mỗi ảnh diễn đạt lại đúng phần caption tương ứng (ngắn hơn, có cụm tô nền); "description" của ảnh là phần caption đó viết đầy đủ hơn.
 
 Quy tắc: mọi thông tin phải có trong kịch bản, không thêm số liệu hay tên công ty; giữ thuật ngữ tiếng Anh chuẩn; tiếng Việt tự nhiên; không bịa trải nghiệm cá nhân.
 
 Kịch bản:
 ${JSON.stringify({ title: sc.title, category: sc.category, format: sc.format, hook: sc.hook, case: sc.metaphor, concept: sc.concept, scenes })}
 
-Chỉ trả về JSON: {"caption": "...", "slides": [7 object như mô tả]}`;
+Chỉ trả về JSON: {"caption": "...", "slides": [các object như mô tả]}`;
 }
 function drawScene(c, s, sc, tl, t) {
   if (sc.layout === "outro") { drawOutro(c, s, sc, tl, t); return; }
@@ -2744,7 +2750,7 @@ $("car-quick").addEventListener("click", () => { carSet(quickSlides(car.script))
 $("car-ai").addEventListener("click", async () => {
   if (!cap.sample) return; const b = $("car-ai"); b.disabled = true; $("car-msg").innerHTML = '<span class="spin"></span> Claude đang soạn bộ ảnh…';
   try {
-    const r = await cap.sample.json(carouselPrompt(car.script), aiOpts("write", "complex"));
+    const r = await cap.sample.json(carouselPrompt(car.script, $("car-note").value.trim().slice(0, 400)), aiOpts("write", "complex"));
     const c = normCarousel(r); if (!c) throw { code: "invalid_json" };
     carSet(c); $("car-msg").textContent = `Đã soạn ${c.slides.length} ảnh. Xem từng ảnh, sửa chữ nếu cần rồi bấm Lưu.`;
   } catch (err) { $("car-msg").textContent = aiError(err); }
