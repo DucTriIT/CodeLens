@@ -127,7 +127,11 @@ Mỗi kịch bản có nút **Bộ ảnh (carousel)** trong trình soạn. Nút 
 - **AI tạo bộ ảnh** viết chữ cho cả 7 ảnh, mô tả riêng của từng ảnh và caption của bài. **Tạo nhanh từ kịch bản** dựng bộ ảnh không cần AI.
 - Sửa được từng ảnh: nhãn, tiêu đề, câu dẫn, hình, gạch đầu dòng, lưới ô, thẻ câu, mẹo, mô tả. Thêm, xóa, đổi thứ tự ảnh (tối đa 10).
 - **Tải bộ ảnh (.zip):** các file `01.jpg`… kèm `caption-va-mo-ta.txt`.
-- **Đăng bài ảnh** (bản chạy trên máy, khi đã cấu hình Fanpage): một bài nhiều ảnh, caption là nội dung bài, mỗi ảnh mang mô tả riêng. Hẹn giờ được từ 1 đến 24 giờ. Server tải từng ảnh lên `/{page}/photos` ở trạng thái chưa đăng rồi tạo một bài `/{page}/feed` gắn tất cả ảnh.
+- **Ảnh bám sát caption:** mỗi phần của caption ứng với đúng một ảnh, cùng thứ tự: dòng hook là ảnh 1, bốn dòng 👉 là ảnh 2–5, bốn dòng ✅ là bốn ô của ảnh 6, câu hỏi cuối là ảnh 7.
+- **Tải clip ảnh cho Reels (.mp4):** ghép các ảnh thành một clip dọc 1080×1920 không có âm thanh, mỗi ảnh hiện 3–8 giây (mặc định 5).
+- **Đăng thẳng lên Fanpage** (bản chạy trên máy, khi đã cấu hình Fanpage), có hai nút và ô hẹn giờ 1–24 giờ:
+  - **Đăng bài ảnh:** một bài nhiều ảnh, caption là nội dung bài, mỗi ảnh mang mô tả riêng. Server tải từng ảnh lên `/{page}/photos` ở trạng thái chưa đăng rồi tạo một bài `/{page}/feed` gắn tất cả ảnh.
+  - **Đăng Reels:** Reels chỉ nhận video, nên app ghép các ảnh thành clip im lặng như trên, lưu clip vào Thư viện rồi đăng kèm caption. Bảy ảnh ở 5 giây mỗi ảnh là 35 giây, nằm trong giới hạn 90 giây của API.
 
 ## Giọng đọc (thuyết minh)
 

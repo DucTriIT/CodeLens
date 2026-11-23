@@ -364,12 +364,13 @@ a.btn { text-decoration: none; color: inherit; }
       </div>
     </div>
     <label class="f"><span>Caption của bài đăng</span><textarea id="car-caption" rows="7"></textarea></label>
-    <div class="row"><button class="btn" id="car-save">Lưu bộ ảnh</button><button class="btn" id="car-zip">Tải bộ ảnh (.zip)</button><span class="hint" id="car-save-msg"></span></div>
+    <div class="row"><button class="btn" id="car-save">Lưu bộ ảnh</button><button class="btn" id="car-zip">Tải bộ ảnh (.zip)</button><button class="btn" id="car-mp4">Tải clip ảnh cho Reels (.mp4)</button><label class="hint" style="display:inline-flex;gap:6px;align-items:center">Mỗi ảnh <select id="car-secs" style="width:auto"></select> giây</label><span class="hint" id="car-save-msg"></span></div>
     <div class="fb-opt" id="car-fb" hidden>
-      <b>Đăng bài ảnh lên Fanpage</b>
-      <span class="hint">Một bài nhiều ảnh: caption ở trên là nội dung bài, mỗi ảnh mang mô tả riêng của nó.</span>
+      <b>Đăng thẳng lên Fanpage</b>
+      <span class="hint"><b>Đăng bài ảnh:</b> một bài nhiều ảnh, caption ở trên là nội dung bài, mỗi ảnh mang mô tả riêng. <b>Đăng Reels:</b> các ảnh được ghép thành một clip dọc không có âm thanh (Reels chỉ nhận video), đăng kèm caption.</span>
       <label class="chk" style="display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap"><input type="checkbox" id="car-sched"> Hẹn giờ đăng sau <select id="car-sched-h" style="width:auto"></select> giờ <span class="hint" id="car-sched-at"></span></label>
-      <div class="row"><button class="btn primary" id="car-post">Đăng bài ảnh</button><span class="hint" id="car-post-msg"></span></div>
+      <div class="row"><button class="btn primary" id="car-post">Đăng bài ảnh</button><button class="btn" id="car-reel">Đăng Reels</button></div>
+      <span class="hint" id="car-post-msg"></span>
     </div>
   </div>
 </div>
@@ -914,14 +915,16 @@ function sceneShot(s, idx) {
   if (x2 >= x1 && yb >= ya) { const pad = 40; const l = Math.max(0, x1 * k - pad), t = Math.max(y0, ya * k - pad); out = { cv, x: l, y: t, w: Math.min(W, x2 * k + k + pad) - l, h: Math.min(1560, yb * k + k + pad) - t }; }
   if (shotCache.size > 80) shotCache.clear(); shotCache.set(key, out); return out;
 }
-function drawSlide(c, s, sl, i, n) {
-  const X = 60, MW = CW - 120; const F = (w, px) => `${w} ${px}px ${FONT}`;
-  // background: light, tinted with the logo blue
-  c.fillStyle = CAR.bg; c.fillRect(0, 0, CW, CH);
-  const rg = c.createRadialGradient(CW - 80, 60, 0, CW - 80, 60, 760); rg.addColorStop(0, "rgba(77,184,255,0.30)"); rg.addColorStop(1, "rgba(77,184,255,0)");
-  c.fillStyle = rg; c.fillRect(0, 0, CW, CH);
+function slideBg(c, w, h) { // light, tinted with the logo blue
+  c.fillStyle = CAR.bg; c.fillRect(0, 0, w, h);
+  const rg = c.createRadialGradient(w - 80, 60, 0, w - 80, 60, 760); rg.addColorStop(0, "rgba(77,184,255,0.30)"); rg.addColorStop(1, "rgba(77,184,255,0)");
+  c.fillStyle = rg; c.fillRect(0, 0, w, h);
   c.strokeStyle = "rgba(14,111,208,0.055)"; c.lineWidth = 2; c.beginPath();
-  for (let x = 0; x <= CW; x += 90) { c.moveTo(x, 0); c.lineTo(x, CH); } for (let y = 0; y <= CH; y += 90) { c.moveTo(0, y); c.lineTo(CW, y); } c.stroke();
+  for (let x = 0; x <= w; x += 90) { c.moveTo(x, 0); c.lineTo(x, h); } for (let y = 0; y <= h; y += 90) { c.moveTo(0, y); c.lineTo(w, y); } c.stroke();
+}
+function drawSlide(c, s, sl, i, n, noBg) {
+  const X = 60, MW = CW - 120; const F = (w, px) => `${w} ${px}px ${FONT}`;
+  if (!noBg) slideBg(c, CW, CH);
   // watermark: the CodeLens logo on a dark chip, top left
   c.save();
   if (logoState.img) {
@@ -1008,6 +1011,48 @@ function slideCanvas(s, sl, i, n, scale = 1) {
   const cv = document.createElement("canvas"); cv.width = Math.round(CW * scale); cv.height = Math.round(CH * scale);
   const c = cv.getContext("2d"); c.scale(scale, scale); drawSlide(c, s, sl, i, n); return cv;
 }
+// The image set as a silent vertical clip (Reels only take video): each image holds for `secs`,
+// with a short slide between images. A silent audio track is added so every player accepts the file.
+async function carouselVideo(s, slides, secs, onProgress = () => {}) {
+  const plan = await pickEncoder();
+  if (plan.fallback || !plan.video) throw new Error("Trình duyệt này không xuất được MP4. Dùng Chrome hoặc Edge bản mới.");
+  await ensureFonts();
+  const n = slides.length; const TR = 0.4; const total = n * secs; const nFrames = Math.ceil(total * FPS); const top = 270; // (1920 - 1350) / 2, on the 90px grid
+  const frames = slides.map((sl, i) => { const cv = new OffscreenCanvas(CW, CH); drawSlide(cv.getContext("2d"), s, sl, i, n, true); return cv; });
+  const target = new Mp4Muxer.ArrayBufferTarget();
+  const muxOpts = { target, video: { codec: plan.video.mux, width: W, height: H, frameRate: FPS }, fastStart: "in-memory", firstTimestampBehavior: "offset" };
+  if (plan.audio) muxOpts.audio = { codec: plan.audio.mux, numberOfChannels: 2, sampleRate: 48000 };
+  const muxer = new Mp4Muxer.Muxer(muxOpts); let encErr = null;
+  const venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: (e) => { encErr = e; } });
+  venc.configure({ ...plan.video.cfg, bitrate: 2_500_000 });
+  const canvas = new OffscreenCanvas(W, H); const c = canvas.getContext("2d");
+  for (let f = 0; f < nFrames; f++) {
+    if (encErr) throw encErr;
+    const t = f / FPS; const i = Math.min(n - 1, Math.floor(t / secs)); const tl = t - i * secs;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; slideBg(c, W, H);
+    const k = i > 0 && tl < TR ? easeInOut(tl / TR) : 1; // the new image slides in over the previous one
+    if (k < 1) { c.globalAlpha = 1 - k; c.drawImage(frames[i - 1], -k * 160, top); }
+    c.globalAlpha = k; c.drawImage(frames[i], (1 - k) * 160, top); c.globalAlpha = 1;
+    const vf = new VideoFrame(canvas, { timestamp: Math.round((f * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    venc.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
+    while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+    if (f % 10 === 0) { onProgress(f / nFrames); await nextTick(); }
+  }
+  await venc.flush(); venc.close(); if (encErr) throw encErr;
+  if (plan.audio) {
+    const aenc = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: (e) => { encErr = e; } });
+    aenc.configure(plan.audio.cfg); const block = 4800; const usable = Math.ceil(total * 48000);
+    for (let off = 0; off < usable; off += block) {
+      const m = Math.min(block, usable - off);
+      const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: m, numberOfChannels: 2, timestamp: Math.round((off / 48000) * 1e6), data: new Float32Array(m * 2) });
+      aenc.encode(ad); ad.close();
+      if (aenc.encodeQueueSize > 20) await new Promise(r => setTimeout(r, 2));
+    }
+    await aenc.flush(); aenc.close(); if (encErr) throw encErr;
+  }
+  muxer.finalize();
+  return { blob: new Blob([target.buffer], { type: "video/mp4" }), duration: total };
+}
 const canvasBlob = (cv, type = "image/jpeg", q = 0.92) => new Promise(res => cv.toBlob(res, type, q));
 // A usable set without the AI: the hook, up to five key scenes, and a closing card.
 function quickSlides(s) {
@@ -1019,7 +1064,8 @@ function quickSlides(s) {
   pick.forEach(x => slides.push({ eyebrow: PARTS[x.sc.part] || "", headline: x.sc.heading, scene: x.i, bullets: [x.sc.subtitle].filter(Boolean), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
   slides.push({ eyebrow: "Tới lượt bạn", headline: "Hệ thống của bạn *đã chặn* lỗi này chưa?", sub: s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}.` : "", scene: -1, tip: "Bình luận cách team bạn đang xử lý nhé.", description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
   const tags = ["#CodeLens", ...(HASHTAGS[s.category] || []), "#developer"];
-  const caption = [plain(s.hook) || s.title, "", s.concept ? `Cách chữa: ${plain(s.concept)}.` : "", "", ...pick.slice(0, 4).map(x => `👉 ${plain(x.sc.subtitle)}`).filter(l => l.length > 3), "", "Bạn đã gặp tình huống này chưa?", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
+  // one caption line per image, in the same order
+  const caption = [(plain(s.hook) || s.title) + " 👇", "", ...pick.map(x => `👉 ${plain(x.sc.subtitle) || plain(x.sc.heading)}`), "", "Hệ thống của bạn đã chặn lỗi này chưa? 👇", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
   return normCarousel({ caption, slides });
 }
 function carouselPrompt(sc) {
@@ -1050,7 +1096,13 @@ MỖI ẢNH là một object:
 - "tip": chỉ dùng ở ảnh 7, tối đa 25 từ.
 - "description": mô tả đăng kèm riêng ảnh này, 1–2 câu trọn ý (tối đa 220 ký tự), người chỉ xem một ảnh vẫn hiểu.
 
-"caption" là nội dung bài đăng, đi ĐÚNG THỨ TỰ các ảnh: dòng đầu là hook (hậu quả, có con số) kết bằng 👇; một câu gọi tên khái niệm là lời giải; 3–4 dòng mở bằng "👉 " tóm các ảnh giữa; câu hỏi mời bình luận của ảnh 7; dòng cuối 4–6 hashtag gọn có #CodeLens. Dưới 900 ký tự. Không dùng markdown (**, __, gạch đầu dòng "-").
+"caption" là nội dung bài đăng. ẢNH PHẢI BÁM SÁT CAPTION: viết caption trước, rồi mỗi phần của caption ứng với ĐÚNG MỘT ảnh, cùng thứ tự, cùng ý, cùng từ khóa. Người đọc caption rồi vuốt ảnh phải thấy ảnh nào cũng là một dòng của caption được mở rộng ra. Cấu trúc caption:
+- Dòng 1 (ứng với ảnh 1): hook, hậu quả có con số, kết bằng 👇.
+- Bốn dòng tiếp theo, mỗi dòng mở bằng "👉 " (ứng với ảnh 2, 3, 4, 5 theo đúng thứ tự): mỗi dòng nói đúng ý chính của ảnh đó trong một câu. Dòng của ảnh 4 phải gọi tên khái niệm.
+- Một dòng "Cần nhớ:" rồi đúng 4 dòng mở bằng "✅ " (ứng với 4 ô của ảnh 6, đúng thứ tự, mỗi dòng là tiêu đề ô viết thành câu ngắn).
+- Một câu hỏi mời bình luận (chính là câu "sub" của ảnh 7), kết bằng 👇.
+- Dòng cuối 4–6 hashtag gọn, có #CodeLens.
+Dưới 1.000 ký tự. Không dùng markdown (**, __, gạch đầu dòng "-"). "headline" của mỗi ảnh diễn đạt lại đúng dòng caption tương ứng (ngắn hơn, có cụm tô nền); "description" của ảnh là dòng caption đó viết đầy đủ hơn.
 
 Quy tắc: mọi thông tin phải có trong kịch bản, không thêm số liệu hay tên công ty; giữ thuật ngữ tiếng Anh chuẩn; tiếng Việt tự nhiên; không bịa trải nghiệm cá nhân.
 
@@ -2530,7 +2582,7 @@ function carFill() {
   $("car-bullets").value = has ? sl.bullets.join("\n") : ""; $("car-items").value = has ? sl.items.join("\n") : "";
   $("car-cards").value = has ? sl.cards.map(cd => `${cd.title} | ${cd.text}`).join("\n") : "";
   ["car-scene", "car-bullets", "car-items", "car-cards", "car-up", "car-down", "car-del"].forEach(id => $(id).disabled = !has);
-  ["car-zip", "car-save", "car-post"].forEach(id => $(id).disabled = !car.slides.length);
+  ["car-zip", "car-save", "car-post", "car-reel", "car-mp4"].forEach(id => $(id).disabled = !car.slides.length);
   carDrawSel();
 }
 function carSet(c) { car.caption = c ? c.caption : ""; car.slides = c ? c.slides.map(x => ({ ...x })) : []; car.sel = 0; $("car-caption").value = car.caption; carDrawThumbs(); carFill(); }
@@ -2597,14 +2649,43 @@ $("car-zip").addEventListener("click", async () => {
   b.disabled = false;
 });
 const carSchedHours = () => $("car-sched").checked ? clamp(Math.round(+$("car-sched-h").value) || 1, 1, 24) : 0;
-function carSyncSched() { const h = carSchedHours(); $("car-sched-h").disabled = !$("car-sched").checked; $("car-sched-at").textContent = h ? `(khoảng ${fmtWhen(new Date(Date.now() + h * 3600e3))})` : ""; $("car-post").textContent = h ? "Hẹn đăng bài ảnh" : "Đăng bài ảnh"; }
+function carSyncSched() { const h = carSchedHours(); $("car-sched-h").disabled = !$("car-sched").checked; $("car-sched-at").textContent = h ? `(khoảng ${fmtWhen(new Date(Date.now() + h * 3600e3))})` : ""; $("car-post").textContent = h ? "Hẹn đăng bài ảnh" : "Đăng bài ảnh"; $("car-reel").textContent = h ? "Hẹn đăng Reels" : "Đăng Reels"; }
 $("car-sched-h").innerHTML = Array.from({ length: 24 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
 $("car-sched").addEventListener("change", carSyncSched); $("car-sched-h").addEventListener("change", carSyncSched);
+$("car-secs").innerHTML = [3, 4, 5, 6, 7, 8].map(v => `<option value="${v}"${v === 5 ? " selected" : ""}>${v}</option>`).join("");
+const carSecs = () => clamp(Math.round(+$("car-secs").value) || 5, 3, 8);
+$("car-mp4").addEventListener("click", async () => {
+  carReadFields(); const b = $("car-mp4"); const msg = $("car-save-msg"); b.disabled = true;
+  try {
+    const r = await carouselVideo(car.script, car.slides, carSecs(), (p) => { msg.textContent = `Đang ghép clip… ${Math.round(p * 100)}%`; });
+    saveFile(`${slug(car.script.title)}-bo-anh.mp4`, r.blob); msg.textContent = `Đã tải clip ${r.duration} giây, không có âm thanh.`;
+  } catch (e) { msg.textContent = "Không ghép được clip: " + ((e && e.message) || e); }
+  b.disabled = false;
+});
+// Reels from the image set: build the silent clip, keep it in the library, then post it like any clip.
+$("car-reel").addEventListener("click", async () => {
+  const b = $("car-reel"); const msg = $("car-post-msg"); const hours = carSchedHours(); const label = hours ? "Hẹn đăng Reels" : "Đăng Reels";
+  if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = hours ? `Bấm lần nữa để hẹn đăng sau ${hours} giờ` : "Bấm lần nữa để đăng công khai"; setTimeout(() => { if (b.dataset.confirm === "1") { b.dataset.confirm = ""; b.textContent = label; } }, 4000); return; }
+  b.dataset.confirm = ""; b.textContent = label; b.disabled = $("car-post").disabled = true;
+  try {
+    await carSave();
+    const r = await carouselVideo(car.script, car.slides, carSecs(), (p) => { msg.textContent = `Đang ghép các ảnh thành clip… ${Math.round(p * 100)}%`; });
+    msg.innerHTML = '<span class="spin"></span> Đang tải clip lên Facebook…';
+    const up = await cap.assets.upload(r.blob, { type: "video/mp4" });
+    const title = `${car.script.title} (bộ ảnh)`;
+    try { await cap.db.doc("clips/" + uid()).set({ scriptId: car.id, title, category: car.script.category, assetId: up.id, filename: slug(title) + ".mp4", mime: "video/mp4", sizeBytes: r.blob.size, durationSec: r.duration, renderedAt: new Date().toISOString(), voiced: false, cues: [] }); } catch (e) {}
+    const res = await fetch("/api/facebook/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "reel", assetId: up.id, caption: car.caption, title: car.script.title, scheduleHours: hours }) });
+    const j = await res.json().catch(() => ({})); if (!res.ok) throw new Error(j.message || `Lỗi ${res.status}`);
+    msg.innerHTML = j.scheduledAt ? `Đã hẹn đăng Reels (${car.slides.length} ảnh, ${r.duration} giây) lúc <b>${esc(fmtWhen(new Date(j.scheduledAt)))}</b>. Xem hoặc hủy trong Meta Business Suite.`
+      : `Đã đăng Reels (${car.slides.length} ảnh, ${r.duration} giây). <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem trên Facebook</a>.`;
+  } catch (err) { msg.textContent = "Không đăng được: " + ((err && err.message) || err); }
+  b.disabled = $("car-post").disabled = false;
+});
 const blobB64 = (blob) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
 $("car-post").addEventListener("click", async () => {
   const b = $("car-post"); const msg = $("car-post-msg"); const hours = carSchedHours(); const label = hours ? "Hẹn đăng bài ảnh" : "Đăng bài ảnh";
   if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = hours ? `Bấm lần nữa để hẹn đăng sau ${hours} giờ` : "Bấm lần nữa để đăng công khai"; setTimeout(() => { if (b.dataset.confirm === "1") { b.dataset.confirm = ""; b.textContent = label; } }, 4000); return; }
-  b.dataset.confirm = ""; b.textContent = label; b.disabled = true; msg.innerHTML = '<span class="spin"></span> Đang dựng và tải ảnh lên Facebook…';
+  b.dataset.confirm = ""; b.textContent = label; b.disabled = $("car-reel").disabled = true; msg.innerHTML = '<span class="spin"></span> Đang dựng và tải ảnh lên Facebook…';
   try {
     await carSave(); const blobs = await carImages(); const photos = [];
     for (let i = 0; i < blobs.length; i++) photos.push({ data: await blobB64(blobs[i]), description: car.slides[i].description });
@@ -2613,7 +2694,7 @@ $("car-post").addEventListener("click", async () => {
     msg.innerHTML = j.scheduledAt ? `Đã hẹn đăng bài ${photos.length} ảnh lúc <b>${esc(fmtWhen(new Date(j.scheduledAt)))}</b>. Xem hoặc hủy trong Meta Business Suite.`
       : `Đã đăng bài ${photos.length} ảnh. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem trên Facebook</a>.`;
   } catch (err) { msg.textContent = "Không đăng được: " + err.message; }
-  b.disabled = false;
+  b.disabled = $("car-reel").disabled = false;
 });
 
 /* ================= library ================= */
@@ -2924,6 +3005,6 @@ fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelP
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { drawSlide, quickSlides, normCarousel, slideCanvas, carouselPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
+window.__codelens = { carouselVideo, drawSlide, quickSlides, normCarousel, slideCanvas, carouselPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
 })();
 </script>
