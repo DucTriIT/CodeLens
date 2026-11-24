@@ -1,0 +1,51 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "topic": "Chuỗi sự cố công nghệ 12–17/11/2026",
+   "title": "6 ngày sập hàng loạt: không phải hacker",
+   "category": "DevOps",
+   "format": "incident",
+   "hook": "6 ngày, Microsoft, AWS, Apple lần lượt gặp sự cố. Hacker à?",
+   "metaphor": "Tuần 12–17/11/2026: Microsoft 365, AWS, Apple gặp sự cố, FAA dừng bay toàn nước Mỹ",
+   "concept": "Rollout từng phần và rollback",
+   "status": "draft",
+   "createdBy": "user",
+   "scenes": [
+    {
+     "part": "intro", "layout": "title", "duration": 2.5,
+     "heading": "6 NGÀY *SẬP HÀNG LOẠT*",
+     "subtitle": "Microsoft, AWS, Apple... và cả nước Mỹ *dừng bay*",
+     "narration": "Chỉ trong sáu ngày: Microsoft, AWS, Apple lần lượt gặp sự cố, cả nước Mỹ phải dừng bay. Hacker à?",
+     "actors": [{"icon": "cloud", "label": "", "side": ""}, {"icon": "warning", "label": "", "side": ""}, {"icon": "globe", "label": "", "side": ""}],
+     "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "grid", "duration": 2.5,
+     "heading": "KHÔNG PHẢI *HACKER*",
+     "subtitle": "Thủ phạm là *thay đổi nội bộ*",
+     "narration": "Không. Không bên nào nói mình bị tấn công. Microsoft: lỗi ẩn trong một bản vá. Apple: một bản update nội bộ.",
+     "actors": [{"icon": "shield", "label": "Bị tấn công?", "side": ""}, {"icon": "bug", "label": "Bản vá lỗi", "side": ""}, {"icon": "package", "label": "Update nội bộ", "side": ""}],
+     "links": [], "focus": -1, "mark": {"index": 0, "type": "cross"}, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "flow", "duration": 2.5,
+     "heading": "ROLLOUT *TỪNG PHẦN*",
+     "subtitle": "Thả 1% trước, lỗi thì *rollback* ngay",
+     "narration": "Thứ dễ làm sập hệ thống nhất là thay đổi của chính bạn. Hãy rollout từng phần, và luôn có nút rollback.",
+     "actors": [{"icon": "code", "label": "Bản mới", "side": ""}, {"icon": "server", "label": "1% máy", "side": ""}, {"icon": "cloud", "label": "Toàn hệ thống", "side": ""}],
+     "links": [{"from": 0, "to": 1, "label": "thử trước"}, {"from": 1, "to": 2, "label": "ổn mới mở"}],
+     "focus": 1, "mark": {"index": 1, "type": "check"}, "left": "", "right": ""
+    },
+    {
+     "part": "outro", "layout": "outro", "duration": 2.5,
+     "heading": "TEAM BẠN *ROLLBACK* MẤT BAO LÂU?",
+     "subtitle": "Bình luận bên dưới và *follow CodeLens*",
+     "narration": "Team bạn rollback mất bao lâu? Bình luận nhé.",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    }
+   ]
+  }
+ ]
+}
