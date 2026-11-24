@@ -307,6 +307,7 @@ a.btn { text-decoration: none; color: inherit; }
       <label class="f"><span>Gợi ý chủ đề, caption Facebook</span><select id="m-light"></select></label>
       <label class="f"><span>Viết kịch bản và lời thuyết minh</span><select id="m-write"></select></label>
       <label class="f"><span>Kiểm tra kỹ thuật</span><select id="m-review"></select></label>
+      <label class="f"><span>Thiết kế bộ ảnh (carousel)</span><select id="m-image"></select></label>
       <div class="row"><button class="btn small" id="m-preset">Dùng gợi ý tiết kiệm</button><span class="hint" id="m-msg"></span></div>
     </div>
     <div class="panel">
@@ -353,7 +354,7 @@ a.btn { text-decoration: none; color: inherit; }
       <div id="car-shots" class="car-fields"></div>
       <div class="row"><label class="btn small" for="car-shot-file" style="cursor:pointer">Thêm ảnh chụp màn hình</label><input type="file" id="car-shot-file" accept="image/png,image/jpeg,image/webp" multiple hidden><span class="hint" id="car-shot-msg"></span></div>
     </div>
-    <div class="row"><button class="btn primary" id="car-ai">AI thiết kế bộ ảnh</button><button class="btn" id="car-quick">Tạo nhanh (không AI, chỉ chữ)</button><span class="hint" id="car-msg"></span></div>
+    <div class="row"><button class="btn primary" id="car-ai">AI thiết kế bộ ảnh</button><button class="btn" id="car-quick">Tạo nhanh (không AI)</button><label class="hint" style="display:inline-flex;gap:6px;align-items:center">Model tạo ảnh <select id="car-model" style="width:auto"></select></label><span class="hint" id="car-msg"></span></div>
     <div class="car-strip" id="car-strip" role="tablist" aria-label="Các ảnh"></div>
     <div class="car-grid">
       <canvas id="car-prev" width="540" height="675" aria-label="Xem trước ảnh đang chọn"></canvas>
@@ -918,6 +919,22 @@ table.t tr.hi td{background:rgba(77,184,255,.30);font-weight:800}table.t tr.bad 
 .num{width:56px;height:56px;border-radius:50%;background:#0E6FD0;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;font-size:30px}
 .quote{background:#fff;border:2.5px solid #C6DBF5;border-radius:24px;padding:26px 30px;font-weight:600;font-size:36px}
 .hr{height:2px;background:#D9E6F7}
+.fit{position:relative}
+.sw-dots{position:absolute;right:0;top:4px;width:180px;height:120px;background:radial-gradient(circle,#BFDDF9 5px,transparent 6px) 0 0/30px 30px}
+.sw-part{font-weight:800;font-size:40px;color:#0E6FD0;padding-left:22px;border-left:10px solid #4DB8FF;line-height:1.15}
+.sw-head{display:flex;align-items:center;gap:30px}
+.sw-no{font-weight:800;font-size:200px;line-height:.9;color:#BFDDF9;letter-spacing:-6px;flex:none}
+.sw-vr{width:4px;align-self:stretch;background:#0E6FD0;margin:16px 0;flex:none}
+.sw-head h1{font-size:70px;flex:1 1 0;min-width:0;overflow-wrap:break-word}
+.sw-sub{font-weight:700;font-size:38px;padding-bottom:20px;position:relative}
+.sw-sub:after{content:"";position:absolute;left:0;bottom:0;width:300px;height:6px;background:linear-gradient(90deg,#4DB8FF,rgba(77,184,255,0))}
+.sw-list{display:flex;flex-direction:column;gap:24px}
+.sw-item{display:flex;gap:26px;align-items:stretch}
+.sw-ix{flex:none;width:92px;height:76px;border-radius:14px;background:#4DB8FF;color:#0B1730;font-weight:800;font-size:38px;display:flex;align-items:center;justify-content:center}
+.sw-tx{flex:1;font-size:34px;padding-left:26px;border-left:3px solid #9CC8F2;min-height:76px;display:flex;align-items:center}
+.sw-icons{display:flex;gap:20px;margin-top:auto}
+.sw-ic{flex:1 1 0;min-width:0;background:#fff;border:2.5px solid #C6DBF5;border-radius:20px;padding:22px 12px 18px;display:flex;flex-direction:column;align-items:center;gap:10px;font-weight:700;font-size:26px;text-align:center;line-height:1.2}
+.sw-ic img{width:104px;height:104px;display:block}
 `;
 const esc2 = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const accentHtml = (t) => esc2(t).replace(/\*([^*]+)\*/g, "<mark>$1</mark>");
@@ -968,6 +985,12 @@ function slideFontCss() {
   return fontCssP;
 }
 // AI-written HTML goes through this before it is drawn: no scripts, no outside resources, valid XML out.
+const iconUrlCache = new Map();
+function iconUrl(name) { // one of the app's flat icons, in the deep logo blue, as an image
+  name = String(name || "").toLowerCase().trim(); if (!ICONS[name]) return "";
+  if (!iconUrlCache.has(name)) { const cv = document.createElement("canvas"); cv.width = cv.height = 220; const c = cv.getContext("2d"); c.translate(110, 110); c.scale(1.9, 1.9); ICONS[name].d(c, CAR.deep); iconUrlCache.set(name, cv.toDataURL("image/png")); }
+  return iconUrlCache.get(name);
+}
 function cleanSlideHtml(html, shotUrls) {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
   doc.querySelectorAll("script,iframe,object,embed,link,meta,base,video,audio,source,form,input,textarea,select,button,foreignObject").forEach(n => n.remove());
@@ -982,7 +1005,9 @@ function cleanSlideHtml(html, shotUrls) {
     }
     if (n.tagName === "IMG" || n.tagName === "image") {
       const src = n.getAttribute("src") || n.getAttribute("href") || ""; const m = /^shot:(\d+)$/.exec(src.trim());
-      if (m && shotUrls[+m[1] - 1]) n.setAttribute("src", shotUrls[+m[1] - 1]);
+      const ic = /^icon:([a-z]+)$/i.exec(src.trim());
+      if (ic && iconUrl(ic[1])) n.setAttribute("src", iconUrl(ic[1]));
+      else if (m && shotUrls[+m[1] - 1]) n.setAttribute("src", shotUrls[+m[1] - 1]);
       else if (!/^data:image\//.test(src)) n.remove();
     }
   });
@@ -1080,16 +1105,21 @@ async function carouselVideo(set, secs, onProgress = () => {}) {
   return { blob: new Blob([target.buffer], { type: "video/mp4" }), duration: total };
 }
 const canvasBlob = (cv, type = "image/jpeg", q = 0.92) => new Promise(res => cv.toBlob(res, type, q));
-// A plain set without the AI: the hook, the key scenes as text, and a closing card. No designed visuals.
+// A set without the AI, laid out in a Swiss editorial style: section label, large page number beside the
+// headline, numbered points with rules, and a row of icon tiles from the scene's own components.
 function quickSlides(s) {
   const plain = (t) => String(t || "").replace(/\*/g, "").trim();
   const sentences = (t) => String(t || "").split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean).slice(0, 3);
   const body = s.scenes.map((sc, i) => ({ sc, i })).filter(x => x.sc.layout !== "outro");
   const first = body[0], rest = body.slice(1);
   const pick = rest.length <= 5 ? rest : [0, 1, 2, 3, 4].map(k => rest[Math.round(k * (rest.length - 1) / 4)]);
-  const slides = [{ eyebrow: `${s.category || "Tech"} · case study`, headline: first ? first.sc.heading || s.title : s.title, sub: plain(s.hook), bullets: first ? sentences(narrationText(first.sc)) : [], description: plain(s.hook) || s.title }];
-  pick.forEach(x => slides.push({ eyebrow: PARTS[x.sc.part] || "", headline: x.sc.heading, sub: plain(x.sc.subtitle), bullets: sentences(narrationText(x.sc)), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
-  slides.push({ eyebrow: "Tới lượt bạn", headline: "Hệ thống của bạn *đã chặn* lỗi này chưa?", sub: s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}.` : "", tip: "Bình luận cách team bạn đang xử lý nhé.", description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
+  const two = (n) => String(n).padStart(2, "0");
+  const icons = (sc) => { const seen = new Set(); const a = (sc ? sc.actors : []).filter(x => x.icon && !seen.has(x.icon + x.label) && seen.add(x.icon + x.label)).slice(0, 4); return a.length ? `<div class="sw-icons">${a.map(x => `<div class="sw-ic"><img src="icon:${esc2(x.icon)}" alt=""/><span>${esc2(plain(x.label))}</span></div>`).join("")}</div>` : ""; };
+  const list = (arr) => arr.length ? `<div class="sw-list">${arr.map((t, k) => `<div class="sw-item"><div class="sw-ix">${two(k + 1)}</div><div class="sw-tx">${esc2(t)}</div></div>`).join("")}</div>` : "";
+  const page = (no, part, head, sub, points, sc) => `<div class="sw-dots"></div><div class="sw-part">${esc2(part)}</div><div class="sw-head"><div class="sw-no">${two(no)}</div><div class="sw-vr"></div><h1>${accentHtml(head)}</h1></div>${sub ? `<div class="sw-sub">${esc2(sub)}</div>` : ""}${list(points)}${icons(sc)}`;
+  const slides = [{ html: page(1, `${s.category || "Tech"} · case study`, first ? first.sc.heading || s.title : s.title, plain(s.hook), first ? sentences(narrationText(first.sc)) : [], first && first.sc), description: plain(s.hook) || s.title }];
+  pick.forEach((x, k) => slides.push({ html: page(k + 2, PARTS[x.sc.part] || "Thân bài", x.sc.heading, plain(x.sc.subtitle), sentences(narrationText(x.sc)), x.sc), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
+  slides.push({ html: page(slides.length + 1, "Tới lượt bạn", "Hệ thống của bạn *đã chặn* lỗi này chưa?", s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}` : "", ["Xem lại luồng xử lý này trong hệ thống của bạn.", "Thử tái hiện tình huống trên môi trường test.", "Bình luận cách team bạn đang xử lý nhé."], { actors: [{ icon: "search", label: "Kiểm tra" }, { icon: "bug", label: "Tái hiện" }, { icon: "check", label: "Chặn lỗi" }] }), description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
   const tags = ["#CodeLens", ...(HASHTAGS[s.category] || []), "#developer"];
   const caption = [(plain(s.hook) || s.title) + " 👇", "", ...pick.map(x => `👉 ${plain(x.sc.subtitle) || plain(x.sc.heading)}`), "", "Hệ thống của bạn đã chặn lỗi này chưa? 👇", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
   return normCarousel({ caption, slides });
@@ -1105,6 +1135,7 @@ Class có sẵn:
 Cỡ chữ nhỏ nhất 24px. Đặt chiều cao rõ ràng cho khối mô phỏng (ví dụ style="height:560px") hoặc dùng class "grow" để nội dung không tràn khỏi vùng 1096px.
 Ví dụ một ảnh "bằng chứng" (điện thoại nhận hai thông báo trừ tiền):
 <div class="eyebrow">Chuyện gì xảy ra</div><h1>Bấm một lần, <mark>trừ hai lần</mark></h1><div class="row grow" style="align-items:center"><div class="phone"><div class="screen"><b style="font-size:30px">Thông báo</b><div class="notif"><div class="ico">₫</div><div><b>Ngân hàng · 10:00:02</b>TK 1234: -500.000đ. Thanh toán vé A17.</div></div><div class="notif" style="border-color:#FF9AA2"><div class="ico" style="background:#E5484D">₫</div><div><b>Ngân hàng · 10:00:06</b>TK 1234: -500.000đ. Thanh toán vé A17.</div></div></div></div><div class="col" style="flex:1"><span class="pill alert">Cùng một vé</span><h3>Hai giao dịch giống hệt, cách nhau 4 giây.</h3><p class="muted" style="font-size:30px">Khách chỉ nhận được một vé.</p></div></div>
+- Icon phẳng có sẵn, dùng như ảnh: <img src="icon:TÊN" style="width:96px;height:96px"/> với TÊN trong: ${ICON_NAMES.join(", ")}. Hợp cho lưới thẻ và hàng minh họa thành phần; đừng dùng icon thay cho hình bằng chứng.
 Ví dụ dùng ảnh chụp màn hình thật: <div class="window"><div class="bar"><i></i><i></i><i></i><span class="url">claude.ai/artifact · CodeLens</span></div><img class="shot" src="shot:1"/></div>`;
 function shotsNote(shots) {
   return shots && shots.length ? `ẢNH CHỤP MÀN HÌNH THẬT người dùng đã tải lên (ưu tiên dùng làm bằng chứng, đặt trong khung "window" hoặc "phone", có thể đặt hai ảnh chồng lệch nhau):\n${shots.map((s, i) => `- src="shot:${i + 1}": ${s.label || "ảnh chụp màn hình"}`).join("\n")}\nChỉ dùng đúng các src này; đừng mô tả chi tiết bên trong ảnh mà bạn không được cho biết.`
@@ -1530,7 +1561,7 @@ const state = {
   jobs: [], tab: "scripts", filterCat: "all", filterStatus: "all", suggestions: [],
   aiBusy: false, loaded: { scripts: false, settings: false }, localMode: false, sessionBlobs: new Map(),
 };
-function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "" }, voiceEnabled: true, voice: "", voiceRate: "+10%", enabled: true, count: 5, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
+function defaultSettings() { return { outroEnabled: true, outro: { heading: "", subtitle: "", narration: "" }, models: { light: "", write: "", review: "", image: "" }, voiceEnabled: true, voice: "", voiceRate: "+10%", enabled: true, count: 5, categories: CATEGORIES.slice(), autoRenderOnOpen: true, timerEnabled: false, renderTime: "08:00", concurrency: 2, claudeTaskLabel: "", lastClaudeRun: "", logoAssetId: "", logoCorner: "left" }; }
 const uid = () => "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -2672,9 +2703,9 @@ async function carLoadShots(list) { // saved screenshots come back from the asse
 const carShotsMeta = () => car.shots.map(s => ({ label: s.label }));
 async function openCarousel(id) {
   const s = state.scripts.get(id); if (!s) { toast("Lưu kịch bản trước đã."); return; }
-  car.id = id; car.script = s; car.shots = []; carShotsRender();
+  car.id = id; car.script = s; car.shots = []; carShotsRender(); carModelFill();
   $("car-name").textContent = `${s.title} · ảnh 1080×1350, nền sáng, logo ở góc trên trái, số trang ở bên phải`;
-  $("car-msg").textContent = s.carousel ? "" : "Chưa có bộ ảnh: đây là bản tạo nhanh chỉ có chữ. Bấm “AI thiết kế bộ ảnh” để AI dựng hình cho từng ảnh.";
+  $("car-msg").textContent = s.carousel ? "" : "Chưa có bộ ảnh: đây là bản tạo nhanh không dùng AI. Bấm “AI thiết kế bộ ảnh” để AI dựng hình bằng chứng cho từng ảnh.";
   $("car-save-msg").textContent = ""; $("car-post-msg").textContent = ""; $("car-shot-msg").textContent = ""; $("car-ai").disabled = !cap.sample;
   $("car-modal").hidden = false;
   if (s.carousel && s.carousel.shots && s.carousel.shots.length) { car.shots = await carLoadShots(s.carousel.shots); carShotsRender(); }
@@ -2682,13 +2713,18 @@ async function openCarousel(id) {
   $("car-fb").hidden = true;
   if (cap.voice) { try { fbStatus = fbStatus || await fetch("/api/status").then(r => r.json()); } catch (e) { fbStatus = {}; } if ((fbStatus.facebook || {}).configured) { $("car-fb").hidden = false; carSyncSched(); } }
 }
+function carModelFill() { const cur = (state.settings.models || {}).image || ""; $("car-model").innerHTML = Object.entries(AI_MODELS).map(([v, t]) => `<option value="${v}"${cur === v ? " selected" : ""}>${esc(t)}</option>`).join(""); }
+$("car-model").addEventListener("change", async () => {
+  const models = { ...(state.settings.models || {}), image: $("car-model").value };
+  try { await saveLogoSettings({ models }); if (!cap.db) state.settings.models = models; const el = $("m-image"); if (el) el.value = models.image; } catch (e) { toast("Không lưu được lựa chọn model."); }
+});
 $("car-close").addEventListener("click", () => { $("car-modal").hidden = true; });
 $("car-modal").addEventListener("click", (e) => { if (e.target.id === "car-modal") $("car-modal").hidden = true; });
-$("car-quick").addEventListener("click", () => { carSet(quickSlides(car.script)); $("car-msg").textContent = "Đã tạo nhanh từ kịch bản (chỉ có chữ, chưa có hình)."; });
+$("car-quick").addEventListener("click", () => { carSet(quickSlides(car.script)); $("car-msg").textContent = "Đã tạo nhanh từ kịch bản, không dùng AI."; });
 $("car-ai").addEventListener("click", async () => {
   if (!cap.sample) return; const b = $("car-ai"); b.disabled = true; $("car-msg").innerHTML = '<span class="spin"></span> Claude đang thiết kế từng ảnh, mất khoảng một đến hai phút…';
   try {
-    const r = await cap.sample.json(carouselPrompt(car.script, $("car-note").value.trim().slice(0, 400), carShotsMeta()), aiOpts("write", "complex"));
+    const r = await cap.sample.json(carouselPrompt(car.script, $("car-note").value.trim().slice(0, 400), carShotsMeta()), aiOpts("image", "complex"));
     const c = normCarousel(r); if (!c) throw { code: "invalid_json" };
     carSet(c); $("car-msg").textContent = `Đã thiết kế ${c.slides.length} ảnh. Chưa ưng ảnh nào thì chọn ảnh đó rồi nhắn ở ô “Sửa ảnh này bằng lời”.`;
   } catch (err) { $("car-msg").textContent = aiError(err); }
@@ -2699,7 +2735,7 @@ $("car-edit").addEventListener("click", async () => {
   if (!ask) { $("car-edit-msg").textContent = "Gõ điều bạn muốn sửa trước."; $("car-ask").focus(); return; }
   const b = $("car-edit"); b.disabled = true; $("car-edit-msg").innerHTML = '<span class="spin"></span> Claude đang sửa ảnh này…';
   try {
-    const r = await cap.sample.json(slideEditPrompt(car.script, sl, i, car.slides.length, ask.slice(0, 600), carShotsMeta()), aiOpts("write", "complex"));
+    const r = await cap.sample.json(slideEditPrompt(car.script, sl, i, car.slides.length, ask.slice(0, 600), carShotsMeta()), aiOpts("image", "complex"));
     if (!r || typeof r.html !== "string" || !r.html.trim()) throw { code: "invalid_json" };
     car.slides[i] = normSlide({ html: r.html, description: r.description || sl.description });
     if (car.sel === i) { $("car-desc").value = car.slides[i].description; $("car-html").value = car.slides[i].html; $("car-ask").value = ""; carDrawSel(); }
@@ -2949,7 +2985,7 @@ $("o-enabled").addEventListener("change", saveOutro);
 /* ================= model settings ================= */
 function renderModelPanel() {
   const m = state.settings.models || {};
-  ["light", "write", "review"].forEach(k => {
+  ["light", "write", "review", "image"].forEach(k => {
     $("m-" + k).innerHTML = Object.entries(AI_MODELS).map(([v, t]) => `<option value="${v}"${(m[k] || "") === v ? " selected" : ""}>${esc(t)}</option>`).join("");
   });
 }
@@ -2957,9 +2993,10 @@ async function saveModels(models) {
   try { await saveLogoSettings({ models }); if (!cap.db) state.settings.models = models; $("m-msg").textContent = "Đã lưu."; setTimeout(() => $("m-msg").textContent = "", 2000); }
   catch (e) { $("m-msg").textContent = "Không lưu được."; }
 }
-["light", "write", "review"].forEach(k => $("m-" + k).addEventListener("change", () => saveModels({ light: $("m-light").value, write: $("m-write").value, review: $("m-review").value })));
+const readModels = () => ({ light: $("m-light").value, write: $("m-write").value, review: $("m-review").value, image: $("m-image").value });
+["light", "write", "review", "image"].forEach(k => $("m-" + k).addEventListener("change", () => saveModels(readModels())));
 $("m-preset").addEventListener("click", () => {
-  const models = { light: "claude-haiku-5-5", write: "claude-sonnet-5-5", review: "claude-opus-5-5" };
+  const models = { light: "claude-haiku-5-5", write: "claude-sonnet-5-5", review: "claude-opus-5-5", image: "claude-sonnet-5-5" };
   Object.entries(models).forEach(([k, v]) => $("m-" + k).value = v); saveModels(models);
 });
 

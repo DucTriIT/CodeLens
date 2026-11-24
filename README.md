@@ -134,7 +134,8 @@ Cách dùng:
 - **AI thiết kế bộ ảnh:** viết caption trước, rồi mỗi phần của caption ứng với đúng một ảnh, cùng thứ tự.
 - **Sửa ảnh này bằng lời:** chọn một ảnh rồi nhắn, ví dụ "bớt chữ, thêm màn hình điện thoại báo trừ tiền 2 lần". Chỉ ảnh đó được dựng lại.
 - Sửa được mô tả của từng ảnh (đăng kèm ảnh đó), caption, thứ tự ảnh, và cả HTML nếu muốn sửa tay.
-- **Tạo nhanh (không AI, chỉ chữ):** dựng bộ ảnh từ chữ của kịch bản, không có hình thiết kế.
+- **Tạo nhanh (không AI):** dựng bộ ảnh từ kịch bản theo một mẫu kiểu Swiss editorial: nhãn phần, số trang lớn cạnh tiêu đề, các ý đánh số có đường kẻ, và một hàng ô icon lấy từ các thành phần của cảnh. Không tốn AI.
+- **Model tạo ảnh:** chọn riêng trong khung bộ ảnh (hoặc ở tab Lịch & logo, mục "Thiết kế bộ ảnh"), tách khỏi model viết kịch bản. Model nhẹ rẻ hơn nhưng thiết kế thường đơn giản hơn.
 - **Tải bộ ảnh (.zip):** các file `01.jpg`… kèm `caption-va-mo-ta.txt`.
 - **Tải clip ảnh cho Reels (.mp4):** ghép các ảnh thành clip dọc 1080×1920 không có âm thanh, mỗi ảnh 3–8 giây.
 - **Đăng thẳng lên Fanpage** (bản chạy trên máy, khi đã cấu hình Fanpage), có ô hẹn giờ 1–24 giờ:
