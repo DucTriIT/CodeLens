@@ -1,6 +1,6 @@
 # CodeLens
 
-Xưởng clip giải thích công nghệ cho developer Việt Nam. Claude viết kịch bản (từ chủ đề hoặc từ bài viết bạn đã research), bạn chỉnh sửa, rồi trình duyệt render clip motion graphics 2D dọc 9:16 (1080×1920, 30 fps) ra file MP4, dài tối đa khoảng 2 phút.
+Xưởng clip giải thích công nghệ cho developer Việt Nam. Claude viết kịch bản (từ chủ đề hoặc từ bài viết bạn đã research), bạn chỉnh sửa, rồi trình duyệt render clip motion graphics 2D dọc 9:16 (1080×1920, 30 fps) ra file MP4. Mỗi dạng clip có độ dài riêng, từ khoảng 30 giây (tin công nghệ) đến tối đa khoảng 80 giây, để luôn đăng được Reels.
 
 Có hai cách dùng:
 
@@ -51,23 +51,29 @@ Mỗi lần gọi Claude, cửa sổ chạy server in ra model và số token đ
 | `CODELENS_DATA_DIR` | `data` | Nơi lưu kịch bản (`data/db/`), clip (`data/assets/`) và giọng đọc đã tạo (`data/tts/`). |
 | `CODELENS_TTS_VOICE` | `en-US-BrianMultilingualNeural` | Giọng mặc định. Giọng đa ngôn ngữ `en-US-BrianMultilingualNeural` (nam), `en-US-AndrewMultilingualNeural` (nam), `en-US-AvaMultilingualNeural` (nữ) đọc được cả tiếng Việt lẫn từ tiếng Anh trong cùng một câu. Giọng chỉ tiếng Việt: `vi-VN-NamMinhNeural` (nam), `vi-VN-HoaiMyNeural` (nữ). Chọn được trong tab Lịch & logo. |
 
-## Cấu trúc kịch bản: case study trước, lý thuyết sau
+## Dạng clip
 
-Lý thuyết suông thì người xem hỏi AI là xong. Thứ khiến họ dừng lại là một tình huống cụ thể có hậu quả. Vì vậy mọi clip **mở bằng một case**, và khái niệm kỹ thuật xuất hiện như **lời giải** của case đó.
+CodeLens làm được nhiều kiểu clip cho các mục đích khác nhau. Bốn dạng đầu trong bảng dưới xoay quanh một case cụ thể; bốn dạng sau dùng khi bạn cần tổng quan, đi sâu có code, hướng dẫn, hoặc đưa tin.
 
 Chọn **Dạng clip** ở ô cạnh nút gợi ý (lựa chọn được nhớ trong trình duyệt):
 
-| Dạng clip | Mở bằng | Mạch nội dung |
-|---|---|---|
-| **Tình huống dev hay gặp** (mặc định) | Triệu chứng kèm con số: "Khách F5, bị trừ tiền 2 lần" | Triệu chứng → tái hiện → chẩn đoán → khái niệm là cách chữa → bẫy khi áp dụng |
-| **Sự cố thật (postmortem)** | Thiệt hại và tên sự cố | Diễn biến → nguyên nhân gốc → biện pháp lẽ ra đã chặn được → bài học |
-| **Kiến trúc công ty thật** | Bài toán và quy mô | Cách thường làm gãy ở đâu → thiết kế họ chọn → khái niệm đứng sau → trade-off |
-| **Đoán lỗi** | Hậu quả và lời thách | Luồng có lỗi ẩn → mời người xem đoán → lời giải → cách sửa |
-| **Chủ đề / khái niệm** | Một case nơi thiếu khái niệm đó thì gây hậu quả | Giải thích khái niệm đầy đủ hơn, nhưng mọi bước đều chiếu lại vào case |
+| Dạng clip | Độ dài | Mở bằng | Mạch nội dung |
+|---|---|---|---|
+| **Tình huống dev hay gặp** (mặc định) | 55–70 giây | Triệu chứng kèm con số: "Khách F5, bị trừ tiền 2 lần" | Triệu chứng → tái hiện → chẩn đoán → khái niệm là cách chữa → bẫy khi áp dụng |
+| **Sự cố thật (postmortem)** | 60–80 giây | Thiệt hại và tên sự cố | Diễn biến → nguyên nhân gốc → biện pháp lẽ ra đã chặn được → bài học |
+| **Kiến trúc công ty thật** | 60–80 giây | Bài toán và quy mô | Cách thường làm gãy ở đâu → thiết kế họ chọn → khái niệm đứng sau → trade-off |
+| **Đoán lỗi** | 55–70 giây | Hậu quả và lời thách | Luồng có lỗi ẩn → mời người xem đoán → lời giải → cách sửa |
+| **Tổng quan: X là gì** | 45–60 giây | Bài toán mà chủ đề giải quyết | Định nghĩa một câu → các đặc tính hoặc thành phần chính → hệ thống thật dùng nó ra sao → khi nào nên dùng. Dành cho chủ đề rộng: OOP, Load balancer, Idempotency. Không có code. |
+| **Đi sâu chủ đề nhỏ (có code)** | 60–75 giây | Vấn đề cụ thể mà kỹ thuật sửa được | Code có vấn đề → ý tưởng trong một câu → code sau khi sửa, tô sáng dòng thay đổi → cách dùng → lỗi hay gặp. Dành cho chủ đề hẹp: Dependency Injection, Factory pattern. Có 2–4 cảnh khung code. |
+| **Hướng dẫn từng bước** | 60–75 giây | Kết quả sẽ đạt được | BƯỚC 1, BƯỚC 2… mỗi bước một cảnh, có lệnh hoặc cấu hình thật → cách kiểm tra đã làm đúng → một lỗi hay gặp. |
+| **Tin công nghệ (30 giây)** | khoảng 30 giây | Chuyện gì vừa xảy ra, kèm một câu hỏi | Chi tiết bất ngờ nhất của tin → điều dev rút ra → câu hỏi mồi bình luận. Chỉ dùng thông tin trong nguồn bạn đưa. |
 
 - Nút **Gợi ý case** đề xuất theo dạng đang chọn: triệu chứng kèm "Cách chữa: …", sự cố kèm "Bài học: …".
 - Gõ một khái niệm (ví dụ "Idempotency key") ở dạng *Tình huống dev hay gặp* thì AI tự chọn tình huống hay gặp nhất mà khái niệm đó chữa được.
-- Muốn làm clip về đúng một chủ đề thì chọn dạng **Chủ đề / khái niệm**; clip vẫn dẫn bằng case.
+- Chủ đề rộng (OOP, Load balancer) thì chọn **Tổng quan: X là gì**. Chủ đề hẹp cần thấy cách viết (Dependency Injection, Factory pattern) thì chọn **Đi sâu chủ đề nhỏ (có code)**. Cần chỉ cách làm một việc bằng một tool thì chọn **Hướng dẫn từng bước**.
+- **Tin công nghệ** cần nguồn thật: gõ tin kèm chi tiết chính, hoặc dán bài báo ở **Từ bài viết**. AI không tự biết tin mới, nên nút gợi ý và lịch viết tự động không áp dụng cho dạng này.
+- **Cảnh khung code:** ở các dạng có code, AI dùng bố cục **Khung code** cho cảnh cần hiện code hoặc cấu hình. Trong trình soạn, chọn bố cục này sẽ hiện ô **Tên file hoặc tool** và ô **Code** (tối đa 9 dòng, mỗi dòng 46 ký tự). Gõ `!!` ở đầu dòng để tô sáng dòng quan trọng; các dòng còn lại mờ đi sau khi code hiện xong.
+- **Từ khóa:** tiêu đề và phụ đề của mỗi cảnh chứa từ khóa trọng tâm (tên khái niệm, tool, lệnh, tham số) tô màu cam.
 - **Sự cố thật** và **Kiến trúc công ty thật** nên làm qua **Từ bài viết**: dán postmortem hoặc bài engineering blog gốc để AI bám theo nguồn. Không có nguồn thì AI chỉ kể những gì chắc chắn và bỏ số liệu không chắc.
 - Tình huống do AI dựng được kể như tình huống điển hình ("giả sử…"), không gắn tên công ty thật.
 
@@ -102,14 +108,15 @@ Lời thuyết minh phải nghe như một kỹ sư người Việt đang nói c
 
 - Bộ hướng dẫn giọng văn: xưng "mình", gọi người xem là "bạn"; câu đầy đủ, có từ nối (thì, mà, thế là…); không câu cụt, không văn dịch từ tiếng Anh; phụ đề không chứa nguyên câu lệnh code.
 - Ví dụ câu cứng và câu tự nhiên tương ứng để AI bắt chước.
-- Lời đọc mỗi cảnh dài khoảng 80–250 ký tự, tổng tối đa 1.500 ký tự. Để vừa 2 phút, AI bớt cảnh chứ không nén câu.
+- Lời đọc mỗi cảnh dài khoảng 80–250 ký tự. Tổng độ dài theo dạng clip, tối đa 900 ký tự (riêng tin công nghệ tối đa 300). Để vừa thời lượng, AI thu hẹp phạm vi hoặc bớt cảnh chứ không nén câu.
+- Cảnh kêu gọi follow ở cuối dài khoảng 5 giây.
 - Giọng đọc mặc định nhanh hơn 10% (đổi ở tab Lịch & logo → Giọng đọc).
 
 Sau bước kiểm tra kỹ thuật, AI chạy thêm bước **biên tập giọng văn**: đóng vai biên tập viên tiếng Việt, chỉ viết lại tiêu đề, phụ đề và lời đọc cho tự nhiên, không đổi nội dung kỹ thuật. Kịch bản cũ thì bấm nút **AI biên tập giọng văn** trong trình soạn.
 
 ### Series nhiều phần
 
-CodeLens ưu tiên chất lượng hơn độ ngắn. Khi viết từ chủ đề hoặc từ bài viết, AI lên kế hoạch trước. Nếu một clip khoảng 2 phút không đủ để giải thích kỹ, AI chia thành series (tối đa 4 phần) và viết từng phần, các phần dùng chung một ví dụ và không lặp ý.
+Clip ngắn thì phạm vi phải hẹp. Khi viết từ chủ đề hoặc từ bài viết, AI lên kế hoạch trước và ưu tiên một clip với phạm vi vừa đủ. Chỉ khi chủ đề không thể giải thích đúng trong một clip, AI mới chia thành series (tối đa 4 phần) và viết từng phần, các phần dùng chung một ví dụ và không lặp ý.
 
 - Mỗi phần có nhãn **PHẦN 1/3** ở góc trên.
 - Cảnh cuối của các phần chưa phải phần cuối đổi thành **"ĐÓN XEM PHẦN 2"**, đọc lời giới thiệu phần sau. Sửa lời này trong trình soạn, ô "Lời giới thiệu phần…".

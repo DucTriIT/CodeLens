@@ -425,8 +425,14 @@ const schedCats = (st) => { const c = Array.isArray(st.categories) && st.categor
 const LAYOUTS = {
   title: "Mở đầu (tiêu đề lớn)", flow: "Dòng chảy (A → B → C)", hub: "Trung tâm & vệ tinh",
   compare: "So sánh 2 cột", "before-after": "Trước / Sau", stack: "Các tầng xếp chồng", grid: "Lưới",
+  code: "Khung code (đoạn code hoặc cấu hình)",
   outro: "Kết: kêu gọi follow kênh"
 };
+// Code scenes: up to CODE_MAX_LINES lines; a line starting with "!!" is highlighted.
+const CODE_MAX_LINES = 9, CODE_MAX_COLS = 46;
+const MONO = 'ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace';
+const normCode = (v) => String(v || "").replace(/\r/g, "").replace(/\t/g, "  ").split("\n").slice(0, CODE_MAX_LINES).map(l => l.replace(/\s+$/, "").slice(0, CODE_MAX_COLS + 3)).join("\n").replace(/\n+$/, "");
+const codeLines = (sc) => normCode(sc.code).split("\n").filter((l, i, a) => l || a.length > 1).map(l => ({ hi: /^!!/.test(l), text: l.replace(/^!!\s?/, "").slice(0, CODE_MAX_COLS) }));
 const PARTS = { intro: "Mở bài", body: "Thân bài", outro: "Kết bài" };
 const STATUS_LABEL = { draft: "Nháp", queued: "Chờ render", rendering: "Đang render", done: "Đã render", failed: "Lỗi" };
 const COL = { bg: "#0B1120", bg2: "#0F1B33", grid: "rgba(77,184,255,0.05)", blue: "#4DB8FF", orange: "#FF8A1F",
@@ -596,9 +602,11 @@ function normScene(sc) {
     const mi = Math.round(+sc.mark.index);
     if (mi >= 0 && mi < n && (sc.mark.type === "check" || sc.mark.type === "cross")) mark = { index: mi, type: sc.mark.type };
   }
+  const code = layout === "code" ? normCode(sc.code) : String(sc.code || "").slice(0, 600);
   return {
-    // never shorter than the time needed to read the subtitle
-    duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14) * 10) / 10, 1.2, 12),
+    // never shorter than the time needed to read the subtitle (and the code, in a code scene)
+    duration: clamp(Math.round(Math.max(+sc.duration || 2.5, 1.2 + String(sc.subtitle || "").replace(/\*/g, "").length / 14, layout === "code" && code ? 2 + code.split("\n").length * 0.45 : 0) * 10) / 10, 1.2, 12),
+    code, codeTitle: String(sc.codeTitle || "").slice(0, 40),
     layout, heading: String(sc.heading || "").slice(0, 90), subtitle: String(sc.subtitle || "").slice(0, 140),
     narration: String(sc.narration || "").slice(0, 600),
     part: PARTS[sc.part] ? sc.part : (layout === "outro" ? "outro" : ""),
@@ -611,7 +619,7 @@ const totalDur = (s) => s.scenes.reduce((a, b) => a + b.duration, 0);
 const OUTRO_DEFAULT = {
   heading: "FOLLOW ĐỂ XEM *TIẾP*",
   subtitle: "Theo dõi để xem thêm các khái niệm khó, *giải thích dễ hiểu*",
-  narration: "Nếu thấy clip này hữu ích, hãy follow CodeLens để xem thêm các clip giải thích công nghệ dễ hiểu cho dev nhé.",
+  narration: "Follow CodeLens để xem thêm clip công nghệ dễ hiểu nhé.",
 };
 function withOutro(s) {
   const st = state.settings || {};
@@ -1190,6 +1198,38 @@ Mô tả hiện tại: ${slide.description}
 
 Chỉ trả về JSON: {"html": "HTML mới của ảnh", "description": "mô tả 1–2 câu, tối đa 220 ký tự"}`;
 }
+// A code window: lines type in one after another, then the "!!" lines light up and the rest dims.
+function drawCode(c, sc, tl) {
+  const lines = codeLines(sc); if (!lines.length) return;
+  const maxLen = Math.max(20, ...lines.map(l => l.text.length));
+  c.font = `500 100px ${MONO}`; const adv = c.measureText("M").width / 100 || 0.6;
+  const size = clamp(Math.floor(872 / (maxLen * adv)), 24, 44), lh = Math.round(size * 1.6);
+  const x = 60, w = 960, barH = 72, h = barH + lines.length * lh + 52, top = Math.round(1050 - h / 2);
+  const k = easeOut((tl - 0.15) / 0.4); if (k <= 0) return;
+  c.save(); c.globalAlpha *= k; c.translate(0, (1 - k) * 40);
+  c.beginPath(); c.roundRect(x, top, w, h, 26); c.fillStyle = "#081022"; c.fill();
+  c.strokeStyle = "rgba(77,184,255,0.38)"; c.lineWidth = 3; c.stroke();
+  c.beginPath(); c.roundRect(x, top, w, barH, [26, 26, 0, 0]); c.fillStyle = "rgba(255,255,255,0.06)"; c.fill();
+  ["#FF5F57", "#FEBC2E", "#28C840"].forEach((col, i) => { c.beginPath(); c.arc(x + 46 + i * 36, top + barH / 2, 11, 0, Math.PI * 2); c.fillStyle = col; c.fill(); });
+  if (sc.codeTitle) { c.font = `600 30px ${MONO}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "rgba(230,237,247,0.78)"; c.fillText(sc.codeTitle, x + w / 2, top + barH / 2 + 1, w - 300); }
+  const at = (i) => 0.45 + i * 0.22, typed = at(lines.length) + 0.35, anyHi = lines.some(l => l.hi);
+  const kh = anyHi ? easeOut((tl - typed) / 0.4) : 0;
+  c.font = `500 ${size}px ${MONO}`; c.textAlign = "left"; c.textBaseline = "middle";
+  lines.forEach((l, i) => {
+    const y = top + barH + 26 + i * lh + lh / 2;
+    if (l.hi && kh > 0) {
+      c.fillStyle = `rgba(255,138,31,${0.18 * kh})`; c.fillRect(x + 3, y - lh / 2, w - 6, lh);
+      c.fillStyle = COL.orange; c.globalAlpha = k * kh; c.fillRect(x + 3, y - lh / 2, 9, lh); c.globalAlpha = k;
+    }
+    const shown = l.text.slice(0, Math.floor(clamp((tl - at(i)) / 0.35, 0, 1) * l.text.length)); if (!shown) return;
+    const cm = shown.search(/(^|\s)(\/\/|#|--)(\s|$)/); const codePart = cm >= 0 ? shown.slice(0, cm) : shown, comment = cm >= 0 ? shown.slice(cm) : "";
+    let cx = x + 44; c.globalAlpha = k * (anyHi && !l.hi ? 1 - 0.5 * kh : 1);
+    codePart.split(/("[^"]*"|'[^']*'|`[^`]*`)/).forEach((seg, j) => { if (!seg) return; c.fillStyle = j % 2 ? "#7EE0A1" : COL.white; c.fillText(seg, cx, y); cx += c.measureText(seg).width; });
+    if (comment) { c.fillStyle = "#7C8BA5"; c.fillText(comment, cx, y); }
+    c.globalAlpha = k;
+  });
+  c.restore();
+}
 function drawScene(c, s, sc, tl, t) {
   if (sc.layout === "outro") { drawOutro(c, s, sc, tl, t); return; }
   const tm = sceneTimes(sc); const pts = positions(sc);
@@ -1202,6 +1242,7 @@ function drawScene(c, s, sc, tl, t) {
     c.font = `800 82px ${FONT}`;
     drawTokens(c, parseAccent(sc.heading), 540, 345, 960, 94, { upper: true, base: COL.blue, reveal: easeOut(tl / 0.7), maxLines: 2 });
   }
+  if (sc.layout === "code") { drawCode(c, sc, tl); return; }
   if (isCompare) {
     const k = easeOut((tl - 0.15) / 0.5);
     c.save(); c.globalAlpha *= k;
@@ -1329,9 +1370,9 @@ async function renderAudio(s, voices, sampleRate = 48000) {
   s.scenes.forEach((sc, si) => {
     const tm = sceneTimes(sc);
     whoosh(acc + (si === 0 ? 0.02 : -0.1 + 0.1));
-    sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
-    sc.links.forEach((_, j) => blip(acc + tm.linkAt(j) + 0.4, 1200, 0.06));
-    if (sc.mark) blip(acc + tm.markAt, sc.mark.type === "check" ? 1320 : 300, 0.16);
+    if (sc.layout !== "code") sc.actors.forEach((_, i) => blip(acc + tm.actorAt(i) + 0.05, 600 + i * 90, 0.1));
+    if (sc.layout !== "code") sc.links.forEach((_, j) => blip(acc + tm.linkAt(j) + 0.4, 1200, 0.06));
+    if (sc.mark && sc.layout !== "code") blip(acc + tm.markAt, sc.mark.type === "check" ? 1320 : 300, 0.16);
     if (sc.layout === "outro") { const ta = acc + Math.min(1.8, sc.duration * 0.45); blip(ta, 900, 0.16); blip(ta + 0.09, 1350, 0.12); }
     const v = voices && voices[si];
     if (v && v.buffer) {
@@ -1746,7 +1787,7 @@ function renderEditor() {
     ${d.series ? `<div class="banner">Series <b>${esc(d.series.title)}</b> · phần ${d.series.part}/${d.series.total}.${d.series.part < d.series.total ? ` Cảnh cuối sẽ giới thiệu phần ${d.series.part + 1}.` : ""}</div>
     ${d.series.part < d.series.total ? `<label class="f"><span>Lời giới thiệu phần ${d.series.part + 1} (đọc ở cảnh cuối)</span><textarea rows="2" data-f="nextTeaser" id="ed-teaser">${esc(d.nextTeaser || "")}</textarea></label>` : ""}` : ""}
     ${structureNote(d)}
-    <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (tối đa khoảng 120s): <b id="ed-total">${totalDur(withOutro(normScript(d))).toFixed(1)}s</b></p>
+    <p class="hint">Bao từ cần nhấn mạnh trong <code>*dấu sao*</code> để tô màu cam. Tổng thời lượng (nên dưới 90s để đăng được Reels): <b id="ed-total">${totalDur(withOutro(normScript(d))).toFixed(1)}s</b></p>
     ${d.scenes.map((sc, i) => renderSceneCard(sc, i, d.scenes.length, sel)).join("")}
     <div class="row"><button class="btn" data-act="add-scene">+ Thêm cảnh</button></div>`;
 }
@@ -1780,6 +1821,8 @@ function renderSceneCard(sc, i, n, sel) {
       <textarea rows="3" data-f="${p}.narration" id="ed-${i}-nar" placeholder="Đoạn giải thích được đọc thành tiếng trong cảnh này">${esc(sc.narration || "")}</textarea>
       <div class="row"><span class="hint" id="ed-${i}-narinfo">${narrationText(sc) ? `${narrationText(sc).length} ký tự · khoảng ${readSecs(narrationText(sc).length)} giây đọc` : "Chưa có lời thuyết minh"}</span>${cap.voice ? `<span class="grow"></span><button class="btn small" data-act="speak" data-i="${i}" ${narrationText(sc) ? "" : "disabled"}>▶ Nghe</button>` : ""}</div>
     </div>
+    ${sc.layout === "code" ? `<label class="f"><span>Tên file hoặc tool (hiện trên thanh tiêu đề của khung code)</span><input type="text" data-f="${p}.codeTitle" id="ed-${i}-codetitle" value="${esc(sc.codeTitle || "")}" placeholder="ví dụ: nginx.conf, OrderService.ts, terminal"></label>
+    <label class="f"><span>Code (tối đa ${CODE_MAX_LINES} dòng, mỗi dòng ${CODE_MAX_COLS} ký tự; gõ <code>!!</code> ở đầu dòng để tô sáng dòng quan trọng)</span><textarea rows="7" data-f="${p}.code" id="ed-${i}-code" spellcheck="false" style="font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflow-x:auto">${esc(sc.code || "")}</textarea></label>` : ""}
     ${isCmp ? `<div class="scene-grid"><label class="f"><span>Nhãn cột trái</span><input type="text" data-f="${p}.left" id="ed-${i}-left" value="${esc(sc.left)}" placeholder="${sc.layout === "before-after" ? "TRƯỚC" : "A"}"></label><label class="f"><span>Nhãn cột phải</span><input type="text" data-f="${p}.right" id="ed-${i}-right" value="${esc(sc.right)}" placeholder="${sc.layout === "before-after" ? "SAU" : "B"}"></label></div>` : ""}
     <div class="f"><span class="hint" style="font-weight:600">Đối tượng (tối đa 6)</span>
       <div class="sub-list">${sc.actors.map((a, k) => `<div class="sub-row">
@@ -1942,32 +1985,33 @@ const pv = (() => {
 const fmtT = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
 
 /* ================= AI ================= */
-const STYLE_RULES = `Bạn là biên kịch kỹ thuật cho kênh video ngắn "CodeLens" dành cho lập trình viên Việt Nam (kênh tech: network, backend, frontend, database, cloud, AI, system architecture).
+const STYLE_HEAD = `Bạn là biên kịch kỹ thuật cho kênh video ngắn "CodeLens" dành cho lập trình viên Việt Nam (kênh tech: network, backend, frontend, database, cloud, AI, system architecture).
 Giải thích TRỰC TIẾP bằng thành phần kỹ thuật thật: client, server, service, database, cache, queue, load balancer, request, response, thread, node... và thuật ngữ chuẩn (giữ nguyên tiếng Anh khi đó là cách dev thường gọi).
-TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường để thay cho kỹ thuật (lễ tân, thư ký, HR, quán ăn... đóng vai server hay proxy). Tình huống SẢN PHẨM thật thì nên dùng: trang thanh toán, đặt vé, flash sale, chuyển khoản, giỏ hàng, app giao đồ ăn... vì đó là nơi dev gặp lỗi.
-
-CASE STUDY LÀ XƯƠNG SỐNG CỦA MỌI CLIP (bắt buộc):
+TUYỆT ĐỐI KHÔNG dùng ẩn dụ đời thường để thay cho kỹ thuật (lễ tân, thư ký, HR, quán ăn... đóng vai server hay proxy). Tình huống SẢN PHẨM thật thì nên dùng: trang thanh toán, đặt vé, flash sale, chuyển khoản, giỏ hàng, app giao đồ ăn... vì đó là nơi dev gặp lỗi.`;
+const STYLE_CASE = `CASE STUDY LÀ XƯƠNG SỐNG CỦA MỌI CLIP (bắt buộc):
 - Lý thuyết suông thì người xem hỏi AI là xong. Thứ khiến họ dừng lại xem là MỘT TÌNH HUỐNG CỤ THỂ có hậu quả: tiền bị trừ sai, trang sập, đơn hàng mất, hệ thống chậm dần. Vì vậy clip luôn MỞ BẰNG CASE, và khái niệm kỹ thuật xuất hiện như LỜI GIẢI của case đó, không phải như một bài học.
 - Case phải cụ thể: sản phẩm gì, thao tác gì, con số minh họa (ví dụ "vé 500 nghìn", "bảng orders 10 triệu dòng", "flash sale còn 100 sản phẩm"), và hậu quả đo được.
 - Mọi phần giải thích đều bám vào chính case đó: cùng hệ thống, cùng request, cùng con số từ đầu đến cuối. Không chuyển sang định nghĩa chung chung rồi bỏ quên case.
-- Trung thực: tình huống do bạn dựng thì kể như tình huống điển hình ("giả sử", "thử hình dung", "một sàn thương mại điện tử"), KHÔNG gắn tên công ty thật và không nói như thể đã xảy ra thật. Sự cố có thật của một công ty chỉ được kể khi có BÀI VIẾT NGUỒN hoặc khi bạn chắc chắn về sự kiện; chi tiết nào không chắc (số tiền, thời lượng, số máy) thì bỏ, tuyệt đối không bịa.
-Nội dung phải CHÍNH XÁC về kỹ thuật: định nghĩa đúng, thứ tự các bước đúng, tên trạng thái/thuật toán đúng, nêu đúng đánh đổi (trade-off). Không bịa số liệu, benchmark hay phiên bản; nếu không chắc một chi tiết thì bỏ chi tiết đó.
-Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.
-
-GIỌNG VĂN (bắt buộc, áp dụng cho phụ đề và nhất là lời thuyết minh):
+- Trung thực: tình huống do bạn dựng thì kể như tình huống điển hình ("giả sử", "thử hình dung", "một sàn thương mại điện tử"), KHÔNG gắn tên công ty thật và không nói như thể đã xảy ra thật. Sự cố có thật của một công ty chỉ được kể khi có BÀI VIẾT NGUỒN hoặc khi bạn chắc chắn về sự kiện; chi tiết nào không chắc (số tiền, thời lượng, số máy) thì bỏ, tuyệt đối không bịa.`;
+const STYLE_FREE = `MỞ BẰNG THỨ KHIẾN NGƯỜI XEM DỪNG LẠI (bắt buộc): 2 giây đầu phải là một hậu quả, một con số, một câu hỏi cụ thể hoặc kết quả người xem sẽ làm được. Không chào hỏi, không viết mục lục "Trong clip này, mình sẽ...".
+Ví dụ minh họa phải cụ thể: sản phẩm gì, service gì, con số nào, và dùng MỘT ví dụ xuyên suốt cả clip (cùng tên service, class, bảng, con số).
+Trung thực: ví dụ do bạn dựng thì kể như ví dụ điển hình ("giả sử", "thử hình dung"), KHÔNG gắn tên công ty thật. Sự kiện có thật chỉ được kể theo BÀI VIẾT NGUỒN hoặc khi bạn chắc chắn; chi tiết nào không chắc thì bỏ, tuyệt đối không bịa.`;
+const STYLE_ACCURACY = `Nội dung phải CHÍNH XÁC về kỹ thuật: định nghĩa đúng, thứ tự các bước đúng, tên trạng thái/thuật toán đúng, nêu đúng đánh đổi (trade-off). Không bịa số liệu, benchmark hay phiên bản; nếu không chắc một chi tiết thì bỏ chi tiết đó.`;
+const STYLE_NOLANG = `Không làm về cú pháp hay tính năng riêng của một ngôn ngữ lập trình.`;
+const STYLE_CODE = `Khi có code: dùng ngôn ngữ hoặc tool phổ biến nhất cho chủ đề và ghi rõ tên. Code phải THẬT, đúng cú pháp, chạy được, ngắn gọn; không giả mã, không dấu ba chấm thay cho phần thiếu. Lệnh, tên tham số, tên hàm phải tồn tại thật; không chắc thì chọn cách viết khác mà bạn chắc.`;
+const STYLE_VOICE = `GIỌNG VĂN (bắt buộc, áp dụng cho phụ đề và nhất là lời thuyết minh):
 - Viết như đang NÓI CHUYỆN với một đồng nghiệp ngồi cạnh: xưng "mình", gọi người xem là "bạn". Câu đầy đủ chủ ngữ, vị ngữ.
 - Dùng từ nối và nhịp nói tự nhiên: "thì", "mà", "nên", "thế là", "lúc đó", "vì vậy", "nghe thì hợp lý, nhưng…"; thỉnh thoảng có "đấy", "nhé", "cả", "luôn", nhưng đừng lạm dụng. Xen câu dài và câu ngắn.
 - KHÔNG viết kiểu ghi chú hay gạch đầu dòng: không câu cụt như "Thường là sai.", không nối các ý bằng dấu phẩy thay cho câu.
 - KHÔNG dùng văn dịch từ tiếng Anh: tránh "điều này dẫn đến", "việc … được thực hiện", "nó là", "trong khi đó" lặp lại, bị động "được/bị" thừa.
 - Thuật ngữ tiếng Anh giữ nguyên, nhưng đặt trong câu tiếng Việt tự nhiên ("có ticket báo…", không phải "ticket báo…").
-- Phụ đề là một câu chốt tự nhiên, đọc lướt là hiểu; không chứa nguyên câu lệnh hay đoạn code (chỉ tên ngắn nếu thật cần).
+- Phụ đề là một câu chốt tự nhiên, đọc lướt là hiểu; không chứa nguyên câu lệnh hay đoạn code (code đặt ở cảnh layout "code"), nhưng nên có TỪ KHÓA trọng tâm của cảnh: tên khái niệm, tên tool, tên lệnh hoặc tham số, bao trong *dấu sao*.
 Ví dụ (CỨNG → TỰ NHIÊN):
 - "Ticket báo API đơn hàng chậm. Chạy trong SSMS thấy nhanh, bạn kết luận database ổn. Thường là sai." → "Có ticket báo API đơn hàng chạy chậm. Bạn mở SSMS chạy thử thì thấy nhanh re, thế là yên tâm database không sao. Nghe hợp lý, nhưng phần lớn trường hợp lại sai."
 - "Cache hit: nhanh. Database không bị truy cập." → "Khi dữ liệu đã có sẵn trong cache, request lấy ra gần như ngay lập tức, database chẳng phải làm gì cả."
 - "Relay crash trước khi đánh dấu. Event bị gửi lại." → "Giả sử relay vừa gửi xong thì bị crash, chưa kịp đánh dấu. Lúc chạy lại, nó tưởng event chưa đi, thế là gửi thêm lần nữa."
-- "Điều này dẫn đến việc hiệu suất bị suy giảm đáng kể." → "Thế là hệ thống chậm hẳn đi."
-
-TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
+- "Điều này dẫn đến việc hiệu suất bị suy giảm đáng kể." → "Thế là hệ thống chậm hẳn đi."`;
+const STYLE_QUALITY = `TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
 - Giọng kể như một Senior Developer giải thích kiến trúc cho một Junior Developer: đặt vấn đề, dẫn dắt, minh họa, giải thích VÌ SAO, cuối cùng mới đi vào cách triển khai.
 - Hook: mở bằng HẬU QUẢ của case (thiệt hại, con số), không mở bằng tên khái niệm hay câu "X là gì".
 - Mở bài: tái hiện case cho người xem thấy chuyện gì xảy ra. Không viết kiểu mục lục "Trong clip này, mình sẽ cùng bạn tìm hiểu...".
@@ -1978,11 +2022,28 @@ TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
 - Lời thuyết minh giải thích thêm, không đọc lại nguyên văn phụ đề.
 - Độ sâu: người mới hiểu được, developer có kinh nghiệm vẫn học thêm được điều gì đó.
 - Kết bài: chốt MỘT thông điệp chính người xem phải nhớ, và nêu giới hạn hoặc cái giá của giải pháp.
-- Ưu tiên chất lượng hơn độ ngắn: nếu một clip 2 phút không đủ để giải thích kỹ theo các tiêu chí trên thì chia chủ đề thành nhiều phần, đừng nhồi nhét.`;
+- Clip phải NGẮN (giới hạn độ dài ghi trong yêu cầu): chọn phạm vi vừa đủ để giải thích kỹ trong giới hạn đó. Chủ đề rộng hơn thì chia thành nhiều phần, đừng nhồi nhét.`;
+const STYLE_QUALITY_FREE = `TIÊU CHÍ CHẤT LƯỢNG (bắt buộc):
+- Giọng kể như một Senior Developer giải thích cho một Junior Developer: nêu vấn đề, giải thích VÌ SAO, rồi mới đến cách làm.
+- TỪ KHÓA: heading và phụ đề của mỗi cảnh phải chứa từ khóa trọng tâm của cảnh đó (tên khái niệm, tên tool, tên lệnh, tên tham số) trong *dấu sao*, để người xem nhớ và tìm lại được.
+- Giải thích MỌI thuật ngữ bằng một câu đơn giản ngay lần đầu dùng. Không dùng thuật ngữ trước khi giải thích.
+- Mỗi cảnh chỉ truyền tải MỘT ý chính; hình chỉ giữ thông tin cần thiết (danh sách tối đa 4 mục).
+- Cụ thể thay vì chung chung: nói "đặt proxy_next_upstream off trong Nginx", không nói "cấu hình lại proxy"; nói "Redis SET với NX và EX", không nói "dùng cache".
+- Lời thuyết minh giải thích thêm, không đọc lại nguyên văn phụ đề, không đọc từng ký tự của code.
+- Kết bài: chốt MỘT thông điệp chính người xem phải nhớ.
+- Clip phải NGẮN (giới hạn độ dài ghi trong yêu cầu): chọn phạm vi vừa đủ để giải thích kỹ trong giới hạn đó. Chủ đề rộng hơn thì chia thành nhiều phần, đừng nhồi nhét.`;
+const STYLE_RULES = [STYLE_HEAD, "", STYLE_CASE, STYLE_ACCURACY, STYLE_NOLANG, "", STYLE_VOICE, "", STYLE_QUALITY].join("\n");
+// The writing rules for one clip format: case-study rules for the case formats, the free rules for the rest.
+function styleFor(format) {
+  const f = normFormat(format) || DEFAULT_FORMAT;
+  if (CASE_FORMATS[f]) return CODE_FORMATS[f] ? [STYLE_HEAD, "", STYLE_CASE, STYLE_ACCURACY, STYLE_CODE, "", STYLE_VOICE, "", STYLE_QUALITY].join("\n") : STYLE_RULES;
+  return [STYLE_HEAD, "", STYLE_FREE, STYLE_ACCURACY, CODE_FORMATS[f] ? STYLE_CODE : STYLE_NOLANG, "", STYLE_VOICE, "", STYLE_QUALITY_FREE].join("\n");
+}
 // Clip formats. Every format opens with a concrete case; they differ in where the case comes from.
 const FORMATS = {
   symptom: "Tình huống dev hay gặp", incident: "Sự cố thật (postmortem)", architecture: "Kiến trúc công ty thật",
-  quiz: "Đoán lỗi", concept: "Chủ đề / khái niệm",
+  quiz: "Đoán lỗi", concept: "Tổng quan: X là gì", deep: "Đi sâu chủ đề nhỏ (có code)", howto: "Hướng dẫn từng bước",
+  news: "Tin công nghệ (30 giây)",
 };
 const DEFAULT_FORMAT = "symptom";
 const FORMAT_HINT = {
@@ -1990,8 +2051,28 @@ const FORMAT_HINT = {
   incident: "Gõ tên sự cố, ví dụ: GitLab 2017 xóa nhầm database (nên dán postmortem ở “Từ bài viết”)",
   architecture: "Gõ hệ thống, ví dụ: Discord lưu hàng nghìn tỷ tin nhắn",
   quiz: "Gõ tình huống có lỗi ẩn, ví dụ: flash sale bán quá số hàng tồn",
-  concept: "Gõ chủ đề muốn làm, ví dụ: Idempotency key",
+  concept: "Gõ chủ đề rộng, ví dụ: OOP, Load balancer, Idempotency",
+  deep: "Gõ một chủ đề nhỏ, ví dụ: Dependency Injection, Factory pattern, Redis SET NX",
+  howto: "Gõ việc cần làm, ví dụ: Bật gzip trong Nginx, Thêm index cho cột hay lọc",
+  news: "Gõ tin kèm chi tiết chính (ai, khi nào, chuyện gì), hoặc dán bài báo ở “Từ bài viết”",
 };
+// Formats built around one concrete case. The others explain a topic, walk through code or steps, or report news.
+const CASE_FORMATS = { symptom: 1, incident: 1, architecture: 1, quiz: 1 };
+const CODE_FORMATS = { deep: 1, howto: 1, symptom: 1, quiz: 1 };
+// Length per format: scenes, narration characters (the voice reads about 13 per second), and the resulting clip length.
+// Every format stays under 90 seconds including the follow card, the limit for Reels posted through the API.
+const FORMAT_LEN = {
+  news: { scenes: "3–4", min: 220, max: 300, secs: "khoảng 30 giây" },
+  concept: { scenes: "5–7", min: 450, max: 650, secs: "45–60 giây" },
+  deep: { scenes: "6–8", min: 600, max: 850, secs: "60–75 giây" },
+  howto: { scenes: "6–8", min: 600, max: 850, secs: "60–75 giây" },
+  symptom: { scenes: "6–8", min: 550, max: 800, secs: "55–70 giây" },
+  quiz: { scenes: "6–8", min: 550, max: 800, secs: "55–70 giây" },
+  incident: { scenes: "6–9", min: 600, max: 900, secs: "60–80 giây" },
+  architecture: { scenes: "6–9", min: 600, max: 900, secs: "60–80 giây" },
+};
+const fmtLen = (f) => FORMAT_LEN[normFormat(f) || DEFAULT_FORMAT];
+const fmtChars = (n) => String(n).replace(/\B(?=(\d{3})+$)/g, ".");
 const normFormat = (f) => FORMATS[f] ? f : "";
 function formatGuide(format) {
   const tail = `
@@ -2025,17 +2106,45 @@ Người dùng có thể đưa một triệu chứng ("F5 bị trừ tiền 2 l�
   • THÂN BÀI ("body"): một gợi ý nhỏ (điều kiện nào thì lỗi mới lộ ra) → LỜI GIẢI: chỉ đúng bước sai và diễn lại chuyện gì xảy ra ở bước đó → gọi tên KHÁI NIỆM (tên loại lỗi và cách chữa), giải thích cơ chế → cách sửa áp vào chính luồng đó, kèm 1 bẫy khi sửa.
   • KẾT BÀI ("outro", 1–2 cảnh): luồng sau khi sửa (dùng "before-after"), một câu chốt, và hỏi người xem đã đoán đúng chưa.${tail}
 - Tiêu đề clip là câu đố: "Kho còn 100, bán 137: lỗi ở đâu?".`,
-    concept: `DẠNG CLIP: CHỦ ĐỀ / KHÁI NIỆM (người dùng muốn một clip về đúng chủ đề này, nhưng vẫn phải dẫn bằng case).
-- Giải thích khái niệm đầy đủ hơn các dạng khác (định nghĩa, cơ chế, khi nào dùng, trade-off), NHƯNG luôn mở bằng một case cụ thể nơi thiếu khái niệm này thì gây hậu quả, và mọi bước giải thích đều chiếu lại vào case đó.
+    concept: `DẠNG CLIP: TỔNG QUAN "X LÀ GÌ" (một chủ đề rộng như OOP, Load balancer, Idempotency: nó là gì, có những đặc tính gì, giải quyết bài toán gì, hệ thống thật dùng nó ra sao).
+- Đây là clip nhìn TOÀN CẢNH, không đi vào code. Người xem xem xong phải trả lời được: nó là gì, sinh ra để giải quyết chuyện gì, gồm những phần hay đặc tính nào, và nó nằm ở đâu trong một hệ thống thật.
 - CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
-  • MỞ BÀI ("intro", đúng 2 cảnh). Cảnh 1 layout "title": HẬU QUẢ của case (con số, thiệt hại), không phải tên khái niệm. Cảnh 2: tái hiện case và chỉ ra chỗ hỏng; cuối cảnh mới gọi tên khái niệm là thứ giải quyết chuyện này.
-  • THÂN BÀI ("body"): khái niệm là gì trong một câu, gắn với case → cơ chế hoạt động từng bước trên chính case → khi nào cần dùng, khi nào thừa → lỗi hay gặp và trade-off, mỗi cái kèm hậu quả cụ thể.
-  • KẾT BÀI ("outro", 1–2 cảnh): case sau khi áp dụng (trước và sau), một câu chốt hoặc mẹo nhớ nhanh, và giới hạn của giải pháp.${tail}
-- Tiêu đề clip có tên chủ đề, kèm vấn đề nó giải quyết: "Idempotency Key: retry mà không trừ tiền 2 lần".`,
+  • MỞ BÀI ("intro", 1–2 cảnh). Cảnh 1 layout "title": BÀI TOÁN mà chủ đề này giải quyết, nói bằng một hậu quả hoặc một câu hỏi cụ thể (ví dụ "1 SERVER, *10.000* NGƯỜI VÀO"), rồi gọi tên chủ đề là câu trả lời.
+  • THÂN BÀI ("body"): định nghĩa trong MỘT câu → các đặc tính hoặc thành phần chính (layout "grid" hoặc "stack", tối đa 4 mục, mỗi mục một ý) → hệ thống thật dùng nó thế nào: vẽ luồng request đi qua nó (layout "flow" hoặc "hub") trên một sản phẩm quen thuộc.
+  • KẾT BÀI ("outro", 1 cảnh): khi nào nên dùng, khi nào thừa, và một câu chốt dễ nhớ.${tail}
+- Tiêu đề clip có tên chủ đề: "Load Balancer là gì và nằm ở đâu trong hệ thống".`,
+    deep: `DẠNG CLIP: ĐI SÂU MỘT CHỦ ĐỀ NHỎ, CÓ CODE (ví dụ Dependency Injection, Factory pattern, Redis SET NX, optimistic locking).
+- Phạm vi phải HẸP: đúng MỘT kỹ thuật. Nếu người dùng đưa chủ đề rộng (ví dụ "Design pattern"), hãy chọn một mục nhỏ quan trọng nhất của nó và ghi rõ trong tiêu đề.
+- Người xem xem xong phải TỰ VIẾT ĐƯỢC phiên bản tối thiểu: thấy code trước khi áp dụng, code sau khi áp dụng, và hiểu dòng nào tạo ra khác biệt.
+- BẮT BUỘC có 2–4 cảnh layout "code" với code THẬT, đúng cú pháp, chạy được (không viết giả mã, không "..."). Chọn ngôn ngữ hoặc tool phổ biến nhất cho chủ đề và ghi tên file hoặc tool vào "codeTitle". Các cảnh code dùng CÙNG một ví dụ (cùng tên class, hàm, biến) để người xem theo được.
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • MỞ BÀI ("intro", 1–2 cảnh). Cảnh 1 layout "title": vấn đề cụ thể mà kỹ thuật này sửa, kèm tên kỹ thuật (ví dụ "ĐỔI DATABASE, *SỬA 40 FILE*"). Có thể thêm 1 cảnh "code" cho thấy đoạn code CÓ VẤN ĐỀ, tô sáng dòng gây ra vấn đề.
+  • THÂN BÀI ("body"): ý tưởng của kỹ thuật trong một câu → code SAU khi áp dụng, tô sáng đúng những dòng thay đổi → giải thích từng dòng quan trọng làm gì và vì sao → cách dùng nó ở chỗ gọi (thêm một cảnh "code" nếu cần) → 1 lỗi hay gặp khi tự viết.
+  • KẾT BÀI ("outro", 1 cảnh): trước và sau (layout "before-after") hoặc một câu chốt, kèm khi nào KHÔNG nên dùng.${tail}
+- Tiêu đề clip có tên kỹ thuật và kết quả: "Dependency Injection: đổi database mà không sửa service".`,
+    howto: `DẠNG CLIP: HƯỚNG DẪN TỪNG BƯỚC (làm được một việc cụ thể bằng một tool cụ thể, ví dụ "Bật gzip trong Nginx", "Thêm index cho cột hay lọc trong PostgreSQL").
+- Phạm vi phải HẸP: một việc, một tool, làm xong trong vài bước. Ghi rõ tên tool và, nếu quan trọng, phiên bản hoặc file cấu hình.
+- Mỗi bước là MỘT cảnh, heading bắt đầu bằng "BƯỚC 1", "BƯỚC 2"... và nói đúng việc phải làm. Bước nào có lệnh, code hoặc cấu hình thì dùng layout "code" với nội dung THẬT, chạy được, ghi tên file hoặc "terminal" vào "codeTitle".
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • MỞ BÀI ("intro", 1 cảnh, layout "title"): KẾT QUẢ sẽ đạt được, có con số nếu chắc chắn (ví dụ "TRANG NHẸ HƠN *70%*"), và cần có sẵn gì.
+  • THÂN BÀI ("body", 3–5 cảnh): các bước theo đúng thứ tự thực hiện. Narration nói vì sao phải làm bước đó và tham số quan trọng nghĩa là gì, không đọc từng ký tự của lệnh.
+  • KẾT BÀI ("outro", 1–2 cảnh): cách KIỂM TRA đã làm đúng (lệnh hoặc dấu hiệu cụ thể), và 1 lỗi hay gặp kèm cách sửa.${tail}
+- Tiêu đề clip là việc làm được: "Bật gzip trong Nginx trong 3 bước".`,
+    news: `DẠNG CLIP: TIN CÔNG NGHỆ 30 GIÂY (một sự kiện hoặc tin mới trong ngành, kể nhanh và rút ra một điều dev mang về được).
+- CHỈ dùng thông tin có trong BÀI VIẾT NGUỒN hoặc trong chính chủ đề người dùng gõ. Kiến thức của bạn có thể đã cũ: KHÔNG tự thêm ngày tháng, con số, tên người, nguyên nhân hay phát ngôn. Chi tiết nào nguồn ghi là sơ bộ hoặc chưa xác nhận thì nói đúng như vậy ("theo báo cáo sơ bộ").
+- Rất ngắn: mỗi cảnh một câu, narration mỗi cảnh tối đa khoảng 100 ký tự.
+- CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
+  • Cảnh 1 ("intro", layout "title"): CHUYỆN GÌ VỪA XẢY RA, có con số hoặc tên lớn, kết bằng một câu hỏi gây tò mò. Không chào hỏi.
+  • Cảnh 2 ("body"): câu trả lời hoặc chi tiết bất ngờ nhất của tin (ai nói gì, nguyên nhân là gì theo nguồn).
+  • Cảnh 3 ("body"): ĐIỀU DEV RÚT RA: một việc cụ thể nên làm hoặc nên kiểm tra trong hệ thống của mình.
+  • Có thể thêm cảnh 4 ("outro") là MỘT câu hỏi mồi bình luận.
+  • KHÔNG viết cảnh kêu gọi follow: hệ thống tự thêm.
+- Tiêu đề clip là tin, viết như một dòng tít: "6 ngày sập hàng loạt: không phải hacker".`,
   };
   return G[format] || G[DEFAULT_FORMAT];
 }
 function scriptPrompt(topic, category, article, note, ctx, format) {
+  const L = fmtLen(format); const isCase = !!CASE_FORMATS[normFormat(format) || DEFAULT_FORMAT]; const canCode = !!CODE_FORMATS[normFormat(format) || DEFAULT_FORMAT];
   const existing = [...state.scripts.values()].map(s => s.title).slice(0, 80).join("; ");
   const head = article
     ? `Viết kịch bản cho clip dọc 9:16 dựa trên BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}${category && category !== "auto" && category !== "all" ? ` (lĩnh vực ${category})` : ""}.
@@ -2045,14 +2154,14 @@ Bài viết là nguồn chính: chắt lọc những ý hay và quan trọng nh�
 ${article}
 === HẾT BÀI VIẾT ===`
     : `Viết kịch bản cho clip dọc 9:16 về chủ đề: "${topic}"${category && category !== "all" ? ` (lĩnh vực ${category})` : ""}.`;
-  return `${STYLE_RULES}
+  return `${styleFor(format)}
 
 ${head}
 ${ctx ? "\n" + ctx + "\n" : ""}Các clip đã có (đừng lặp lại y hệt): ${existing || "chưa có"}.
 
 Quy tắc:
-- Mỗi clip kể TRỌN VẸN một case và giải quyết nó, có người thuyết minh; không phải một bài giảng. Độ dài theo nội dung, tối đa khoảng 2 phút: thường 8–14 cảnh. Tổng độ dài tất cả "narration" khoảng 800–1.500 ký tự (giọng đọc khoảng 13 ký tự mỗi giây), không vượt quá 1.500 ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 8 giây). Muốn câu tự nhiên mà vẫn vừa thời lượng thì bớt cảnh, đừng nén câu.
-- Chắt lọc: chọn những ý HAY và QUAN TRỌNG nhất để hiểu và chữa được case (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Phần lý thuyết thuần chỉ chiếm phần nhỏ, luôn gắn vào case. Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
+- ĐỘ DÀI (bắt buộc): clip dài ${L.secs}, gồm ${L.scenes} cảnh. Tổng độ dài tất cả "narration" khoảng ${fmtChars(L.min)}–${fmtChars(L.max)} ký tự (giọng đọc khoảng 13 ký tự mỗi giây), KHÔNG vượt quá ${fmtChars(L.max)} ký tự (hệ thống còn tự thêm cảnh kêu gọi follow khoảng 5 giây). Muốn câu tự nhiên mà vẫn vừa thời lượng thì thu hẹp phạm vi hoặc bớt cảnh, đừng nén câu.
+- ${isCase ? "Mỗi clip kể TRỌN VẸN một case và giải quyết nó, có người thuyết minh; không phải một bài giảng. " : ""}Chắt lọc: chỉ giữ những ý HAY và QUAN TRỌNG nhất${isCase ? " để hiểu và chữa được case (cơ chế cốt lõi, lỗi hay gặp, cách xử lý, khi nào dùng). Phần lý thuyết thuần chỉ chiếm phần nhỏ, luôn gắn vào case" : ""}. Không lặp ý, không độn, nhưng không bỏ bước quan trọng khiến người nghe thiếu thông tin.
 ${formatGuide(format)}
 - "heading": tiếng Việt hoặc thuật ngữ tiếng Anh, ngắn (tối đa 5 từ), sẽ được in hoa. Bao 1 từ quan trọng trong *dấu sao* để tô cam.
 - "subtitle": câu NHẤN MẠNH hiện trên màn hình: một câu chốt tự nhiên, đắt giá, tối đa 90 ký tự, có thể bao 1–2 từ trong *dấu sao*. Không chứa nguyên câu lệnh hay đoạn code.
@@ -2060,27 +2169,30 @@ ${formatGuide(format)}
 - "duration": để 3 (hệ thống tự kéo dài cảnh theo độ dài giọng đọc).
 - "actors": 1–6 đối tượng, mỗi đối tượng {"icon", "label", "side"}. label ngắn (tối đa 3 từ). "side" chỉ dùng cho compare/before-after: "L" hoặc "R".
 - icon CHỈ được chọn trong: ${ICON_NAMES.join(", ")}.
-- "layout" CHỈ được chọn trong: title, flow, hub, compare, before-after, stack, grid. hub: đối tượng 0 ở giữa, các đối tượng khác bao quanh. stack: các tầng từ trên xuống.
+- "layout" CHỈ được chọn trong: title, flow, hub, compare, before-after, stack, grid${canCode ? ", code" : ""}. hub: đối tượng 0 ở giữa, các đối tượng khác bao quanh. stack: các tầng từ trên xuống.${canCode ? `
+- Cảnh layout "code" hiện một khung code thay cho các đối tượng (để "actors": [] và "links": []). "code": tối đa ${CODE_MAX_LINES - 1} dòng, mỗi dòng tối đa ${CODE_MAX_COLS - 4} ký tự (xuống dòng bằng \\n, thụt lề bằng 2 dấu cách); chỉ giữ những dòng cần để hiểu ý của cảnh. Đặt "!!" ở ĐẦU 1–3 dòng quan trọng nhất để tô sáng. "codeTitle": tên file hoặc tool, ví dụ "OrderService.ts", "nginx.conf", "terminal". Narration nói đoạn code LÀM GÌ và vì sao, không đọc từng ký tự. Mỗi cảnh code cần narration đủ dài (khoảng 100–160 ký tự) để người xem kịp đọc.` : ""}
 - "links": mũi tên [{"from": chỉ số, "to": chỉ số, "label": tối đa 2 từ}], chỉ số bắt đầu từ 0.
 - "focus": chỉ số đối tượng cần nhấn mạnh, hoặc -1. "mark": {"index": chỉ số, "type": "check"|"cross"} hoặc null.
 - "left"/"right": nhãn cột cho compare/before-after (tối đa 2 từ).
 
 Chỉ trả về JSON đúng dạng:
-{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook: hậu quả của case, có con số", "metaphor": "case xuyên suốt clip: sản phẩm, thao tác, con số, hậu quả", "concept": "tên khái niệm kỹ thuật là lời giải của case", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""}]}`;
+{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook: hậu quả của case, có con số", "metaphor": "case xuyên suốt clip: sản phẩm, thao tác, con số, hậu quả", "concept": "tên khái niệm kỹ thuật là lời giải của case", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""${canCode ? ', "code": "", "codeTitle": ""' : ""}}]}`;
 }
 function reviewPrompt(sc, ctx) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
-  return `${STYLE_RULES}
+  const L = fmtLen(sc.format); const isCase = !!CASE_FORMATS[normFormat(sc.format) || DEFAULT_FORMAT];
+  return `${styleFor(sc.format)}
 
 Bạn là reviewer kỹ thuật khó tính (senior engineer). Kiểm tra kịch bản clip dưới đây:
 1. Độ chính xác kỹ thuật: định nghĩa, thứ tự các bước, tên trạng thái/thuật toán, trade-off, ví dụ công cụ/sản phẩm. Sửa mọi chỗ sai hoặc gây hiểu nhầm. Bỏ số liệu không chắc chắn.
 2. Bỏ mọi ẩn dụ đời thường/công sở, thay bằng thành phần kỹ thuật thật.
-2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá 1.500 ký tự. Khi sửa, giữ câu văn tự nhiên theo GIỌNG VĂN, đừng làm câu cụt hay khô đi.
-2c. Cấu trúc phải đúng dạng clip dưới đây. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá 1.500 ký tự.
+2a. Lời thuyết minh ("narration") của từng cảnh: phải đúng kỹ thuật, khớp với hình và phụ đề của cảnh, dễ hiểu khi nghe, viết được để đọc thành tiếng (không ký hiệu). Cảnh nào thiếu narration thì viết thêm. Tổng narration không quá ${fmtChars(L.max)} ký tự. Khi sửa, giữ câu văn tự nhiên theo GIỌNG VĂN, đừng làm câu cụt hay khô đi.
+2c. Cấu trúc phải đúng dạng clip dưới đây. Ghi "part" đúng cho từng cảnh ("intro", "body", "outro"). Xóa mọi cảnh kêu gọi follow/like/subscribe vì hệ thống tự thêm. Tổng narration không quá ${fmtChars(L.max)} ký tự.
 ${formatGuide(sc.format)}
-2f. Case study: clip phải mở bằng case cụ thể có hậu quả, khái niệm chỉ xuất hiện như lời giải, và mọi cảnh giải thích đều bám vào case (cùng hệ thống, cùng con số). Cảnh nào trượt sang định nghĩa chung chung thì viết lại cho gắn vào case. Xóa mọi câu mục lục kiểu "Trong clip này, mình sẽ...". Kiểm tra tính trung thực: tình huống tự dựng không được gắn tên công ty thật; sự cố thật không được có chi tiết hay số liệu bịa.
-2b. Độ đầy đủ: clip phải trình bày trọn vẹn chủ đề (tối đa khoảng 2 phút). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
-3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 120 giây.
+${isCase ? `2f. Case study: clip phải mở bằng case cụ thể có hậu quả, khái niệm chỉ xuất hiện như lời giải, và mọi cảnh giải thích đều bám vào case (cùng hệ thống, cùng con số). Cảnh nào trượt sang định nghĩa chung chung thì viết lại cho gắn vào case.` : `2f. Mở đầu phải khiến người xem dừng lại (hậu quả, con số, câu hỏi hoặc kết quả đạt được); cả clip dùng một ví dụ xuyên suốt; heading và phụ đề mỗi cảnh có từ khóa trọng tâm trong *dấu sao*.`} Xóa mọi câu mục lục kiểu "Trong clip này, mình sẽ...". Kiểm tra tính trung thực: tình huống tự dựng không được gắn tên công ty thật; sự kiện thật không được có chi tiết hay số liệu bịa.
+2g. Cảnh layout "code": kiểm tra code đúng cú pháp, chạy được, tên lệnh, hàm và tham số có thật, các cảnh dùng cùng tên biến; dòng tô sáng ("!!" ở đầu dòng) đúng là dòng quan trọng; mỗi dòng tối đa ${CODE_MAX_COLS - 4} ký tự, tối đa ${CODE_MAX_LINES - 1} dòng. Giữ nguyên "code" và "codeTitle" nếu không có lỗi.
+2b. Độ đầy đủ: clip phải trình bày trọn vẹn phạm vi đã chọn trong ${L.secs} (${L.scenes} cảnh). Nếu thiếu bước hoặc ý quan trọng thì bổ sung cảnh; nếu có ý lặp hoặc độn thì cắt.
+3. Giữ đúng định dạng: heading tối đa 5 từ với 1 từ trong *dấu sao*; subtitle tiếng Việt tối đa 90 ký tự; icon chỉ trong: ${ICON_NAMES.join(", ")}; layout chỉ trong: title, flow, hub, compare, before-after, stack, grid, code; chỉ số actor bắt đầu từ 0; tổng thời lượng không quá 90 giây.
 2d. Tiêu chí chất lượng: kiểm tra từng tiêu chí trong phần TIÊU CHÍ CHẤT LƯỢNG ở trên (thuật ngữ được giải thích trước khi dùng, một case xuyên suốt, mỗi cảnh một ý, kết bài có thông điệp chính và giới hạn của giải pháp). Sửa chỗ nào chưa đạt.
 ${ctx ? "2e. Đây là một phần của series, chỉ được trình bày đúng phạm vi của phần này:\n" + ctx + "\n" : ""}${sourceText ? `4. Đối chiếu với BÀI VIẾT NGUỒN: kịch bản phải đúng với nội dung bài, không bỏ sót ý chính của bài, không thêm thông tin sai.
 
@@ -2101,7 +2213,7 @@ Kịch bản clip dưới đây có phụ đề ngắn cho từng cảnh. Hãy v
 - Narration GIẢI THÍCH RÕ cảnh đó: cái gì đang diễn ra trên hình, vì sao, hệ quả. 1–3 câu, khoảng 80–250 ký tự, theo đúng GIỌNG VĂN ở trên, nối mạch giữa các cảnh, không lặp nguyên văn phụ đề.
 - Viết để đọc thành tiếng: không ký hiệu (→, ·, /, *, %), viết thành lời; thuật ngữ tiếng Anh giữ nguyên.
 - Giữ cấu trúc 3 phần và ghi "part" cho từng cảnh: MỞ BÀI ("intro", 2 cảnh: hậu quả của case, rồi tái hiện case), THÂN BÀI ("body") chẩn đoán và giải thích cách chữa trên chính case, KẾT BÀI ("outro") chốt ý. Không viết câu mục lục "Trong clip này, mình sẽ...". Không viết lời kêu gọi follow: hệ thống tự thêm cảnh đó.
-- Tổng narration của cả clip không quá 1.500 ký tự (khoảng 2 phút, chưa tính cảnh follow). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất, đừng nén câu; nếu thiếu ý quan trọng thì thêm cảnh.
+- Tổng narration của cả clip không quá ${fmtChars(fmtLen(sc.format).max)} ký tự (${fmtLen(sc.format).secs}, chưa tính cảnh follow). Nếu clip quá dài thì gộp hoặc bỏ bớt cảnh ít giá trị nhất, đừng nén câu; nếu thiếu ý quan trọng thì thêm cảnh.
 - Phải đúng kỹ thuật; không bịa số liệu.
 ${sourceText ? `\nĐối chiếu với BÀI VIẾT NGUỒN:\n=== BÀI VIẾT NGUỒN ===\n${sourceText}\n=== HẾT BÀI VIẾT ===\n` : ""}
 Kịch bản hiện tại:
@@ -2158,12 +2270,17 @@ Chỉ chọn những thiết kế đã được chính công ty công bố rộn
     quiz: `Đề xuất 10 CÂU ĐỐ "ĐOÁN LỖI" để làm clip${scope}.
 Mỗi câu đố là một luồng xử lý trông có vẻ đúng nhưng có lỗi ẩn, chỉ lộ ra dưới tải hoặc khi có sự cố mạng, và có hậu quả đo được. Ví dụ: "Kho còn 100, hệ thống bán 137 đơn"; "Gửi 1 webhook, đơn hàng được xử lý 2 lần"; "Vừa lưu xong, tải lại trang thì dữ liệu biến mất".
 "topic" là câu đố viết như một câu thách (tối đa 14 từ). "angle" ghi "Lỗi: <tên loại lỗi>, cách chữa: <khái niệm>".`,
-    concept: `Đề xuất 10 CHỦ ĐỀ clip mới${scope}.
-Ưu tiên chủ đề ĐANG HOT và THIẾT YẾU cho developer hiện nay: kiến thức dev gặp hằng ngày, câu hỏi phỏng vấn system design phổ biến, công nghệ đang được dùng nhiều. Ví dụ hướng chủ đề: ${areas}.
-Chủ đề phải là khái niệm có định nghĩa rõ ràng, đã được công nhận rộng rãi (không phải tin đồn hay sản phẩm chưa phát hành).
-"topic" là tên chủ đề ngắn. "angle" ghi "Case mở đầu: <tình huống cụ thể có hậu quả sẽ dùng để dẫn vào chủ đề>".`,
+    concept: `Đề xuất 10 CHỦ ĐỀ TỔNG QUAN "X là gì" để làm clip${scope}.
+Mỗi chủ đề là một khái niệm RỘNG, nền tảng, đã được công nhận rộng rãi, mà dev cần nắm toàn cảnh: nó là gì, có đặc tính gì, giải quyết bài toán gì (ví dụ: OOP, Load balancer, Idempotency, Message queue, CDN, Index trong database). Ưu tiên kiến thức dev gặp hằng ngày và câu hỏi phỏng vấn phổ biến. Ví dụ hướng chủ đề: ${areas}.
+"topic" là tên chủ đề ngắn. "angle" ghi "Giải quyết: <bài toán cụ thể sẽ dùng để mở clip>".`,
+    deep: `Đề xuất 10 CHỦ ĐỀ NHỎ ĐỂ ĐI SÂU CÓ CODE${scope}.
+Mỗi chủ đề là đúng MỘT kỹ thuật hẹp, giải thích trọn vẹn được trong khoảng 1 phút bằng 2–4 đoạn code ngắn (ví dụ: Dependency Injection qua constructor, Factory method, Singleton an toàn với nhiều thread, khóa phân tán bằng Redis SET NX, optimistic locking bằng cột version, retry với exponential backoff, debounce một ô tìm kiếm). KHÔNG chọn chủ đề rộng như "Design pattern" hay "OOP".
+"topic" là tên kỹ thuật kèm ngôn ngữ hoặc tool nếu cần (tối đa 10 từ). "angle" ghi "Sửa được: <vấn đề cụ thể mà kỹ thuật này giải quyết>".`,
+    howto: `Đề xuất 10 VIỆC CỤ THỂ để làm clip HƯỚNG DẪN TỪNG BƯỚC${scope}.
+Mỗi việc làm xong trong 3–5 bước bằng MỘT tool phổ biến, có lệnh hoặc cấu hình thật, và có cách kiểm tra kết quả (ví dụ: "Bật gzip trong Nginx", "Thêm index cho cột hay lọc trong PostgreSQL", "Giới hạn 100 request mỗi phút bằng Nginx limit_req", "Viết Dockerfile multi-stage cho app Node.js", "Xem query chậm bằng EXPLAIN ANALYZE").
+"topic" là việc làm được, bắt đầu bằng động từ, có tên tool (tối đa 12 từ). "angle" ghi "Kết quả: <người xem đạt được gì>".`,
   };
-  return `${STYLE_RULES}
+  return `${styleFor(format)}
 
 ${T[format] || T[DEFAULT_FORMAT]}
 Không trùng với các clip đã có: ${existing || "chưa có"}.
@@ -2191,6 +2308,7 @@ function setAiBusy(on, msg) {
 }
 $("btn-suggest").addEventListener("click", async () => {
   if (!cap.sample || state.aiBusy) return;
+  if (curFormat() === "news") { setAiBusy(false, "Tin công nghệ cần nguồn thật: gõ tin kèm chi tiết chính vào ô chủ đề, hoặc dán bài báo ở “Từ bài viết”. AI không tự biết tin mới."); return; }
   const cat = $("ai-cat").value; setAiBusy(true, "Đang nghĩ chủ đề…");
   try {
     const r = await cap.sample.json(topicsPrompt(cat, curFormat()), aiOpts("light", "default"));
@@ -2210,20 +2328,21 @@ const curFormat = () => normFormat($("ai-format").value) || DEFAULT_FORMAT;
   const el = $("ai-format"); let saved = ""; try { saved = localStorage.getItem("codelens.format") || ""; } catch (e) {}
   el.innerHTML = Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   el.value = normFormat(saved) || DEFAULT_FORMAT;
-  const sync = () => { $("ai-topic").placeholder = FORMAT_HINT[curFormat()]; $("btn-suggest").textContent = curFormat() === "concept" ? "Gợi ý chủ đề" : "Gợi ý case"; };
+  const sync = () => { $("ai-topic").placeholder = FORMAT_HINT[curFormat()]; $("btn-suggest").textContent = CASE_FORMATS[curFormat()] ? "Gợi ý case" : "Gợi ý chủ đề"; };
   el.addEventListener("change", () => { try { localStorage.setItem("codelens.format", el.value); } catch (e) {} state.suggestions = []; renderSuggestions(); sync(); });
   sync();
 })();
 $("ai-topic").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-write").click(); });
 // ---- series: plan first, then write each part with the whole plan in view ----
 function planPrompt(topic, category, article, note, format) {
-  return `${STYLE_RULES}
+  const L = fmtLen(format); const isCase = !!CASE_FORMATS[normFormat(format) || DEFAULT_FORMAT];
+  return `${styleFor(format)}
 
 Lên kế hoạch clip dọc 9:16 cho ${article ? `BÀI VIẾT NGUỒN bên dưới${topic ? ` (tiêu đề mong muốn: "${topic}")` : ""}` : `chủ đề "${topic}"`}${category && !["all", "auto"].includes(category) ? ` (lĩnh vực ${category})` : ""}.${note ? `\nYêu cầu thêm: ${note}` : ""}
-Dạng clip: ${FORMATS[format] || FORMATS[DEFAULT_FORMAT]}. Clip mở bằng một case cụ thể có hậu quả; khái niệm kỹ thuật là lời giải của case.
-Mỗi clip tối đa khoảng 2 phút (lời thuyết minh không quá 1.500 ký tự, khoảng 8–14 cảnh, gồm mở bài, thân bài, kết bài).
-Ưu tiên CHẤT LƯỢNG: nếu cần giải thích đủ sâu theo các tiêu chí ở trên mà một clip không đủ, hãy chia thành nhiều phần (tối đa 4). Chủ đề gọn thì giữ 1 phần.
-Mỗi phần phải xem riêng vẫn hiểu được; các phần không lặp ý; phần sau nối tiếp phần trước. Cả series dùng chung MỘT case xuyên suốt; mỗi phần giải quyết một câu hỏi tiếp theo của case đó.
+Dạng clip: ${FORMATS[format] || FORMATS[DEFAULT_FORMAT]}.${isCase ? " Clip mở bằng một case cụ thể có hậu quả; khái niệm kỹ thuật là lời giải của case." : ""}
+Mỗi clip dài ${L.secs} (lời thuyết minh không quá ${fmtChars(L.max)} ký tự, ${L.scenes} cảnh, gồm mở bài, thân bài, kết bài).
+Clip ngắn thì phạm vi phải hẹp: ưu tiên 1 phần với phạm vi vừa đủ. Chỉ chia thành nhiều phần (tối đa 4) khi chủ đề thật sự không thể giải thích đúng trong một clip; mỗi phần là một câu hỏi nhỏ trọn vẹn.
+Mỗi phần phải xem riêng vẫn hiểu được; các phần không lặp ý; phần sau nối tiếp phần trước. Cả series dùng chung MỘT ${isCase ? "case" : "ví dụ"} xuyên suốt; mỗi phần giải quyết một câu hỏi tiếp theo.
 ${article ? `\n=== BÀI VIẾT NGUỒN ===\n${article}\n=== HẾT BÀI VIẾT ===\n` : ""}
 Chỉ trả về JSON: {"seriesTitle": "tên chung của series", "example": "case xuyên suốt: sản phẩm, thao tác, con số, hậu quả", "parts": [{"title": "tiêu đề clip của phần này", "covers": ["các ý phần này trình bày, theo thứ tự"], "teaser": "một câu văn nói giới thiệu phần này, sẽ được đọc ở cuối phần trước"}]}`;
 }
@@ -2247,8 +2366,11 @@ async function writeScripts({ topic, category, article, note, format, tier = "de
   format = normFormat(format) || DEFAULT_FORMAT;
   onStatus("Claude đang lên kế hoạch nội dung…");
   let plan;
-  try { plan = normPlan(await cap.sample.json(planPrompt(topic, category, article, note, format), aiOpts("write", tier)), topic); }
-  catch (e) { plan = normPlan(null, topic); }
+  if (format === "news") plan = normPlan(null, topic);
+  else {
+    try { plan = normPlan(await cap.sample.json(planPrompt(topic, category, article, note, format), aiOpts("write", tier)), topic); }
+    catch (e) { plan = normPlan(null, topic); }
+  }
   const n = plan.parts.length; const seriesId = n > 1 ? uid() : ""; const createdAt = new Date().toISOString();
   const saved = []; let issuesTotal = 0, allReviewed = true;
   for (let i = 0; i < n; i++) {
@@ -2404,14 +2526,15 @@ async function autoWriteScripts(n, cats) {
   if (state.aiBusy) return;
   try {
     setAiBusy(true, "Lịch chạy: Claude đang chọn chủ đề…");
-    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all", curFormat()), aiOpts("light", "default"));
+    const fmt = curFormat() === "news" ? DEFAULT_FORMAT : curFormat(); // news needs a real source, so the schedule falls back
+    const r = await cap.sample.json(topicsPrompt(cats.length === 1 ? cats[0] : "all", fmt), aiOpts("light", "default"));
     const topics = (r && Array.isArray(r.topics) ? r.topics : []).filter(t => t && t.topic && (!cats.length || cats.includes(t.category))).slice(0, n);
     setAiBusy(false, "");
     let done = 0;
     for (const t of topics) {
       setAiBusy(true, `Lịch chạy: đang viết “${t.topic}” (${done + 1}/${topics.length})…`);
       try {
-        const out = await writeScripts({ topic: t.topic + (t.angle ? ` — ${t.angle}` : ""), category: CATEGORIES.includes(t.category) ? t.category : "all", format: curFormat(), status: "queued", onStatus: (m) => setAiBusy(true, "Lịch chạy: " + m) });
+        const out = await writeScripts({ topic: t.topic + (t.angle ? ` — ${t.angle}` : ""), category: CATEGORIES.includes(t.category) ? t.category : "all", format: fmt, status: "queued", onStatus: (m) => setAiBusy(true, "Lịch chạy: " + m) });
         if (!out.saved.length) throw new Error("empty");
         done++;
       } catch (e) { /* skip this topic, keep going */ }
@@ -3124,6 +3247,6 @@ fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelP
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { carouselVideo, renderSlide, quickSlides, normCarousel, carouselPrompt, slideEditPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, renderAudio, totalDur, pickEncoder };
+window.__codelens = { carouselVideo, renderSlide, quickSlides, normCarousel, carouselPrompt, slideEditPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, scriptPrompt, reviewPrompt, planPrompt, topicsPrompt, styleFor, renderAudio, totalDur, pickEncoder };
 })();
 </script>

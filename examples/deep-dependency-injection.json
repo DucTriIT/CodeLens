@@ -1,0 +1,71 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "topic": "Dependency Injection",
+   "title": "Dependency Injection: đổi database mà không sửa service",
+   "category": "Backend",
+   "format": "deep",
+   "hook": "Đổi database mà phải sửa 40 file? Lỗi nằm ở một chữ new.",
+   "metaphor": "OrderService tự tạo MySqlDb bên trong; đổi sang Postgres thì phải sửa mọi service",
+   "concept": "Dependency Injection qua constructor",
+   "status": "draft",
+   "createdBy": "user",
+   "scenes": [
+    {
+     "part": "intro", "layout": "title", "duration": 2.5,
+     "heading": "ĐỔI DATABASE, *SỬA 40 FILE*",
+     "subtitle": "Lỗi nằm ở một chữ *new* trong service",
+     "narration": "Giả sử đổi từ MySQL sang Postgres mà phải sửa bốn mươi file. Thủ phạm thường chỉ là một chữ new nằm trong service.",
+     "actors": [{"icon": "database", "label": "", "side": ""}, {"icon": "warning", "label": "", "side": ""}, {"icon": "code", "label": "", "side": ""}],
+     "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "intro", "layout": "code", "duration": 3,
+     "heading": "SERVICE *TỰ TẠO* DATABASE",
+     "subtitle": "*new MySqlDb()* buộc chặt service vào MySQL",
+     "narration": "Đây là chỗ hỏng: OrderService tự tạo MySqlDb ngay bên trong. Muốn đổi database hay viết test, bạn đều phải mở class này ra sửa.",
+     "codeTitle": "OrderService.ts",
+     "code": "class OrderService {\n!!  private db = new MySqlDb();\n\n  save(order: Order) {\n    this.db.insert(\"orders\", order);\n  }\n}",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "flow", "duration": 3,
+     "heading": "DEPENDENCY *INJECTION*",
+     "subtitle": "Thứ service cần thì *đưa từ ngoài vào*",
+     "narration": "Dependency Injection đảo lại chuyện đó: service không tự tạo thứ nó cần nữa, mà nhận từ bên ngoài đưa vào.",
+     "actors": [{"icon": "gear", "label": "Nơi khởi tạo", "side": ""}, {"icon": "database", "label": "Db", "side": ""}, {"icon": "server", "label": "OrderService", "side": ""}],
+     "links": [{"from": 0, "to": 1, "label": "tạo"}, {"from": 1, "to": 2, "label": "đưa vào"}],
+     "focus": 2, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "code", "duration": 3,
+     "heading": "NHẬN QUA *CONSTRUCTOR*",
+     "subtitle": "Service chỉ biết *interface Db*, không biết MySQL",
+     "narration": "Giờ OrderService nhận database qua constructor, và chỉ biết một interface tên Db. Nó không còn quan tâm phía sau là MySQL hay Postgres.",
+     "codeTitle": "OrderService.ts",
+     "code": "interface Db {\n  insert(table: string, row: object): void;\n}\nclass OrderService {\n!!  constructor(private db: Db) {}\n  save(order: Order) {\n    this.db.insert(\"orders\", order);\n  }\n}",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "code", "duration": 3,
+     "heading": "ĐỔI Ở *MỘT CHỖ*",
+     "subtitle": "Nơi khởi tạo quyết định dùng *database nào*",
+     "narration": "Việc chọn database dồn về đúng một chỗ là nơi khởi tạo. Chạy thật thì đưa PostgresDb vào, viết test thì đưa một FakeDb, service không đổi dòng nào.",
+     "codeTitle": "main.ts",
+     "code": "// production\n!!new OrderService(new PostgresDb());\n\n// unit test\n!!new OrderService(new FakeDb());",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "outro", "layout": "before-after", "duration": 3,
+     "heading": "*LOOSE* COUPLING",
+     "subtitle": "Đổi database: từ 40 file còn *1 dòng*",
+     "narration": "Đó là loose coupling. Nhưng app nhỏ chỉ có vài class thì cứ new thẳng cho gọn, đừng thêm Dependency Injection khi chưa cần.",
+     "actors": [{"icon": "lock", "label": "new trong service", "side": "L"}, {"icon": "key", "label": "Nhận qua constructor", "side": "R"}],
+     "links": [], "focus": -1, "mark": null, "left": "TRƯỚC", "right": "SAU"
+    }
+   ]
+  }
+ ]
+}
