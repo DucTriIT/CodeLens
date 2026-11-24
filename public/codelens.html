@@ -201,7 +201,7 @@ a.btn { text-decoration: none; color: inherit; }
       <div class="panel-head"><h2>Kịch bản</h2><button class="btn small" id="btn-new">+ Từ bài viết</button></div>
       <div class="ai-box" id="ai-box">
         <div class="row">
-          <select id="ai-format" aria-label="Dạng clip" title="Dạng clip: mọi dạng đều mở bằng một case cụ thể"></select>
+          <select id="ai-format" aria-label="Dạng clip" title="Dạng clip: quyết định cấu trúc và độ dài của kịch bản"></select>
           <select id="ai-cat" aria-label="Lĩnh vực"></select>
           <button class="btn blue" id="btn-suggest">Gợi ý chủ đề</button>
         </div>
@@ -1736,7 +1736,7 @@ function renderArticleForm(el) {
   const a = loadArticleDraft();
   el.innerHTML = `
     <div class="panel-head"><h2>Tạo kịch bản từ bài viết</h2><button class="btn small ghost" data-art="close">Đóng</button></div>
-    <p class="hint">Dán bài viết hoặc ghi chú bạn đã research. AI đọc bài, chắt lọc ý chính và tự tạo kịch bản (tối đa khoảng 2 phút), rồi đối chiếu lại với bài để kiểm tra độ chính xác.</p>
+    <p class="hint">Dán bài viết hoặc ghi chú bạn đã research. AI đọc bài, chắt lọc ý chính và tự tạo kịch bản theo dạng clip bạn chọn (30–80 giây), rồi đối chiếu lại với bài để kiểm tra độ chính xác.</p>
     <div class="meta-grid">
       <label class="f"><span>Tiêu đề clip (không bắt buộc)</span><input type="text" id="art-title" value="${esc(a.title || "")}" placeholder="Để trống để AI tự đặt"></label>
       <label class="f"><span>Lĩnh vực</span><select id="art-cat"><option value="auto">AI tự chọn</option>${CATEGORIES.map(c => `<option value="${c}"${a.cat === c ? " selected" : ""}>${c}</option>`).join("")}</select></label>
@@ -1756,7 +1756,7 @@ function renderEditor() {
   const el = $("editor"); const d = state.draft;
   if (!d && state.articleMode) { renderArticleForm(el); return; }
   if (!d) {
-    el.innerHTML = `<div class="panel-head"><h2>Trình soạn</h2></div><div class="empty"><strong>Chọn một kịch bản để sửa</strong>Mỗi clip dài tối đa khoảng 2 phút, số cảnh tùy kịch bản. Mỗi cảnh có tiêu đề in hoa, phụ đề tiếng Việt và các icon được nối bằng mũi tên cam. Bao một từ trong dấu <code style="color:var(--orange)">*sao*</code> để tô cam.</div>`;
+    el.innerHTML = `<div class="panel-head"><h2>Trình soạn</h2></div><div class="empty"><strong>Chọn một kịch bản để sửa</strong>Mỗi clip dài khoảng 30–80 giây tùy dạng clip. Mỗi cảnh có tiêu đề in hoa, phụ đề tiếng Việt và các icon được nối bằng mũi tên cam. Bao một từ trong dấu <code style="color:var(--orange)">*sao*</code> để tô cam.</div>`;
     return;
   }
   const sel = (path, options, val, extra = "") => `<select data-f="${path}" ${extra}>${options.map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(val) ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
@@ -1918,7 +1918,7 @@ $("editor").addEventListener("click", async (e) => {
     b.disabled = true; b.innerHTML = '<span class="spin"></span> Đang viết lời thuyết minh…'; state.aiBusy = true;
     try {
       const r = await cap.sample.json(narratePrompt(normScript(d)), aiOpts("write", "complex"));
-      const fixed = r && Array.isArray(r.scenes) && r.scenes.length ? r : null;
+      const fixed = r && Array.isArray(r.scenes) && r.scenes.length ? { ...r, scenes: keepCode(normScript(d), r.scenes) } : null;
       if (!fixed) throw { message: "AI không trả về kịch bản hợp lệ." };
       const n = normScript({ ...d, ...fixed, reviewed: d.reviewed, reviewNotes: d.reviewNotes });
       state.draft = { ...n, id: d.id }; state.dirty = true; renderEditor(); pv.draw();
@@ -2202,7 +2202,7 @@ ${sourceText}
 ` : ""}Kịch bản:
 ${JSON.stringify(body)}
 
-Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc, mỗi cảnh có cả subtitle và narration: title, category, hook, metaphor, concept, scenes}}`;
+Chỉ trả về JSON: {"issues": ["mô tả ngắn từng lỗi đã sửa, tiếng Việt; mảng rỗng nếu không có lỗi"], "script": {kịch bản đã sửa, cùng cấu trúc, mỗi cảnh có cả subtitle và narration, cảnh layout "code" giữ đủ "layout", "code", "codeTitle": title, category, hook, metaphor, concept, scenes}}`;
 }
 function narratePrompt(sc) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
@@ -2219,7 +2219,7 @@ ${sourceText ? `\nĐối chiếu với BÀI VIẾT NGUỒN:\n=== BÀI VIẾT NGU
 Kịch bản hiện tại:
 ${JSON.stringify(body)}
 
-Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, concept, scenes), mỗi cảnh có thêm trường "narration".`;
+Chỉ trả về JSON là kịch bản đầy đủ (cùng cấu trúc: title, category, hook, metaphor, concept, scenes), mỗi cảnh có thêm trường "narration"; cảnh layout "code" giữ nguyên "layout", "code", "codeTitle".`;
 }
 // Language editor: rewrites only the words (heading, subtitle, narration) for natural spoken Vietnamese.
 function polishPrompt(sc, ctx) {
@@ -2246,9 +2246,23 @@ async function aiPolish(script, ctx) {
   });
   return { script: { ...script, scenes }, notes: r && Array.isArray(r.notes) ? r.notes.map(String).filter(Boolean) : [] };
 }
+// An AI pass that rewrites scenes must not lose the code of a code scene: when a returned scene has no code,
+// the code of the matching original scene (same position, or same heading if scenes were added or removed) is put back.
+function keepCode(orig, scenes) {
+  const src = orig.scenes.filter(x => x.layout === "code" && x.code);
+  if (!src.length || !Array.isArray(scenes)) return scenes;
+  const key = (h) => String(h || "").replace(/\*/g, "").trim().toLocaleLowerCase("vi");
+  const same = scenes.length === orig.scenes.length;
+  return scenes.map((y, i) => {
+    if (!y || typeof y !== "object") return y;
+    if (String(y.code || "").trim()) return y.layout === "code" ? y : { ...y, layout: "code" };
+    const x = same ? orig.scenes[i] : src.find(o => key(o.heading) && key(o.heading) === key(y.heading));
+    return x && x.layout === "code" && x.code ? { ...y, layout: "code", code: x.code, codeTitle: y.codeTitle || x.codeTitle, actors: [], links: [] } : y;
+  });
+}
 async function aiReview(script, ctx) {
   const r = await cap.sample.json(reviewPrompt(script, ctx), aiOpts("review", "complex"));
-  const fixed = r && r.script && Array.isArray(r.script.scenes) && r.script.scenes.length ? r.script : script;
+  const fixed = r && r.script && Array.isArray(r.script.scenes) && r.script.scenes.length ? { ...r.script, scenes: keepCode(script, r.script.scenes) } : script;
   const issues = r && Array.isArray(r.issues) ? r.issues.filter(Boolean).map(String) : [];
   return { fixed, issues };
 }
@@ -3247,6 +3261,6 @@ fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelP
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { carouselVideo, renderSlide, quickSlides, normCarousel, carouselPrompt, slideEditPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, scriptPrompt, reviewPrompt, planPrompt, topicsPrompt, styleFor, renderAudio, totalDur, pickEncoder };
+window.__codelens = { carouselVideo, renderSlide, quickSlides, normCarousel, carouselPrompt, slideEditPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, scriptPrompt, reviewPrompt, keepCode, planPrompt, topicsPrompt, styleFor, renderAudio, totalDur, pickEncoder };
 })();
 </script>
