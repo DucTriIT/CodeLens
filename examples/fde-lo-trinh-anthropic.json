@@ -1,0 +1,78 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "topic": "Lộ trình Forward Deployed Engineer của Anthropic",
+   "title": "Không biết code vẫn học được nghề đưa AI vào doanh nghiệp",
+   "category": "AI",
+   "format": "news",
+   "hook": "Không biết code vẫn học được nghề đưa AI vào doanh nghiệp?",
+   "metaphor": "Anthropic công bố lộ trình Forward Deployed Engineer: 11 khóa, 8 khóa miễn phí",
+   "concept": "Forward Deployed Engineer",
+   "sourceUrl": "https://anthropic-partners.skilljar.com/path/claude-fde",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "scenes": [
+    {
+     "part": "intro", "layout": "title", "duration": 5,
+     "heading": "KHÔNG BIẾT CODE, *VẪN HỌC ĐƯỢC*",
+     "subtitle": "Đưa AI vào doanh nghiệp, không cần biết lập trình",
+     "narration": "Anthropic vừa ra một lộ trình mới, và bạn không cần biết lập trình để học nó.",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "intro", "layout": "title", "duration": 6,
+     "heading": "FORWARD *DEPLOYED ENGINEER*",
+     "subtitle": "Kỹ sư triển khai tại khách hàng",
+     "narration": "Đây là người đưa AI vào đúng quy trình thật của doanh nghiệp. Việc chính là hiểu khách hàng cần gì rồi dựng giải pháp bằng AI agent.",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "stack", "duration": 7,
+     "heading": "11 KHÓA, *8 MIỄN PHÍ*",
+     "subtitle": "Chỉ cần hiểu công nghệ đủ để làm việc cùng AI",
+     "narration": "Lộ trình có 11 khóa, 8 khóa miễn phí cho tất cả mọi người. Một số khóa chỉ dành cho đối tác. Bạn sẽ học cách chọn đúng mô hình Claude, Claude Code, MCP và Agent Skills.",
+     "actors": [
+      {"icon": "robot", "label": "Mô hình Claude", "side": ""},
+      {"icon": "code", "label": "Claude Code", "side": ""},
+      {"icon": "api", "label": "MCP", "side": ""},
+      {"icon": "book", "label": "Agent Skills", "side": ""}
+     ],
+     "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "flow", "duration": 7,
+     "heading": "CÓ PYTHON, *NHƯNG*",
+     "subtitle": "Claude có thể hỗ trợ bạn viết code",
+     "narration": "Hai khóa có demo bằng Python. Nhưng nếu không biết code, bạn vẫn có thể nhờ Claude viết và giải thích từng dòng.",
+     "actors": [
+      {"icon": "person", "label": "Bạn", "side": ""},
+      {"icon": "robot", "label": "Claude", "side": ""},
+      {"icon": "code", "label": "Code Python", "side": ""}
+     ],
+     "links": [
+      {"from": 0, "to": 1, "label": "nhờ viết"},
+      {"from": 1, "to": 2, "label": "tạo code"}
+     ],
+     "focus": 1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "outro", "layout": "flow", "duration": 8,
+     "heading": "AI *VIỆC GÌ* TRƯỚC?",
+     "subtitle": "Bạn đang làm việc nào với khách hàng hay quy trình nội bộ?",
+     "narration": "Nếu bạn đang làm việc với khách hàng hay quy trình nội bộ, hãy thử nghĩ xem việc nào nên giao cho AI đầu tiên. Bình luận cho mình biết nhé.",
+     "actors": [
+      {"icon": "person", "label": "Bạn", "side": ""},
+      {"icon": "robot", "label": "AI agent", "side": ""}
+     ],
+     "links": [
+      {"from": 0, "to": 1, "label": "giao việc"}
+     ],
+     "focus": -1, "mark": null, "left": "", "right": ""
+    }
+   ]
+  }
+ ]
+}
