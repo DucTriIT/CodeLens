@@ -84,7 +84,11 @@ label.f > span { font-weight: 600; letter-spacing: .02em; }
   .work { grid-template-columns: minmax(0, 1fr); grid-template-areas: "monitor" "list" "editor"; }
 }
 
-.ai-box { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: var(--panel-2); }
+.ai-box { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: var(--panel-2); min-width: 0; }
+/* A select sizes itself to its longest option; let the ones in the narrow script column shrink to the column instead. */
+.list select { max-width: 100%; min-width: 0; }
+#ai-format { flex: 1 1 100%; width: 100%; }
+#ai-cat { flex: 1 1 0; }
 .suggest { display: grid; gap: 4px; }
 .suggest button { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 8px; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 .suggest button:hover { border-color: var(--orange); }
@@ -2204,7 +2208,7 @@ function styleFor(format) {
 const FORMATS = {
   symptom: "Tình huống dev hay gặp", incident: "Sự cố thật (postmortem)", architecture: "Kiến trúc công ty thật",
   quiz: "Đoán lỗi", concept: "Tổng quan: X là gì", deep: "Đi sâu chủ đề nhỏ (có code)", howto: "Hướng dẫn từng bước",
-  news: "Tin công nghệ (30 giây)", algo: "Giải bài thuật toán (LeetCode, Codeforces…)",
+  news: "Tin công nghệ (30 giây)", algo: "Giải bài thuật toán",
 };
 const DEFAULT_FORMAT = "symptom";
 const FORMAT_HINT = {
