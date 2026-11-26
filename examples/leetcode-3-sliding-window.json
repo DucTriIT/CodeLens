@@ -1,0 +1,121 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "topic": "LeetCode 3: Longest Substring Without Repeating Characters",
+   "title": "LeetCode 3: Longest Substring Without Repeating Characters (Sliding Window)",
+   "category": "Algorithm",
+   "format": "algo",
+   "hook": "Chuỗi abcabcbb, chuỗi con không lặp dài nhất là bao nhiêu? Chỉ cần một vòng lặp.",
+   "metaphor": "Chuỗi abcabcbb, tìm độ dài chuỗi con dài nhất không có ký tự lặp",
+   "concept": "Sliding Window",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "scenes": [
+    {
+     "part": "intro", "layout": "title", "duration": 3,
+     "heading": "CHUỖI CON *KHÔNG LẶP*",
+     "subtitle": "LeetCode 3 · abcabcbb ra 3 · chỉ cần *một vòng lặp*",
+     "narration": "Cho chuỗi a b c a b c b b. Tìm độ dài chuỗi con dài nhất mà không có ký tự nào lặp lại. Đáp án là 3, ứng với a b c. Đây là LeetCode số 3, và mình sẽ giải nó chỉ bằng một vòng lặp.",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "intro", "layout": "array", "duration": 3,
+     "heading": "CÁCH NGÂY THƠ: *THỬ HẾT*",
+     "subtitle": "Mỗi điểm bắt đầu lại quét lại từ đầu",
+     "narration": "",
+     "cells": ["a", "b", "c", "a", "b", "c", "b", "b"],
+     "steps": [
+      { "say": "Cách nghĩ đầu tiên là thử mọi điểm bắt đầu. Từ vị trí 0, kéo dài dần: a, rồi a b, rồi a b c, đều chưa lặp.", "pointers": { "i": 0, "j": 2 }, "window": [0, 2], "hi": [2], "dim": [], "vars": { "dài nhất": "3" } },
+      { "say": "Thêm chữ a ở vị trí 3 thì lặp với chữ a ở vị trí 0, nên dừng lại.", "pointers": { "i": 0, "j": 3 }, "window": [0, 3], "hi": [0, 3], "dim": [], "vars": { "dài nhất": "3" } },
+      { "say": "Rồi làm lại từ vị trí 1, vị trí 2, cứ thế đến hết. Mỗi điểm bắt đầu lại quét gần như cả chuỗi, nên số lần kiểm tra cỡ n bình phương. Chuỗi càng dài càng chậm.", "pointers": { "i": 1, "j": 1 }, "window": [1, 1], "hi": [1], "dim": [0], "vars": { "dài nhất": "3", "độ phức tạp": "O(n²)" } }
+     ],
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "title", "duration": 3,
+     "heading": "Ý TƯỞNG: *CỬA SỔ TRƯỢT*",
+     "subtitle": "Giữ đoạn từ *L đến R* luôn không lặp, cả hai chỉ đi tới",
+     "narration": "Chỗ lãng phí là mỗi lần làm lại từ đầu, ta vứt đi những gì đã biết. Thay vào đó, giữ một cửa sổ từ L đến R luôn không có ký tự lặp. R đi tới từng ký tự một. Nếu ký tự mới đã nằm trong cửa sổ, chỉ cần dời L qua vị trí cũ của nó.",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "array", "duration": 3,
+     "heading": "CHẠY THỬ: *BƯỚC 1 ĐẾN 4*",
+     "subtitle": "*seen* nhớ vị trí gần nhất của từng ký tự",
+     "narration": "Giờ chạy thử nhé. Bảng seen nhớ vị trí gần nhất của từng ký tự, còn best là độ dài tốt nhất tới lúc này.",
+     "cells": ["a", "b", "c", "a", "b", "c", "b", "b"],
+     "steps": [
+      { "say": "Chữ a ở vị trí 0 chưa có trong seen. Lưu lại, cửa sổ dài 1, best bằng 1.", "pointers": { "L": 0, "R": 0 }, "window": [0, 0], "hi": [0], "dim": [], "vars": { "best": "1", "seen": "{a:0}" } },
+      { "say": "Chữ b cũng mới, cửa sổ dài 2, best bằng 2.", "pointers": { "L": 0, "R": 1 }, "window": [0, 1], "hi": [1], "dim": [], "vars": { "best": "2", "seen": "{a:0, b:1}" } },
+      { "say": "Chữ c mới, cửa sổ a b c dài 3, best bằng 3.", "pointers": { "L": 0, "R": 2 }, "window": [0, 2], "hi": [2], "dim": [], "vars": { "best": "3", "seen": "{a:0, b:1, c:2}" } },
+      { "say": "Tới chữ a ở vị trí 3, seen nói a đã ở vị trí 0, vẫn nằm trong cửa sổ. Vậy L nhảy tới 1, ngay sau chữ a cũ. Cửa sổ còn b c a, vẫn dài 3.", "pointers": { "L": 1, "R": 3 }, "window": [1, 3], "hi": [3], "dim": [0], "vars": { "best": "3", "seen": "{a:3, b:1, c:2}" } }
+     ],
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "array", "duration": 3,
+     "heading": "CHẠY THỬ: *BƯỚC 5 ĐẾN 8*",
+     "subtitle": "L chỉ nhảy *về phía trước*",
+     "narration": "",
+     "cells": ["a", "b", "c", "a", "b", "c", "b", "b"],
+     "steps": [
+      { "say": "Chữ b ở vị trí 4, b cũ ở vị trí 1 vẫn trong cửa sổ. L nhảy tới 2, cửa sổ c a b.", "pointers": { "L": 2, "R": 4 }, "window": [2, 4], "hi": [4], "dim": [0, 1], "vars": { "best": "3", "seen": "{a:3, b:4, c:2}" } },
+      { "say": "Chữ c, c cũ ở vị trí 2. L nhảy tới 3, cửa sổ a b c.", "pointers": { "L": 3, "R": 5 }, "window": [3, 5], "hi": [5], "dim": [0, 1, 2], "vars": { "best": "3", "seen": "{a:3, b:4, c:5}" } },
+      { "say": "Chữ b ở vị trí 6, b cũ ở vị trí 4. Lần này L nhảy xa hơn, tới 5. Cửa sổ chỉ còn c b, dài 2.", "pointers": { "L": 5, "R": 6 }, "window": [5, 6], "hi": [6], "dim": [0, 1, 2, 3, 4], "vars": { "best": "3", "seen": "{a:3, b:6, c:5}" } },
+      { "say": "Chữ b cuối trùng ngay chữ b trước nó, L nhảy tới 7. Hết chuỗi, best vẫn là 3, đúng đáp án.", "pointers": { "L": 7, "R": 7 }, "window": [7, 7], "hi": [7], "dim": [0, 1, 2, 3, 4, 5, 6], "vars": { "best": "3", "seen": "{a:3, b:7, c:5}" } }
+     ],
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "code", "duration": 3,
+     "heading": "CODE: *9 DÒNG*",
+     "subtitle": "Dòng then chốt: dời *left* qua vị trí cũ",
+     "narration": "Code chính là những gì ta vừa làm bằng tay. seen lưu vị trí gần nhất của mỗi ký tự, vòng for đưa right đi tới. Hai dòng được tô sáng là quan trọng nhất: nếu ký tự đã nằm trong cửa sổ thì dời left qua vị trí cũ của nó. Cuối mỗi vòng, cập nhật best bằng độ dài cửa sổ.",
+     "codeTitle": "solution.py",
+     "code": "def length_of_longest_substring(s):\n    seen = {}\n    left = best = 0\n    for right, ch in enumerate(s):\n!!         if ch in seen and seen[ch] >= left:\n!!             left = seen[ch] + 1\n        seen[ch] = right\n        best = max(best, right - left + 1)\n    return best",
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "body", "layout": "array", "duration": 3,
+     "heading": "BẪY: *VỊ TRÍ CŨ*",
+     "subtitle": "Chỉ dời L khi ký tự cũ *còn trong cửa sổ*",
+     "narration": "Có một bẫy rất hay gặp. Thử chuỗi a b b a, đáp án đúng là 2.",
+     "cells": ["a", "b", "b", "a"],
+     "steps": [
+      { "say": "Tới chữ b thứ hai, b cũ ở vị trí 1, nên L nhảy lên 2.", "pointers": { "L": 2, "R": 2 }, "window": [2, 2], "hi": [2], "dim": [0, 1], "vars": { "best": "2", "seen": "{a:0, b:2}" } },
+      { "say": "Tới chữ a cuối, seen nói a ở vị trí 0, nhưng vị trí 0 đã ra khỏi cửa sổ. Nếu vẫn dời L theo nó, L lùi về 1, cửa sổ b b a có hai chữ b, và best sai thành 3.", "pointers": { "L": 1, "R": 3 }, "window": [1, 3], "hi": [1, 2], "dim": [0], "vars": { "best": "3 (sai)", "seen": "{a:0, b:2}" } },
+      { "say": "Vì vậy phải kiểm tra seen lớn hơn hoặc bằng left. L giữ nguyên ở 2, cửa sổ b a dài 2, đúng đáp án.", "pointers": { "L": 2, "R": 3 }, "window": [2, 3], "hi": [3], "dim": [0, 1], "vars": { "best": "2", "seen": "{a:3, b:2}" } }
+     ],
+     "actors": [], "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    },
+    {
+     "part": "outro", "layout": "before-after", "duration": 3,
+     "heading": "NHANH HƠN *BAO NHIÊU*?",
+     "subtitle": "Mỗi ký tự chỉ được xét *một lần*",
+     "narration": "Cách thử hết tốn cỡ n bình phương. Còn với cửa sổ trượt, cả L và R chỉ đi tới, mỗi ký tự được xét một lần, nên thời gian là O của n. Bộ nhớ chỉ tốn cho bảng seen, tối đa bằng số loại ký tự khác nhau.",
+     "actors": [
+      { "icon": "clock", "label": "Thử hết: O(n²)", "side": "L" },
+      { "icon": "cache", "label": "Cửa sổ: O(n)", "side": "R" }
+     ],
+     "links": [], "focus": -1, "mark": null, "left": "THỬ HẾT", "right": "CỬA SỔ"
+    },
+    {
+     "part": "outro", "layout": "stack", "duration": 3,
+     "heading": "NHẬN DẠNG *DẠNG BÀI*",
+     "subtitle": "Đoạn *liên tiếp* dài nhất hay ngắn nhất: nghĩ tới Sliding Window",
+     "narration": "Lần sau, nếu đề hỏi đoạn con liên tiếp dài nhất hoặc ngắn nhất thỏa một điều kiện, hãy nghĩ tới sliding window. Bạn luyện tiếp bài 424 và bài 76 nhé. Tuần sau muốn mình giải dạng bài nào? Bình luận cho mình biết.",
+     "actors": [
+      { "icon": "search", "label": "Đoạn con liên tiếp", "side": "" },
+      { "icon": "chart", "label": "Dài nhất hay ngắn nhất", "side": "" },
+      { "icon": "check", "label": "Thỏa một điều kiện", "side": "" },
+      { "icon": "book", "label": "Luyện: bài 424, 76", "side": "" }
+     ],
+     "links": [], "focus": -1, "mark": null, "left": "", "right": ""
+    }
+   ]
+  }
+ ]
+}
