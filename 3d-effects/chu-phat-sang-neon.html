@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chữ phát sáng bằng CSS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+    }
+
+    .neon {
+      font-family: Arial, sans-serif;
+      font-size: 18vmin;
+      font-weight: 900;
+      letter-spacing: 1vmin;
+      animation: color 6s linear infinite;
+    }
+
+    .neon span {
+      color: #222;
+      animation: glow 2s ease-in-out
+        calc(var(--i) * 0.25s) infinite;
+    }
+
+    @keyframes glow {
+      0%, 100% { color: #222; text-shadow: none; }
+      50% {
+        color: #fff;
+        text-shadow: 0 0 10px #0ff, 0 0 30px #0ff,
+                     0 0 60px #0ff, 0 0 100px #0ff;
+      }
+    }
+
+    @keyframes color {
+      to { filter: hue-rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="neon">
+    <span style="--i:0;">N</span>
+    <span style="--i:1;">E</span>
+    <span style="--i:2;">O</span>
+    <span style="--i:3;">N</span>
+  </h1>
+</body>
+</html>
