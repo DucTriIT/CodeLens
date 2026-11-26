@@ -1619,13 +1619,27 @@ async function stepVoice(sc, opts) {
   const dur = Math.round(Math.max(VOICE_LEAD + t + VOICE_TAIL, T[T.length - 1] + 1.5) * 10) / 10;
   return { voice: { buffer: out, parts }, scene: { ...sc, duration: dur, _stepT: T } };
 }
+// Requests every sentence of the clip up front, a few at a time, so they are synthesized side by side when the
+// server allows it (Azure); the free Edge service still takes them one at a time on the server. Failures are left
+// to the scene-by-scene pass below, which asks again and reports the scene that failed.
+let voiceInfoP = null;
+async function prefetchVoices(s, opts, onStep) {
+  const lines = [];
+  s.scenes.forEach(sc => { if (!narrationText(sc)) return; if (isStepScene(sc)) [sc.narration, ...sc.steps.map(x => x.say)].forEach(t => { if (cleanSpeech(t)) lines.push(cleanSpeech(t)); }); else lines.push(narrationText(sc)); });
+  const texts = [...new Set(lines.map(ttsText))]; if (!texts.length) return;
+  if (!voiceInfoP) voiceInfoP = cap.voice.info().catch(() => ({}));
+  const info = await voiceInfoP; const width = Math.max(1, Math.min(6, +((info && info.tts) || {}).concurrency || 1));
+  let next = 0, done = 0;
+  const worker = async () => { while (next < texts.length) { const t = texts[next++]; try { await narrationAudio(t, opts); } catch (e) {} done++; if (onStep) onStep(done, texts.length); } };
+  await Promise.all(Array.from({ length: Math.min(width, texts.length) }, worker));
+}
 async function prepareVoice(s, onStep) {
   if (!voiceOn() || !s.scenes.some(sc => narrationText(sc))) return { script: s, voices: null };
   const opts = voiceOpts(); const voices = [];
+  await prefetchVoices(s, opts, onStep);
   const scenes = [];
   for (let i = 0; i < s.scenes.length; i++) {
     const sc = s.scenes[i]; const text = narrationText(sc);
-    if (onStep) onStep(i, s.scenes.length);
     if (!text) { voices.push(null); scenes.push(sc); continue; }
     if (isStepScene(sc)) {
       try { const r = await stepVoice(sc, opts); voices.push(r.voice); scenes.push(r.scene); }

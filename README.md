@@ -184,6 +184,7 @@ Khi server khởi động, dòng `Voice: Azure AI Speech (southeastasia), Edge a
 - Mặc định (`CODELENS_TTS_PROVIDER=auto`), nếu Azure lỗi (hết hạn mức, sai key, mất mạng) thì câu đó tự dùng Edge, để render không bị dừng.
 - Đặt `CODELENS_TTS_PROVIDER=azure` nếu chỉ muốn dùng Azure, hoặc `edge` nếu muốn tắt Azure.
 - Câu nào đã tạo giọng thì được lưu trong `data/tts/` và dùng lại, không tốn thêm ký tự.
+- Với Azure, server tạo tối đa 4 câu cùng lúc nên bước giọng đọc nhanh hơn nhiều so với Edge (Edge vẫn tạo từng câu một để tránh bị chặn). Đổi số này bằng `CODELENS_AZURE_CONCURRENCY` (1–8); nếu server hay báo `azure 429` thì giảm xuống.
 
 ### Nguồn giọng đọc dự phòng: Microsoft Edge
 

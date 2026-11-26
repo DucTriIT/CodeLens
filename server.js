@@ -188,11 +188,22 @@ const AZURE_FREE_CHARS = 500000; // monthly free allowance for neural voices on 
 const usageFile = () => path.join(DATA, "tts-usage.json");
 const monthKey = () => new Date().toISOString().slice(0, 7);
 async function readUsage() { try { return JSON.parse(await fs.readFile(usageFile(), "utf8")); } catch { return {}; } }
-async function addUsage(chars) {
-  const u = await readUsage(); const m = monthKey(); u[m] = (u[m] || 0) + chars;
-  await fs.mkdir(DATA, { recursive: true }); await fs.writeFile(usageFile(), JSON.stringify(u));
+// Azure requests can run side by side, so updates to the usage counter are queued to avoid losing counts.
+let usageChain = Promise.resolve();
+function addUsage(chars) {
+  const run = async () => {
+    const u = await readUsage(); const m = monthKey(); u[m] = (u[m] || 0) + chars;
+    await fs.mkdir(DATA, { recursive: true }); await fs.writeFile(usageFile(), JSON.stringify(u));
+  };
+  usageChain = usageChain.then(run, run);
+  return usageChain;
 }
-let azureChain = Promise.resolve();
+// How many sentences Azure synthesizes at once. The official service takes parallel requests;
+// a 429 (rate limit) is waited out and retried below.
+const AZURE_CONCURRENCY = Math.max(1, Math.min(8, Math.round(Number(process.env.CODELENS_AZURE_CONCURRENCY)) || 4));
+let azureActive = 0; const azureWaiting = [];
+const azureSlot = () => azureActive < AZURE_CONCURRENCY ? (azureActive++, Promise.resolve()) : new Promise(r => azureWaiting.push(r));
+const azureRelease = () => { const next = azureWaiting.shift(); if (next) next(); else azureActive--; };
 function azureAudio(text, voice, rate) {
   const run = async () => {
     const lang = voice.slice(0, 5);
@@ -228,9 +239,7 @@ function azureAudio(text, voice, rate) {
     }
     throw new Error("Azure: vượt giới hạn tốc độ, thử lại sau.");
   };
-  const p = azureChain.then(run, run);
-  azureChain = p.catch(() => {});
-  return p;
+  return azureSlot().then(() => run().finally(azureRelease));
 }
 
 // Picks the provider: Azure when configured (falls back to Edge if Azure fails), else Edge.
@@ -367,7 +376,7 @@ function fbHint(err, reel) {
 async function ttsStatus() {
   const used = (await readUsage())[monthKey()] || 0;
   const provider = azureReady && TTS_PROVIDER !== "edge" ? "azure" : "edge";
-  return { provider, region: AZURE_REGION, fallback: provider === "azure" && TTS_PROVIDER !== "azure", azureCharsThisMonth: used, azureFreeChars: AZURE_FREE_CHARS };
+  return { provider, region: AZURE_REGION, fallback: provider === "azure" && TTS_PROVIDER !== "azure", azureCharsThisMonth: used, azureFreeChars: AZURE_FREE_CHARS, concurrency: provider === "azure" ? AZURE_CONCURRENCY : 1 };
 }
 
 // ---- page ----
