@@ -1172,6 +1172,17 @@ async function carouselVideo(set, secs, onProgress = () => {}) {
 const canvasBlob = (cv, type = "image/jpeg", q = 0.92) => new Promise(res => cv.toBlob(res, type, q));
 // A set without the AI, laid out in a Swiss editorial style: section label, large page number beside the
 // headline, numbered points with rules, and a row of icon tiles from the scene's own components.
+// Caption for an algorithm clip: names the problem, states it, gives the idea and the trap, links the problem.
+function algoCaption(s, tags) {
+  const plain = (t) => String(t || "").replace(/\*/g, "").trim();
+  const body = s.scenes.filter(sc => sc.part === "body" && sc.layout !== "code").map(sc => plain(sc.subtitle)).filter(Boolean).slice(0, 4);
+  const pattern = plain(s.concept);
+  const tagList = [...tags, ...(pattern ? ["#" + pattern.replace(/[^A-Za-z0-9]/g, "")] : [])].filter((t, i, a) => t.length > 1 && a.indexOf(t) === i);
+  return [`${plain(s.title)} 🧩`, "", plain(s.metaphor) || plain(s.hook), "",
+    pattern ? `Dạng bài: ${pattern}.` : "", ...body.map(t => `👉 ${t}`), "",
+    s.sourceUrl ? `Đề bài: ${s.sourceUrl}` : "", "",
+    "Tuần sau bạn muốn mình giải bài nào? 👇", "", tagList.join(" ")].filter((l, i, a) => l !== "" || (i > 0 && a[i - 1] !== "")).join("\n").trim();
+}
 function quickSlides(s) {
   const plain = (t) => String(t || "").replace(/\*/g, "").trim();
   const sentences = (t) => String(t || "").split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean).slice(0, 3);
@@ -1182,11 +1193,13 @@ function quickSlides(s) {
   const icons = (sc) => { const seen = new Set(); const a = (sc ? sc.actors : []).filter(x => x.icon && !seen.has(x.icon + x.label) && seen.add(x.icon + x.label)).slice(0, 4); return a.length ? `<div class="sw-icons">${a.map(x => `<div class="sw-ic"><img src="icon:${esc2(x.icon)}" alt=""/><span>${esc2(plain(x.label))}</span></div>`).join("")}</div>` : ""; };
   const list = (arr) => arr.length ? `<div class="sw-list">${arr.map((t, k) => `<div class="sw-item"><div class="sw-ix">${two(k + 1)}</div><div class="sw-tx">${esc2(t)}</div></div>`).join("")}</div>` : "";
   const page = (no, part, head, sub, points, sc) => `<div class="sw-dots"></div><div class="sw-part">${esc2(part)}</div><div class="sw-head"><div class="sw-no">${two(no)}</div><div class="sw-vr"></div><h1>${accentHtml(head)}</h1></div>${sub ? `<div class="sw-sub">${esc2(sub)}</div>` : ""}${list(points)}${icons(sc)}`;
-  const slides = [{ html: page(1, `${s.category || "Tech"} · case study`, first ? first.sc.heading || s.title : s.title, plain(s.hook), first ? sentences(narrationText(first.sc)) : [], first && first.sc), description: plain(s.hook) || s.title }];
+  const algo = s.format === "algo";
+  const slides = [{ html: page(1, algo ? `${s.concept || "Thuật toán"} · giải chi tiết` : `${s.category || "Tech"} · case study`, first ? first.sc.heading || s.title : s.title, plain(s.hook), first ? sentences(narrationText(first.sc)) : [], first && first.sc), description: plain(s.hook) || s.title }];
   pick.forEach((x, k) => slides.push({ html: page(k + 2, PARTS[x.sc.part] || "Thân bài", x.sc.heading, plain(x.sc.subtitle), sentences(narrationText(x.sc)), x.sc), description: narrationText(x.sc) || plain(x.sc.subtitle) }));
-  slides.push({ html: page(slides.length + 1, "Tới lượt bạn", "Hệ thống của bạn *đã chặn* lỗi này chưa?", s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}` : "", ["Xem lại luồng xử lý này trong hệ thống của bạn.", "Thử tái hiện tình huống trên môi trường test.", "Bình luận cách team bạn đang xử lý nhé."], { actors: [{ icon: "search", label: "Kiểm tra" }, { icon: "bug", label: "Tái hiện" }, { icon: "check", label: "Chặn lỗi" }] }), description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
+  if (algo) slides.push({ html: page(slides.length + 1, "Tới lượt bạn", "Tự *code lại* bài này", s.sourceUrl ? `Đề bài: ${s.sourceUrl}` : "", ["Đóng clip, tự viết lại lời giải không nhìn code.", "Chạy tay thuật toán trên một input nhỏ khác.", "Làm thêm một bài cùng dạng để nhớ lâu."], { actors: [{ icon: "code", label: "Tự code" }, { icon: "search", label: "Chạy tay" }, { icon: "check", label: "Bài cùng dạng" }] }), description: "Tuần sau bạn muốn mình giải bài nào? Bình luận nhé." });
+  else slides.push({ html: page(slides.length + 1, "Tới lượt bạn", "Hệ thống của bạn *đã chặn* lỗi này chưa?", s.concept ? `Từ khóa để tìm hiểu thêm: ${plain(s.concept)}` : "", ["Xem lại luồng xử lý này trong hệ thống của bạn.", "Thử tái hiện tình huống trên môi trường test.", "Bình luận cách team bạn đang xử lý nhé."], { actors: [{ icon: "search", label: "Kiểm tra" }, { icon: "bug", label: "Tái hiện" }, { icon: "check", label: "Chặn lỗi" }] }), description: "Bạn đã gặp tình huống này chưa? Kể mình nghe ở phần bình luận." });
   const tags = ["#CodeLens", ...(HASHTAGS[s.category] || []), "#developer"];
-  const caption = [(plain(s.hook) || s.title) + " 👇", "", ...pick.map(x => `👉 ${plain(x.sc.subtitle) || plain(x.sc.heading)}`), "", "Hệ thống của bạn đã chặn lỗi này chưa? 👇", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
+  const caption = algo ? algoCaption(s, tags) : [(plain(s.hook) || s.title) + " 👇", "", ...pick.map(x => `👉 ${plain(x.sc.subtitle) || plain(x.sc.heading)}`), "", "Hệ thống của bạn đã chặn lỗi này chưa? 👇", "", tags.join(" ")].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n").trim();
   return normCarousel({ caption, slides });
 }
 const SLIDE_GUIDE = `CÁCH DỰNG MỘT ẢNH (HTML):
@@ -1207,7 +1220,7 @@ function shotsNote(shots) {
     : `Người dùng KHÔNG có ảnh chụp màn hình thật. Hãy TỰ NGHĨ RA và dựng hình ví dụ bằng HTML: mô phỏng đúng thứ một người sẽ nhìn thấy trên màn hình trong tình huống này.`;
 }
 function carouselPrompt(sc, note, shots) {
-  const scenes = sc.scenes.map((x, i) => ({ part: x.part, heading: x.heading, subtitle: x.subtitle, narration: x.narration, actors: x.actors.map(a => a.label).filter(Boolean) })).filter(x => x.heading || x.narration);
+  const scenes = sc.scenes.map((x, i) => ({ part: x.part, heading: x.heading, subtitle: x.subtitle, narration: x.narration, actors: x.actors.map(a => a.label).filter(Boolean), ...(x.code ? { code: x.code.replace(/^!!\s?/gm, "") } : {}), ...(x.layout === "array" ? { cells: x.cells, steps: (x.steps || []).map(st => ({ say: st.say, state: stepToText(st) })) } : {}) })).filter(x => x.heading || x.narration);
   return `${STYLE_RULES}
 
 Bạn là ART DIRECTOR kiêm frontend developer của kênh CodeLens. Từ kịch bản dưới đây, hãy làm MỘT BÀI ĐĂNG ẢNH nhiều trang (carousel) cho Facebook: một caption và từ 5 đến 9 ảnh, mỗi ảnh do chính bạn thiết kế bằng HTML.${note ? `\nYêu cầu của người dùng (ưu tiên làm theo): ${note}` : ""}
@@ -1221,7 +1234,9 @@ Hình chiếm khoảng 60% diện tích ảnh trở lên. Chữ ngoài hình th�
 Hình phải có chi tiết cụ thể và đúng case: tên nút, số tiền, giờ, mã đơn, trạng thái. Số liệu chính lấy từ kịch bản; chi tiết phụ (mã đơn, mốc giờ) tự đặt cho hợp lý. Không gắn tên công ty thật vào tình huống tự dựng.
 
 ${shotsNote(shots)}
-
+${sc.format === "algo" ? `
+ĐÂY LÀ BÀI GIẢI THUẬT TOÁN ${sc.title}${sc.sourceUrl ? ` (đề bài: ${sc.sourceUrl})` : ""}. Ảnh đầu ghi rõ tên bài, đề tóm tắt và ví dụ input, output. Các ảnh giữa vẽ lại TỪNG TRẠNG THÁI của mảng hoặc chuỗi theo "steps" (mỗi ô một div có viền, con trỏ L, R ghi bên dưới, cửa sổ tô nền xanh, ô đang xét tô cam, biến hiện bên cạnh), mỗi ảnh một hoặc hai bước, kèm một câu giải thích vì sao con trỏ di chuyển. Một ảnh là code (cửa sổ "window dark", mỗi dòng một div "ln", dòng then chốt class "ok"). Caption ghi tên bài, đề tóm tắt, ý tưởng, độ phức tạp và link đề nếu có.
+` : ""}
 SỐ ẢNH VÀ THỨ TỰ do nội dung quyết định. Chỉ cố định: ảnh đầu là HOOK (h1 class "xl", hình cho thấy ngay hậu quả hoặc kết quả đáng chú ý nhất); ảnh cuối là TỚI LƯỢT BẠN (vài việc người xem tự kiểm tra hoặc làm thử được, và câu hỏi mời bình luận). Các ảnh giữa đi theo mạch tự nhiên của nội dung, mỗi ảnh một ý.
 
 ${SLIDE_GUIDE}
@@ -2763,6 +2778,7 @@ async function autoWriteScripts(n, cats) {
 const HASHTAGS = { Network: ["#Networking"], Backend: ["#Backend"], Frontend: ["#Frontend", "#WebDev"], Database: ["#Database"], Cloud: ["#Cloud"], DevOps: ["#DevOps", "#SRE"], Security: ["#Security", "#AppSec"], Mobile: ["#Mobile", "#MobileDev"], AI: ["#AI", "#LLM"], Architecture: ["#SystemDesign", "#Architecture"], Algorithm: ["#LeetCode", "#DSA"] };
 let fbClip = null, fbStatus = null;
 function captionTemplate(script, clip) {
+  if (script && script.format === "algo") return algoCaption(script, ["#CodeLens", ...(HASHTAGS[script.category] || []), "#developer"]);
   const title = (script && script.title) || clip.title;
   const plain = (t) => String(t || "").replace(/\*/g, "").trim();
   const points = script ? script.scenes.slice(1).map(sc => plain(sc.subtitle)).filter(Boolean).slice(0, 4) : [];
@@ -2771,7 +2787,26 @@ function captionTemplate(script, clip) {
   const hook = script && script.hook ? plain(script.hook) : "";
   return [hook, hook ? "" : null, `${title.toUpperCase()}${sr ? ` (Phần ${sr.part}/${sr.total})` : ""} — ${Math.round(+clip.durationSec || 60)} giây`, script && script.concept ? `Cách chữa: ${plain(script.concept)}.` : "", "", ...points.map(p => `👉 ${p}`), "", "Theo dõi CodeLens để hiểu sâu thêm các khái niệm khó cho dev.", "", tags.join(" ")].filter(l => l !== null).filter((l, i, a) => l !== "" || (a[i - 1] !== "")).join("\n").trim();
 }
+function algoCaptionPrompt(script) {
+  const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = script;
+  return `Viết caption tiếng Việt cho bài đăng Facebook kèm video giải một bài thuật toán của kênh CodeLens (kênh công nghệ cho lập trình viên Việt Nam).
+Người đọc caption phải biết NGAY đây là bài nào và học được gì, kể cả khi chưa xem video.
+Cấu trúc, theo đúng thứ tự:
+1. Dòng đầu: nền tảng, mã bài và tên bài, kèm một emoji (ví dụ: "LeetCode 3: Longest Substring Without Repeating Characters 🧩").
+2. Đề bài tóm tắt trong 1–2 câu bằng lời của bạn, kèm ví dụ input và output có trong kịch bản.
+3. Một câu so sánh cách ngây thơ và cách tối ưu, có độ phức tạp của cả hai.
+4. 3 đến 4 dòng bắt đầu bằng "👉 ": ý tưởng chính, bước then chốt trong code, và bẫy hay gặp. Mỗi dòng cụ thể, có tên biến hoặc thao tác thật.
+5. Một dòng "Mẹo nhận dạng: ..." nêu dấu hiệu trong đề để nhận ra dạng bài này, và 1–2 bài luyện tiếp nếu kịch bản có nêu.
+6. Nếu kịch bản có "sourceUrl": một dòng "Đề bài: <link>".
+7. Một câu hỏi mời bình luận về bài muốn giải tiếp hoặc cách giải khác.
+8. Dòng cuối 4–6 hashtag: #CodeLens, nền tảng (#LeetCode, #Codeforces...), #DSA, tên dạng bài viết liền, #developer.
+Quy tắc: mọi thông tin phải có trong kịch bản, không thêm số liệu hay bài tương tự ngoài kịch bản; không chép nguyên văn đề; không dùng markdown; dưới 900 ký tự.
+Kịch bản video:
+${JSON.stringify(body)}
+Chỉ trả về JSON: {"caption": "..."}`;
+}
 function captionPrompt(script) {
+  if (script && script.format === "algo") return algoCaptionPrompt(script);
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, ...body } = script;
   return `Viết caption tiếng Việt cho bài đăng Facebook kèm video ngắn của kênh CodeLens (kênh giải thích khái niệm công nghệ cho lập trình viên Việt Nam).
 Người xem chỉ dừng lại vì một tình huống cụ thể có hậu quả, không phải vì tên khái niệm. Caption phải dẫn bằng CASE của video.

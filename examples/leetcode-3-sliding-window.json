@@ -10,6 +10,7 @@
    "hook": "Chuỗi abcabcbb, chuỗi con không lặp dài nhất là bao nhiêu? Chỉ cần một vòng lặp.",
    "metaphor": "Chuỗi abcabcbb, tìm độ dài chuỗi con dài nhất không có ký tự lặp",
    "concept": "Sliding Window",
+   "sourceUrl": "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
    "status": "draft",
    "createdBy": "user",
    "reviewed": false,
