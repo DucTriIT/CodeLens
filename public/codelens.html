@@ -1927,11 +1927,12 @@ function renderEditor() {
     <div class="meta-grid">
       <label class="f"><span>Tiêu đề clip</span><input type="text" data-f="title" id="ed-title" value="${esc(d.title)}"></label>
       <label class="f"><span>Lĩnh vực</span>${sel("category", CATEGORIES.map(c => [c, c]), d.category, 'id="ed-cat"')}</label>
+      <label class="f"><span>Link bài gốc (không bắt buộc)</span><input type="text" data-f="sourceUrl" id="ed-source" value="${esc(d.sourceUrl || "")}" placeholder="https://leetcode.com/problems/…"></label>
       <label class="f"><span>Ví dụ kỹ thuật</span><input type="text" data-f="metaphor" id="ed-metaphor" value="${esc(d.metaphor)}" placeholder="Ví dụ: Nginx đứng trước 3 instance API"></label>
     </div>
     ${!cap.voice && d.scenes.some(sc => narrationText(sc)) ? `<p class="hint">Giọng đọc chỉ có ở bản chạy trên máy (dùng API key). Ở đây clip render không có giọng đọc, chỉ có phụ đề và nhạc nền.</p>` : ""}
     ${d.source === "article" ? `<p class="hint">Tạo từ bài viết (${(d.sourceText || "").length.toLocaleString("vi-VN")} ký tự). “AI kiểm tra kỹ thuật” sẽ đối chiếu lại với bài này.</p>` : ""}
-    ${d.sourceUrl ? `<div class="banner"><b>Case study có nguồn:</b> <a href="${esc(d.sourceUrl)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all">${esc(d.sourceUrl)}</a><br>Đối chiếu tên, ngày và số liệu với nguồn trước khi đăng.</div>` : ""}
+    ${d.sourceUrl ? `<div class="banner"><b>${d.format === "algo" ? "Bài gốc" : "Case study có nguồn"}:</b> <a href="${esc(d.sourceUrl)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all">${esc(d.sourceUrl)}</a><br>Đối chiếu tên, ngày và số liệu với nguồn trước khi đăng.</div>` : ""}
     ${d.reviewed ? `<div class="banner"><b style="color:var(--ok)">Đã kiểm tra kỹ thuật.</b> ${d.reviewNotes && d.reviewNotes.length ? "Đã sửa: " + d.reviewNotes.map(esc).join(" · ") : "Không phát hiện lỗi."}</div>` : `<div class="banner warn">Kịch bản chưa được kiểm tra kỹ thuật. Bấm “AI kiểm tra kỹ thuật” trước khi render.</div>`}
     ${d.series ? `<div class="banner">Series <b>${esc(d.series.title)}</b> · phần ${d.series.part}/${d.series.total}.${d.series.part < d.series.total ? ` Cảnh cuối sẽ giới thiệu phần ${d.series.part + 1}.` : ""}</div>
     ${d.series.part < d.series.total ? `<label class="f"><span>Lời giới thiệu phần ${d.series.part + 1} (đọc ở cảnh cuối)</span><textarea rows="2" data-f="nextTeaser" id="ed-teaser">${esc(d.nextTeaser || "")}</textarea></label>` : ""}` : ""}
@@ -2203,7 +2204,7 @@ function styleFor(format) {
 const FORMATS = {
   symptom: "Tình huống dev hay gặp", incident: "Sự cố thật (postmortem)", architecture: "Kiến trúc công ty thật",
   quiz: "Đoán lỗi", concept: "Tổng quan: X là gì", deep: "Đi sâu chủ đề nhỏ (có code)", howto: "Hướng dẫn từng bước",
-  news: "Tin công nghệ (30 giây)", algo: "Giải bài thuật toán (LeetCode)",
+  news: "Tin công nghệ (30 giây)", algo: "Giải bài thuật toán (LeetCode, Codeforces…)",
 };
 const DEFAULT_FORMAT = "symptom";
 const FORMAT_HINT = {
@@ -2214,18 +2215,30 @@ const FORMAT_HINT = {
   concept: "Gõ chủ đề rộng, ví dụ: OOP, Load balancer, Idempotency",
   deep: "Gõ một chủ đề nhỏ, ví dụ: Dependency Injection, Factory pattern, Redis SET NX",
   howto: "Gõ việc cần làm, ví dụ: Bật gzip trong Nginx, Thêm index cho cột hay lọc",
-  algo: "Gõ số hiệu hoặc tên bài, ví dụ: LeetCode 3 Longest Substring Without Repeating Characters",
+  algo: "Gõ nền tảng và mã bài, ví dụ: LeetCode 3, CSES 1640, Codeforces 4A",
   news: "Gõ tin kèm chi tiết chính (ai, khi nào, chuyện gì), hoặc dán bài báo ở “Từ bài viết”",
 };
 // Formats built around one concrete case. The others explain a topic, walk through code or steps, or report news.
 const CASE_FORMATS = { symptom: 1, incident: 1, architecture: 1, quiz: 1 };
 const CODE_FORMATS = { deep: 1, howto: 1, symptom: 1, quiz: 1, algo: 1 };
 const ARRAY_FORMATS = { algo: 1 };
+// Where algorithm problems come from. Only a problem the model is sure of, with its exact id, gets a link.
+const ALGO_SOURCES = `NGUỒN BÀI (chỉ chọn bài từ các nguồn này):
+Luyện phỏng vấn (Big Tech, công ty phần mềm):
+- LeetCode: kho bài phỏng vấn lớn nhất, phân loại Easy, Medium, Hard và theo chủ đề. Link: https://leetcode.com/problems/<slug>/
+- NeetCode: lộ trình NeetCode 150 và 250 gồm các bài LeetCode kinh điển xếp theo dạng bài. Bài trong NeetCode là bài LeetCode, nên dẫn link LeetCode của bài đó.
+- HackerRank: hợp người mới, nhiều công ty dùng làm bài test vòng loại. Link: https://www.hackerrank.com/challenges/<slug>/problem
+Thi đấu lập trình (Competitive Programming, Olympic, ICPC):
+- Codeforces: contest hằng tuần, có rating. Link: https://codeforces.com/problemset/problem/<số contest>/<chữ cái bài>
+- AtCoder: bài thiên về tư duy toán và thuật toán, đề ngắn gọn. Link: https://atcoder.jp/contests/<mã contest>/tasks/<mã contest>_<chữ cái thường>
+- CSES Problem Set: bộ bài chuẩn phủ kiến thức giải thuật từ cơ bản đến nâng cao. Link: https://cses.fi/problemset/task/<số>
+Ghi nền tảng và mã bài trong tiêu đề. Chỉ điền "sourceUrl" khi bạn CHẮC CHẮN đúng mã bài; không chắc thì để "sourceUrl": "" và ghi tên bài để người dùng tự tra. Không chép nguyên văn đề, tóm tắt bằng lời của bạn.
+Bài phỏng vấn: code Python, hàm nhận input như trên LeetCode. Bài thi đấu: code Python hoặc C++ đọc input từ bàn phím (stdin) đúng định dạng của đề, và nói rõ giới hạn n vì nó quyết định độ phức tạp cần đạt.`;
 // Length per format: scenes, narration characters (the voice reads about 13 per second), and the resulting clip length.
 // Every format stays under 90 seconds including the follow card, the limit for Reels posted through the API.
 const FORMAT_LEN = {
   news: { scenes: "3–4", min: 220, max: 300, secs: "khoảng 30 giây" },
-  algo: { scenes: "8–10", min: 1400, max: 2200, secs: "khoảng 2–3 phút" },
+  algo: { scenes: "8–10", min: 1300, max: 1800, secs: "khoảng 2,5–3 phút" },
   concept: { scenes: "5–7", min: 450, max: 650, secs: "45–60 giây" },
   deep: { scenes: "6–8", min: 600, max: 850, secs: "60–75 giây" },
   howto: { scenes: "6–8", min: 600, max: 850, secs: "60–75 giây" },
@@ -2303,15 +2316,16 @@ Người dùng có thể đưa một triệu chứng ("F5 bị trừ tiền 2 l�
   • Có thể thêm cảnh 4 ("outro") là MỘT câu hỏi mồi bình luận.
   • KHÔNG viết cảnh kêu gọi follow: hệ thống tự thêm.
 - Tiêu đề clip là tin, viết như một dòng tít: "6 ngày sập hàng loạt: không phải hacker".`,
-    algo: `DẠNG CLIP: GIẢI MỘT BÀI THUẬT TOÁN (một bài LeetCode cụ thể). Xem xong, người xem phải TỰ GIẢI LẠI được bài này và nhận ra dạng bài khi gặp đề mới.
-- Tóm tắt đề bằng lời của bạn, KHÔNG chép nguyên văn đề LeetCode. Ghi số hiệu và tên bài trong tiêu đề. Chỉ nêu ràng buộc (constraints) khi bạn chắc chắn.
+    algo: `DẠNG CLIP: GIẢI MỘT BÀI THUẬT TOÁN (một bài cụ thể trên LeetCode, HackerRank, Codeforces, AtCoder hoặc CSES). Xem xong, người xem phải TỰ GIẢI LẠI được bài này và nhận ra dạng bài khi gặp đề mới.
+${ALGO_SOURCES}
+- Tóm tắt đề bằng lời của bạn, KHÔNG chép nguyên văn đề. Ghi nền tảng, mã bài và tên bài trong tiêu đề. Chỉ nêu ràng buộc (constraints) khi bạn chắc chắn.
 - LỜI ĐỌC PHẢI ĐỦ CHI TIẾT để người chưa biết dạng bài vẫn theo kịp: nói rõ đang ở bước nào, con trỏ nào di chuyển, VÌ SAO di chuyển, biến nào đổi giá trị. Không nhảy cóc, không nói "dễ thấy là". Narration các cảnh giải thích (ý tưởng, code, độ phức tạp) có thể dài 150–350 ký tự.
 - Dùng MỘT ví dụ nhỏ (6–10 phần tử) xuyên suốt cho cảnh đề bài, các cảnh mô phỏng và cảnh code.
 - CẤU TRÚC BẮT BUỘC, mỗi cảnh ghi "part":
   • MỞ BÀI ("intro", 2 cảnh). Cảnh 1 layout "title": đề bài trong một câu, ví dụ input và output, số hiệu bài; heading ngắn gọn gây tò mò. Cảnh 2 layout "array": cách ngây thơ (brute force) chạy thế nào và vì sao chậm, kèm độ phức tạp.
   • THÂN BÀI ("body"): Ý TƯỞNG then chốt trong 2–3 câu (layout "title" hoặc "flow") → 2 cảnh "array" MÔ PHỎNG TỪNG BƯỚC trên ví dụ, mỗi bước một trạng thái, hết ví dụ thì nói kết quả → cảnh "code" lời giải hoàn chỉnh, chạy được, tô sáng 1–3 dòng then chốt, narration giải thích code khớp với mô phỏng ra sao → 1 BẪY hay gặp, minh họa bằng cảnh "array" với một input nhỏ làm lộ lỗi.
-  • KẾT BÀI ("outro", 1–2 cảnh): độ phức tạp thời gian và bộ nhớ (layout "before-after": cách ngây thơ và cách tối ưu), DẤU HIỆU NHẬN DẠNG dạng bài trong đề, 1–2 bài LeetCode tương tự (chỉ số hiệu và tên bạn chắc chắn), rồi hỏi người xem muốn giải bài nào tiếp.${tail}
-- Tiêu đề clip: "LeetCode 3: Longest Substring Without Repeating Characters (Sliding Window)".`,
+  • KẾT BÀI ("outro", 1–2 cảnh): độ phức tạp thời gian và bộ nhớ (layout "before-after": cách ngây thơ và cách tối ưu), DẤU HIỆU NHẬN DẠNG dạng bài trong đề, 1–2 bài tương tự trên các nguồn trên (chỉ mã bài và tên bạn chắc chắn), rồi hỏi người xem muốn giải bài nào tiếp.${tail}
+- Tiêu đề clip: "LeetCode 3: Longest Substring Without Repeating Characters (Sliding Window)" hoặc "CSES 1640: Sum of Two Values (Two Pointers)".`,
   };
   return G[format] || G[DEFAULT_FORMAT];
 }
@@ -2349,7 +2363,7 @@ ${formatGuide(format)}
 - "left"/"right": nhãn cột cho compare/before-after (tối đa 2 từ).
 
 Chỉ trả về JSON đúng dạng:
-{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook: hậu quả của case, có con số", "metaphor": "case xuyên suốt clip: sản phẩm, thao tác, con số, hậu quả", "concept": "tên khái niệm kỹ thuật là lời giải của case", "scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""${canCode ? ', "code": "", "codeTitle": ""' : ""}${canArr ? ', "cells": [], "steps": []' : ""}}]}`;
+{"title": "tiêu đề clip, ví dụ: Forward vs Reverse Proxy", "category": "một trong ${CATEGORIES.join("|")}", "hook": "câu hook: hậu quả của case, có con số", "metaphor": "case xuyên suốt clip: sản phẩm, thao tác, con số, hậu quả", "concept": "tên khái niệm kỹ thuật là lời giải của case", ${canArr ? '"sourceUrl": "link bài gốc nếu chắc chắn, không thì để trống", ' : ""}"scenes": [{"layout": "...", "duration": 2.5, "heading": "...", "part": "intro|body|outro", "subtitle": "...", "narration": "...", "actors": [{"icon": "...", "label": "...", "side": ""}], "links": [], "focus": -1, "mark": null, "left": "", "right": ""${canCode ? ', "code": "", "codeTitle": ""' : ""}${canArr ? ', "cells": [], "steps": []' : ""}}]}`;
 }
 function reviewPrompt(sc, ctx) {
   const { id, status, createdAt, createdBy, sample, reviewed, reviewNotes, sourceText, series, nextTeaser, ...body } = sc;
@@ -2468,9 +2482,10 @@ Mỗi chủ đề là một khái niệm RỘNG, nền tảng, đã được cô
     deep: `Đề xuất 10 CHỦ ĐỀ NHỎ ĐỂ ĐI SÂU CÓ CODE${scope}.
 Mỗi chủ đề là đúng MỘT kỹ thuật hẹp, giải thích trọn vẹn được trong khoảng 1 phút bằng 2–4 đoạn code ngắn (ví dụ: Dependency Injection qua constructor, Factory method, Singleton an toàn với nhiều thread, khóa phân tán bằng Redis SET NX, optimistic locking bằng cột version, retry với exponential backoff, debounce một ô tìm kiếm). KHÔNG chọn chủ đề rộng như "Design pattern" hay "OOP".
 "topic" là tên kỹ thuật kèm ngôn ngữ hoặc tool nếu cần (tối đa 10 từ). "angle" ghi "Sửa được: <vấn đề cụ thể mà kỹ thuật này giải quyết>".`,
-    algo: `Đề xuất 10 BÀI LEETCODE KINH ĐIỂN để làm clip giải chi tiết${scope}.
-Mỗi bài tiêu biểu cho MỘT dạng bài hay gặp khi phỏng vấn (Hash Map, Two Pointers, Sliding Window, Binary Search, Stack, Linked List, Heap, BFS/DFS, Dynamic Programming, Backtracking...), mỗi dạng tối đa một bài. Chỉ chọn bài bạn chắc chắn về số hiệu, tên và lời giải chuẩn; ưu tiên bài có input là mảng hoặc chuỗi ngắn để mô phỏng được từng bước.
-"topic" là "LeetCode <số>: <tên bài tiếng Anh>". "angle" ghi "Dạng: <tên dạng bài>".`,
+    algo: `Đề xuất 10 BÀI THUẬT TOÁN để làm clip giải chi tiết${scope}.
+${ALGO_SOURCES}
+Chọn khoảng 6 bài luyện phỏng vấn (LeetCode, ưu tiên bài trong NeetCode 150, và HackerRank) và 4 bài thi đấu (Codeforces, AtCoder, CSES). Mỗi bài tiêu biểu cho MỘT dạng bài (Hash Map, Two Pointers, Sliding Window, Prefix Sum, Binary Search, Stack, Linked List, Heap, Greedy, BFS/DFS, Dynamic Programming, Backtracking...), mỗi dạng tối đa một bài. Chỉ chọn bài bạn chắc chắn về mã bài, tên và lời giải chuẩn; ưu tiên bài có input là mảng hoặc chuỗi ngắn để mô phỏng được từng bước.
+"topic" là "<Nền tảng> <mã bài>: <tên bài>", ví dụ "LeetCode 3: Longest Substring Without Repeating Characters" hoặc "CSES 1640: Sum of Two Values". "angle" ghi "Dạng: <tên dạng bài> · <Phỏng vấn hoặc Thi đấu>".`,
     howto: `Đề xuất 10 VIỆC CỤ THỂ để làm clip HƯỚNG DẪN TỪNG BƯỚC${scope}.
 Mỗi việc làm xong trong 3–5 bước bằng MỘT tool phổ biến, có lệnh hoặc cấu hình thật, và có cách kiểm tra kết quả (ví dụ: "Bật gzip trong Nginx", "Thêm index cho cột hay lọc trong PostgreSQL", "Giới hạn 100 request mỗi phút bằng Nginx limit_req", "Viết Dockerfile multi-stage cho app Node.js", "Xem query chậm bằng EXPLAIN ANALYZE").
 "topic" là việc làm được, bắt đầu bằng động từ, có tên tool (tối đa 12 từ). "angle" ghi "Kết quả: <người xem đạt được gì>".`,
@@ -2958,6 +2973,8 @@ async function fbPublish(kind) {
     msg.innerHTML = j.scheduledAt
       ? `Đã hẹn đăng ${what} lúc <b>${esc(fmtWhen(new Date(j.scheduledAt)))}</b>. Xem, đổi giờ hoặc hủy trong Meta Business Suite, mục bài đã lên lịch.${subs}`
       : `Đã đăng ${what}. <a href="${esc(j.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Xem trên Facebook</a>.${subs}`;
+    // The Graph API has no way to put a video or Reel in a Page playlist, so remind which playlist it belongs to.
+    const cat = (fbClip && fbClip.category) || ""; if (cat) msg.innerHTML += ` <br>Facebook không cho phần mềm thêm video vào playlist: mở Meta Business Suite, mục Nội dung, rồi thêm clip này vào playlist <b>${esc(cat)}</b>.`;
   } catch (err) { msg.textContent = "Không đăng được: " + err.message; }
   $("fb-reel").disabled = $("fb-publish").disabled = false;
 }
