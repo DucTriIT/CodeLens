@@ -1,0 +1,51 @@
+PHẦN 5: CHO AI NHÌN VÀO DATABASE PRODUCTION
+
+=== CAPTION BÀI ĐĂNG ===
+
+Bạn có dám cho AI chạy truy vấn trên database production không? 👇
+
+Mình dám, vì AI phải đi qua 4 lớp trước khi chạm được vào dữ liệu:
+
+👉 Chỉ nhận đúng một câu SELECT
+👉 Bảng nào cũng phải đọc không khoá
+👉 Phiên làm việc chỉ-đọc, chờ tối đa 5 giây
+👉 Mọi thứ chạy trong transaction và luôn rollback
+
+Cột mật khẩu, API key thì bị từ chối hoặc che thành ***. Mật khẩu database mình tự gõ trong terminal, không bao giờ dán vào chat.
+
+Nhưng chốt chặn thật vẫn là quyền của tài khoản database: chỉ được đọc. Mấy lớp kia chỉ là phòng hờ.
+
+Checklist 5 mục ở ảnh 8, bạn lưu lại dùng nhé.
+
+Team bạn đang cho AI truy cập dữ liệu ở mức nào? 👇
+
+#codelens #claude #AI #database #baomat
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+Cho AI nhìn vào database production mà vẫn ngủ ngon, làm thế nào? Vuốt để xem 4 lớp mình dùng 👉
+
+02.png
+3 nỗi sợ khi AI chạm vào database: ghi nhầm dữ liệu, truy vấn nặng làm khoá bảng, mật khẩu lọt vào chat.
+
+03.png
+4 lớp chỉ-đọc bọc quanh database: chỉ nhận SELECT, bắt buộc đọc không khoá, phiên chỉ-đọc, và luôn rollback. Sót một lớp vẫn còn ba.
+
+04.png
+Câu lệnh ghi bị từ chối ngay. Quên đọc không khoá cũng bị từ chối. Kết quả tối đa 50 dòng và luôn ghi rõ đang ở môi trường nào.
+
+05.png
+Hỏi thẳng cột mật khẩu: từ chối. Lỡ lọt qua SELECT *: che thành ***. Token nằm trong chuỗi cũng bị che.
+
+06.png
+Mật khẩu database: tự gõ trong terminal, lưu dạng mã hoá, hook chặn mọi lệnh cố đọc. AI dùng được kết nối nhưng không thấy mật khẩu.
+
+07.png
+Chốt chặn thật là quyền của tài khoản database: chỉ được đọc, cấm hẳn cột bí mật. Các lớp khác chỉ là phòng hờ.
+
+08.png
+Bạn làm thử: checklist 5 mục trước khi cho AI chạm vào database. Lưu lại để dùng nhé 🔖
+
+09.png
+Phần 6: tài liệu tự cập nhật lúc 23 giờ, trong lúc bạn ngủ. Follow CodeLens để xem tiếp.

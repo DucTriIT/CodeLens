@@ -1,0 +1,49 @@
+PHẦN 7: DÁN MỘT DÒNG LỖI, BIẾT NGAY NÓ Ở ĐÂU
+
+=== CAPTION BÀI ĐĂNG ===
+
+Đang trực mà gặp lỗi lạ, bạn mở gì đầu tiên? Mình không còn mở code nữa 👇
+
+Phần cuối của series: kho kiến thức trong repo trở thành công cụ trực sự cố, chạy ngay trên máy.
+
+👉 Trace: gõ mã đơn, ra dòng thời gian của đơn đó
+👉 Triage: dán dòng lỗi, biết lỗi mới, đang tăng vọt hay chỉ là nhiễu cũ
+👉 Health: thẻ đỏ, vàng, xanh cho biết cái gì đang hỏng
+👉 Hỏi AI: kèm luôn dữ liệu vừa xem, Claude trả lời có dẫn nguồn
+
+Ba công cụ đầu không dùng AI nên không tốn phí.
+
+Ảnh 7 tóm tắt cả series. Ảnh 8 là 5 bước để bạn tự làm cho repo của mình.
+
+Bạn muốn mình đào sâu phần nào trong 7 phần? Bình luận số phần nhé 👇
+
+#codelens #claude #AI #devops #laptrinh
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+Phần cuối: ticket quay lại đúng lúc đang trực. Lần này mình không mở code. Vuốt để xem 👉
+
+02.png
+Kho có thêm giao diện web chạy ngay trên máy. Ba công cụ Trace, Triage, Health không dùng AI nên không tốn phí.
+
+03.png
+Trace: gõ mã đơn là ra dòng thời gian của đơn đó, gom từ nhiều bảng, kèm điểm bất thường. Thông tin cá nhân của khách không được lấy ra.
+
+04.png
+Triage: dán dòng lỗi vào là biết lỗi mới, đang tăng vọt, hay chỉ là nhiễu cũ, và được ném ra ở class nào, file nào.
+
+05.png
+Health: các thẻ đỏ, vàng, xanh cho biết cái gì đang hỏng. Mỗi thẻ so lỗi hôm nay với mức thường ngày, thẻ đỏ tự nổi lên đầu.
+
+06.png
+Cần giải thích thì bấm hỏi AI, kèm luôn dữ liệu vừa trace. Claude trả lời từ kho, có dẫn nguồn, và không sửa được gì.
+
+07.png
+Cả series trong một ảnh: 7 lớp đã giúp đóng ticket #4827. Lưu lại để xem khi cần 🔖
+
+08.png
+Bạn làm thử: 5 bước dựng kho kiến thức cho repo của bạn. Bắt đầu từ bước 1, đừng chờ đủ công cụ.
+
+09.png
+Hết series 7 phần. Bạn muốn mình đào sâu phần nào? Bình luận số phần nhé, và follow CodeLens để xem series sau.

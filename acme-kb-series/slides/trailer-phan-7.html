@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · trailer-phan-7</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#a3e635}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>Series · Phần 7/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 7/7</div><h1>Dán một<br>dòng lỗi.<br><span class='acc'>Biết ngay<br>nó ở đâu.</span></h1><div class="grow"></div><div class="ticket sm"><div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Đang trực</span></div><div class="tk-title">Lại một đơn đã thanh toán mà kho không nhận được.</div></div><div style="height:24px"></div><p class="lead">Phần cuối: kho kiến thức thành công cụ trực sự cố.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">🧭 Trace</div><h2>Gõ mã đơn,<br><span class='acc'>ra dòng thời gian</span></h2><div style="height:22px"></div><div class="tl"><div><span class="tm">08:11:02</span>Thanh toán thành công</div><div><span class="tm">08:11:03</span>Gửi đơn sang kho</div><div class="bad"><span class="tm">08:11:33</span>Lần thử 1: kho không trả lời</div><div class="bad"><span class="tm">08:13:40</span>Lần thử 3: kho không trả lời</div><div class="bad"><span class="tm">08:13:41</span>Ghi vào OrderSyncErrors</div></div><div style="height:20px"></div><div class="res"><div class="bd" style="margin-top:0"><span class="bdg stale">Phát hiện: đã thanh toán, chưa đồng bộ</span></div></div><div class="grow"></div><p class="p">Gom từ nhiều bảng trong vài giây. Tên, số điện thoại, email của khách <b>không được lấy ra</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">🚨 Triage</div><h2>Dán lỗi vào,<br><span class='acc'>ra phán quyết</span></h2><div style="height:22px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Dán dòng lỗi hoặc stack trace</div><pre><span class='w'>System.TimeoutException: Warehouse API
+did not respond</span></pre></div><div style="height:16px"></div><div class="g2"><div class="kc hi"><div class="t">TĂNG VỌT</div><div class="v">so với mức thường ngày</div><div class="bars" style="margin-top:14px"><i style="height:18%"></i><i style="height:22%"></i><i style="height:15%"></i><i style="height:20%"></i><i style="height:24%"></i><i class="hi" style="height:70%"></i><i class="hi" style="height:100%"></i></div></div><div class="kc"><div class="t">Ném ra ở</div><div class="v"><span class='mono'>WarehouseClient.Send()</span><br>WarehouseClient.cs</div></div></div><div style="height:16px"></div><div class="tabs"><span>MỚI</span><span class=on>TĂNG VỌT</span><span>Nhiễu cũ</span><span>Im ắng</span></div><div class="grow"></div><p class="p">Biết lỗi này <b>mới hay cũ</b> trước khi đánh thức ai dậy.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">🩺 Health</div><h2>Cái gì<br><span class='acc'>đang hỏng?</span></h2><div style="height:22px"></div><div class="stackc"><div class="hc red"><div><div class="t">Đồng bộ sang kho</div><div class="v">Tăng vọt so với 7 ngày trước</div></div><span class="pill">UNHEALTHY</span></div><div class="hc amber"><div><div class="t">Webhook đối tác</div><div class="v">Có lỗi, ở mức thường ngày</div></div><span class="pill">WARNING</span></div><div class="hc green"><div><div class="t">Job nền</div><div class="v">Không có gì bất thường</div></div><span class="pill">HEALTHY</span></div><div class="hc green"><div><div class="t">Bảo trì chỉ mục ban đêm</div><div class="v">Đêm qua chạy xong</div></div><span class="pill">HEALTHY</span></div></div><div class="grow"></div><p class="p">Mỗi thẻ so lỗi hôm nay với <b>mức thường ngày</b>. Thẻ đỏ tự nổi lên đầu.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Hết series</div><h1>Cảm ơn bạn<br>đã xem hết<br><span class='acc'>7 phần.</span></h1><div style="height:30px"></div><p class="lead">Bạn muốn mình đào sâu phần nào? <b>Bình luận số phần</b>, mình làm tiếp.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem series sau</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 21.0, "step": 0.5, "scenes": [{"a": 0, "d": 4.0}, {"a": 4.0, "d": 4.0}, {"a": 8.0, "d": 4.0}, {"a": 12.0, "d": 4.0}, {"a": 16.0, "d": 5.0}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>

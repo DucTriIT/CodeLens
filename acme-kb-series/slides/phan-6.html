@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · Phần 6</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#ff5fa2}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}</style></head><body>
+<section class="s" id="s1"><div class="fitc">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 6/7</div><div class="mono acc" style="font-size:150px;font-weight:800;line-height:1">23:00</div><h1>Tài liệu tự<br>viết lại.</h1><div style="height:24px"></div><p class="lead">Còn bạn thì đi ngủ.</p><div class="grow"></div><div class="quote" style="font-size:46px">Kho kiến thức có một kẻ thù: <span class="acc">thời gian.</span></div>
+</div></section>
+<section class="s" id="s2"><div class="fitc">
+<div class="eyebrow">Hai tuần sau</div><h2>Code đổi.<br><span class='acc'>Tài liệu đứng yên.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>OrderSyncJob.cs  ·  commit mới</div><pre><span class='r'>-   Retry(order, 3);</span>
+<span class='g'>+   Retry(order, 5);</span></pre></div><div style="height:18px"></div><div class="doc"><div class="sec" style="margin-top:0">## Business view</div><ul><li>Gửi lỗi thì thử lại <b>3 lần</b>.</li></ul><div class="side" style="top:-18px;right:24px">vẫn ghi 3</div></div><div class="grow"></div><p class="p">Từ giây phút đó, kho bắt đầu <b>nói dối</b>. Và Claude tin kho hơn tin code.</p>
+</div></section>
+<section class="s" id="s3"><div class="fitc">
+<div class="eyebrow">Bước 1</div><h2>Biết trang nào<br><span class='acc'>đã cũ</span></h2><div style="height:24px"></div><div class="g2"><div class="kc"><div class="k">sources:</div><div class="v">OrderSyncJob.cs<br><span class='mono'>verified: 20/11</span></div></div><div class="kc hi"><div class="k">git log</div><div class="v">OrderSyncJob.cs<br><span class='mono'>commit: 25/11</span></div></div></div><div style="height:16px"></div><div class="res"><div class="pth">flows/dong-bo-don-sang-kho.md</div><div class="bd"><span class="bdg stale">⚠ CŨ: 1 commit chưa xem lại</span></div></div><div style="height:22px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Mở Claude lên là thấy</div><pre><span class='y'>1 trang đã cũ. Chạy /kb-update</span></pre></div><div class="grow"></div><p class="p">Nhờ mỗi trang ghi rõ nó dựa trên file nào, việc so sánh là <b>tự động</b>.</p>
+</div></section>
+<section class="s" id="s4"><div class="fitc">
+<div class="eyebrow">Bước 2 · mỗi đêm</div><h2>Ca đêm của <span class='acc'>Claude</span></h2><div style="height:24px"></div><div class="tl"><div><span class="tm">23:00</span>Chạy test của chính bộ công cụ<small>Test hỏng thì dừng, không cho AI chạy</small></div><div><span class="tm">tiếp theo</span>Lập danh sách trang đã cũ</div><div><span class="tm">song song</span>3 worker Claude, mỗi worker một nhóm trang<small>Trang nào không cần sửa thì không đụng tới</small></div><div><span class="tm">sau cùng</span>1 integrator gom lại<small>Sửa mục lục, viết trang mới cho luồng mới</small></div><div><span class="tm">kết thúc</span>Dựng lại chỉ mục tìm kiếm, viết báo cáo</div></div><div class="grow"></div>
+</div></section>
+<section class="s" id="s5"><div class="fitc">
+<div class="eyebrow">Không ai canh</div><h2>Nên ca đêm<br><span class='acc'>bị trói tay</span></h2><div style="height:24px"></div><div class="ck"><div class="y"><i>✓</i><span>Đọc code ở mọi repo</span></div><div class="y"><i>✓</i><span>Sửa file trong thư mục kho</span></div><div class="n"><i>✕</i><span>Commit, push, pull</span></div><div class="n"><i>✕</i><span>Chạm vào database</span></div><div class="n"><i>✕</i><span>Lên mạng, gọi agent phụ</span></div></div><div style="height:20px"></div><div class="tabs"><span>Mỗi worker có trần ngân sách</span></div><div class="grow"></div><p class="p">Việc gì không ai xem thì quyền phải <b>hẹp hơn</b> ban ngày.</p>
+</div></section>
+<section class="s" id="s6"><div class="fitc">
+<div class="eyebrow">Buổi sáng</div><h2>Pha cà phê,<br><span class='acc'>đọc báo cáo</span></h2><div style="height:24px"></div><div class="doc"><h4 style="font-size:34px">Báo cáo đêm qua</h4><div class="sec">Đã sửa</div>flows/dong-bo-don-sang-kho.md<br><span style="opacity:.6">Số lần thử lại: 3 → 5</span><div class="sec">Không đổi</div>4 trang đã xem, nội dung còn đúng<div class="sec">Chờ bạn duyệt</div>1 trang do AI sửa<div class="side" style="top:-18px;right:24px">ví dụ</div></div><div class="grow"></div><p class="p">Trang nào sửa, <b>vì sao</b> sửa, trang nào còn cũ, trang nào chờ duyệt.</p>
+</div></section>
+<section class="s" id="s7"><div class="fitc">
+<div class="eyebrow">Nguyên tắc</div><h2>AI sửa.<br><span class='acc'>Người duyệt.</span></h2><div style="height:26px"></div><div class="stackc"><div class="rw"><span class="num">1</span><span>AI sửa trang<small>Trang mang nhãn “AI · chưa duyệt”</small></span></div><div class="rw"><span class="num">2</span><span>Bạn xem phần thay đổi<small>git diff đúng trang đó</small></span></div><div class="rw"><span class="num">3</span><span>Bạn bấm duyệt<small>Nhãn biến mất</small></span></div><div class="rw"><span class="num">4</span><span>Bạn tự commit<small>Job không bao giờ commit thay bạn</small></span></div></div><div class="grow"></div><p class="p">AI làm phần nặng. Chữ ký cuối cùng vẫn là <b>của người</b>.</p>
+</div></section>
+<section class="s" id="s8"><div class="fitc">
+<div class="eyebrow">Bạn làm thử</div><h2 style=font-size:66px>Chưa cần job đêm.<br><span class='acc'>Chỉ cần biết trang<br>nào đang nói dối.</span></h2><div style="height:24px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Ghi nguồn cho mỗi trang</div><div class=d>Trang này dựa trên những file code nào</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Ghi ngày kiểm tra cuối</div><div class=d>Một dòng ở đầu trang là đủ</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Viết script hỏi git</div><div class=d>File nguồn có commit mới sau ngày đó không?</div></div></div></div><div class="grow"></div><p class="p">Ba bước này làm được trong một buổi chiều.</p>
+</div></section>
+<section class="s" id="s9"><div class="fitc">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 7/7</div><div class="t">Dán một dòng lỗi,<br>biết ngay nó ở đâu</div></div><div style="height:36px"></div><p class="lead">Phần cuối: ticket quay lại đúng lúc đang trực. Lần này mình <b>không mở code</b>.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></section>
+<script>
+  window.FITTED = false;
+  // Phóng nội dung mỗi ảnh cho đầy khung 928×1070 mà không tràn
+  document.fonts.ready.then(() => {
+    document.querySelectorAll(".fitc").forEach(w => {
+      const box = w.parentNode.getBoundingClientRect();
+      for (let z = 1.3; z >= 1; z -= 0.02) {
+        w.style.zoom = z; w.style.width = 928 / z + "px"; w.style.height = "auto";
+        const r = w.getBoundingClientRect();
+        if (r.bottom <= box.top + 1220 || z <= 1.001) { w.style.height = 1070 / z + "px"; break; }
+      }
+    });
+    window.FITTED = true;
+  });
+  const S = [...document.querySelectorAll(".s")], n = S.length;
+  S.forEach((s, i) => {
+    const dots = S.map((_, j) => `<b class="${j === i ? "on" : ""}"></b>`).join("");
+    s.insertAdjacentHTML("afterbegin", `<div class="top"><div class="brand"><i></i>CODELENS</div><div>acme-kb · ${String(i + 1).padStart(2, "0")}/${String(n).padStart(2, "0")}</div></div>`);
+    s.insertAdjacentHTML("beforeend", `<div class="bot"><div class="dots">${dots}</div><div class="swipe">${i < n - 1 ? "Vuốt →" : "Hết phần 6"}</div></div>`);
+  });
+</script></body></html>

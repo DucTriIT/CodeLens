@@ -1,0 +1,51 @@
+PHẦN 6: 23 GIỜ, TÀI LIỆU TỰ VIẾT LẠI
+
+=== CAPTION BÀI ĐĂNG ===
+
+Tài liệu viết xong thì đúng được bao lâu? Thường là tới lần sửa code kế tiếp 👇
+
+Kho kiến thức có một kẻ thù là thời gian. Code đổi, tài liệu đứng yên, và AI tin tài liệu hơn tin code.
+
+Mình xử lý bằng hai bước:
+
+👉 Mỗi trang ghi rõ nó dựa trên file code nào. Script so với lịch sử git là biết trang nào đã cũ
+👉 Mỗi đêm 23 giờ, một job giao cho 3 worker Claude cập nhật các trang cũ, rồi viết báo cáo
+
+Ca đêm bị trói tay: không commit, không đụng database, không lên mạng.
+
+Sáng ra mình đọc báo cáo, xem phần thay đổi, bấm duyệt và tự tay commit. AI sửa, người duyệt.
+
+Bạn chưa cần job đêm. Ba bước bắt đầu nằm ở ảnh 8.
+
+Tài liệu team bạn lần cuối được cập nhật là khi nào? 👇
+
+#codelens #claude #AI #tailieu #tudonghoa
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+23 giờ, tài liệu tự viết lại, còn bạn thì đi ngủ. Mình làm thế nào? Vuốt để xem 👉
+
+02.png
+Ai đó sửa số lần thử lại từ 3 lên 5. Tài liệu vẫn ghi 3. Từ giây phút đó, kho kiến thức bắt đầu nói dối.
+
+03.png
+Bước 1: mỗi trang ghi rõ nó dựa trên file code nào. Script so với lịch sử git là biết ngay trang nào đã cũ.
+
+04.png
+Bước 2: mỗi đêm 23 giờ, job chạy test trước, lập danh sách trang cũ, giao 3 worker Claude cập nhật song song, rồi 1 integrator gom lại.
+
+05.png
+Ca đêm không ai canh nên bị trói tay: được đọc code và sửa trong kho, không được commit, không đụng database, không lên mạng.
+
+06.png
+Sáng ra đọc báo cáo: trang nào đã sửa và vì sao, trang nào còn cũ, trang nào đang chờ bạn duyệt.
+
+07.png
+Nguyên tắc: AI sửa, người duyệt. Trang AI sửa mang nhãn 'chưa duyệt' cho tới khi bạn xem và tự tay commit.
+
+08.png
+Bạn làm thử: ghi nguồn và ngày kiểm tra cho mỗi trang, rồi viết script hỏi git. Một buổi chiều là biết trang nào đang nói dối.
+
+09.png
+Phần 7, phần cuối: dán một dòng lỗi, biết ngay nó ở đâu. Follow CodeLens để xem tiếp.

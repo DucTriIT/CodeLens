@@ -1,0 +1,50 @@
+PHẦN 4: DẠY AI NÓI “TÔI KHÔNG BIẾT”
+
+=== CAPTION BÀI ĐĂNG ===
+
+AI trả lời sai thì bạn thấy ngay. AI trả lời gần đúng thì bạn tin 👇
+
+Mình hỏi về job hoàn tiền, kho kiến thức chỉ có trang về job đồng bộ đơn. Claude mượn tạm trang gần giống và trả lời rất thuyết phục.
+
+Mình chặn chuyện đó bằng 3 nhãn trên mỗi kết quả tìm kiếm:
+
+👉 "AI viết, chưa ai duyệt": biết ai đứng sau nội dung
+👉 "Đã cũ": code đã đổi sau lần kiểm tra cuối
+👉 "Kho còn thiếu": cái tên có trong code nhưng chưa ai viết, hãy đi đọc code
+
+Hỏi lạc đề thì trả về tay trắng, không cố nhét một kết quả cho có.
+
+Ba nhãn này dùng được cho mọi thứ bạn đưa cho AI đọc, kể cả wiki hay RAG nội bộ.
+
+Bạn từng bị AI trả lời "gần đúng" lần nào chưa? Kể mình nghe 👇
+
+#codelens #claude #AI #RAG #laptrinh
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+Câu trả lời sai thì dễ thấy. Câu trả lời gần đúng mới nguy hiểm. Mình dạy AI nói 'tôi không biết' thế nào? 👉
+
+02.png
+Hỏi về job hoàn tiền, kho chỉ có trang về job đồng bộ đơn. Claude mượn tạm trang gần giống, trả lời nghe vẫn rất thuyết phục.
+
+03.png
+Bước 1: tìm cho chuẩn. Kho tìm theo từ khoá và theo ý nghĩa cùng lúc, rồi trộn kết quả. Chạy hoàn toàn trên máy, không tốn phí.
+
+04.png
+Nhãn 1: 'AI viết, chưa ai duyệt'. Nhãn 2: 'đã cũ', khi code đổi sau lần kiểm tra cuối. Claude đọc nhãn và biết nên tin đến đâu.
+
+05.png
+Nhãn 3: hỏi một cái tên có trong code mà kho chưa viết, công cụ báo thẳng 'kho còn thiếu' và chỉ Claude đi đọc đúng file.
+
+06.png
+Hỏi lạc đề thì công cụ trả về 'không có kết quả'. Với AI, một kết quả không liên quan là một cái cớ để bịa.
+
+07.png
+Mỗi lần một câu hỏi thật bị trả lời tệ, mình thêm nó vào bộ kiểm tra. Chỉnh thuật toán xong thì chạy lại cả bộ.
+
+08.png
+Bạn làm thử: thêm 3 nhãn này vào bất cứ thứ gì bạn đưa cho AI đọc, từ wiki đến RAG nội bộ.
+
+09.png
+Phần 5: cho AI nhìn vào database production mà vẫn ngủ ngon. Follow CodeLens để xem tiếp.

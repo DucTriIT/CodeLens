@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · Phần 4</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#b07cff}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}</style></head><body>
+<section class="s" id="s1"><div class="fitc">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 4/7</div><h1>Dạy AI nói<br><span class='acc'>“tôi không<br>biết”</span></h1><div class="grow"></div><div class="quote" style="font-size:52px">Câu trả lời sai thì dễ thấy. Câu trả lời <span class="acc">gần đúng</span> mới nguy hiểm.</div><div style="height:30px"></div><p class="lead">3 nhãn giúp AI tự khai độ tin cậy.</p>
+</div></section>
+<section class="s" id="s2"><div class="fitc">
+<div class="eyebrow">Chuyện xảy ra</div><h2>Kho thiếu.<br><span class='acc'>AI mượn tạm.</span></h2><div style="height:24px"></div><div class="chat"><div class="chat-h"><span>Hỏi về job hoàn tiền</span><span>14:02</span></div><div class="chat-b"><div class="bub me">RefundSyncJob chạy thế nào?</div><div class="bub ai"><div class="who"><i></i>Claude</div>Theo tài liệu <b>đồng bộ đơn</b>, job sẽ thử lại 3 lần rồi ghi vào bảng lỗi…</div></div></div><div style="height:22px"></div><div class="g2"><div class="kc"><div class="t">Kho có</div><div class="v">Trang về <b>OrderSyncJob</b> (đồng bộ đơn)</div></div><div class="kc hi"><div class="t">Bạn hỏi</div><div class="v"><b>RefundSyncJob</b> (hoàn tiền). Chưa ai viết.</div></div></div><div class="grow"></div><p class="p">Hai job tên gần giống nhau. Câu trả lời nghe rất thuyết phục, và <b>không ai kiểm chứng</b>.</p>
+</div></section>
+<section class="s" id="s3"><div class="fitc">
+<div class="eyebrow">Bước 1 · tìm cho chuẩn</div><h2>Tìm bằng<br><span class='acc'>hai con mắt</span></h2><div style="height:24px"></div><div class="g2"><div class="kc"><div class="t">Từ khoá</div><div class="v">Khớp đúng tên riêng: <span class='mono'>OrderSyncErrors</span></div></div><div class="kc"><div class="t">Ý nghĩa</div><div class="v">“đơn không sang kho” ≈ “đồng bộ thất bại”</div></div></div><div style="height:16px"></div><div class="kc hi"><div class="t">Trộn hai bảng xếp hạng thành một</div><div class="v">Trang nào được cả hai mắt chọn thì lên đầu.</div></div><div style="height:22px"></div><div class="tabs"><span class=on>Chạy hoàn toàn trên máy</span><span class=on>Không tốn phí API</span></div><div class="grow"></div><p class="p">Tìm trượt ngay từ đầu thì phía sau có cẩn thận mấy cũng vô ích.</p>
+</div></section>
+<section class="s" id="s4"><div class="fitc">
+<div class="eyebrow">Nhãn 1 và 2</div><h2>Mỗi kết quả tự khai<br><span class='acc'>độ tin cậy</span></h2><div style="height:24px"></div><div class="stackc"><div class="res"><div class="pth">flows/dong-bo-don-sang-kho.md</div><div class="sn">Đơn được gửi lại tối đa 3 lần…</div><div class="bd"><span class="bdg ai">AI viết · chưa ai duyệt</span></div></div><div class="res"><div class="pth">troubleshooting/loi-kho.md</div><div class="sn">Timeout khi gọi API kho…</div><div class="bd"><span class="bdg stale">⚠ CŨ: 3 commit chưa xem lại</span></div></div><div class="res"><div class="pth">systems/order-service.md</div><div class="sn">Ứng dụng nhận và xử lý đơn…</div><div class="bd"><span class="bdg good">Người đã duyệt · còn mới</span></div></div></div><div class="grow"></div><p class="p">Claude đọc nhãn và biết <b>nên tin trang nào đến đâu</b>.</p>
+</div></section>
+<section class="s" id="s5"><div class="fitc">
+<div class="eyebrow">Nhãn 3 · quan trọng nhất</div><h2>Kho chưa có?<br><span class='acc'>Nói thẳng.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>kb_search</div><pre><span class='a'>&gt;</span> <span class='w'>RefundSyncJob chạy thế nào?</span>
+
+<span class='y'>⚠ KB gap:</span> RefundSyncJob có trong code,
+nhưng chưa trang nào trong kho nhắc tới.
+
+<span class='g'>Hãy đọc code:</span> Refund/RefundSyncJob.cs
+
+<span class='d'>2 kết quả rút gọn · chỉ là chủ đề lân cận</span></pre></div><div style="height:22px"></div><p class="p">Công cụ biết cái tên này <b>có trong code</b> nhờ danh mục script quét ở phần 3.</p><div class="grow"></div>
+</div></section>
+<section class="s" id="s6"><div class="fitc">
+<div class="eyebrow">Hỏi lạc đề</div><h2>Không có thì<br><span class='acc'>trả về tay trắng</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>kb_search</div><pre><span class='a'>&gt;</span> <span class='w'>cách nấu phở bò</span>
+
+<span class='d'>No KB match</span></pre></div><div style="height:22px"></div><p class="p">Công cụ tìm kiếm nào cũng có thể trả về “10 kết quả gần nhất”. Nhưng với AI, một kết quả không liên quan là <b>một cái cớ để bịa</b>.</p><div class="grow"></div>
+</div></section>
+<section class="s" id="s7"><div class="fitc">
+<div class="eyebrow">Giữ cho tìm kiếm không tệ đi</div><h2 style=font-size:64px>AI trả lời tệ?<br><span class='acc'>Thêm một bài kiểm tra.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Terminal</div><pre><span class='a'>&gt;</span> <span class='w'>python tools/eval_search.py</span>
+
+<span class='d'>đo trên bộ câu hỏi thật:</span>
+  hit@1     <span class='d'>đúng ngay kết quả đầu</span>
+  hit@3     <span class='d'>đúng trong 3 kết quả đầu</span>
+  coverage  <span class='d'>độ phủ</span>
+  tokens    <span class='d'>tốn bao nhiêu chữ</span></pre></div><div style="height:22px"></div><p class="p">Mỗi lần một câu hỏi thật bị trả lời tệ, mình thêm nó vào bộ này. Chỉnh xong thuật toán thì chạy lại.</p><div class="grow"></div>
+</div></section>
+<section class="s" id="s8"><div class="fitc">
+<div class="eyebrow">Bạn làm thử</div><h2>3 nhãn cho công cụ<br><span class='acc'>AI của bạn</span></h2><div style="height:24px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Ai viết, ai duyệt</div><div class=d>AI viết mà chưa ai xem thì phải ghi rõ</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Còn mới hay đã cũ</div><div class=d>Code đổi sau lần kiểm tra cuối là cũ</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">“Chưa có tài liệu”</div><div class=d>Thay vì đưa ra kết quả gần giống</div></div></div></div><div class="grow"></div><p class="p">Áp dụng được cho mọi thứ bạn đưa cho AI đọc: wiki, RAG, tài liệu nội bộ.</p>
+</div></section>
+<section class="s" id="s9"><div class="fitc">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 5/7</div><div class="t">Cho AI nhìn vào<br>database production</div></div><div style="height:36px"></div><p class="lead">Tài liệu nói đơn được thử lại 3 lần. Nhưng <b>đơn này</b> thì sao? Muốn chắc, phải nhìn dữ liệu thật.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></section>
+<script>
+  window.FITTED = false;
+  // Phóng nội dung mỗi ảnh cho đầy khung 928×1070 mà không tràn
+  document.fonts.ready.then(() => {
+    document.querySelectorAll(".fitc").forEach(w => {
+      const box = w.parentNode.getBoundingClientRect();
+      for (let z = 1.3; z >= 1; z -= 0.02) {
+        w.style.zoom = z; w.style.width = 928 / z + "px"; w.style.height = "auto";
+        const r = w.getBoundingClientRect();
+        if (r.bottom <= box.top + 1220 || z <= 1.001) { w.style.height = 1070 / z + "px"; break; }
+      }
+    });
+    window.FITTED = true;
+  });
+  const S = [...document.querySelectorAll(".s")], n = S.length;
+  S.forEach((s, i) => {
+    const dots = S.map((_, j) => `<b class="${j === i ? "on" : ""}"></b>`).join("");
+    s.insertAdjacentHTML("afterbegin", `<div class="top"><div class="brand"><i></i>CODELENS</div><div>acme-kb · ${String(i + 1).padStart(2, "0")}/${String(n).padStart(2, "0")}</div></div>`);
+    s.insertAdjacentHTML("beforeend", `<div class="bot"><div class="dots">${dots}</div><div class="swipe">${i < n - 1 ? "Vuốt →" : "Hết phần 4"}</div></div>`);
+  });
+</script></body></html>

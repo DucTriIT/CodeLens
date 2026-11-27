@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · trailer-phan-5</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#2ed3b0}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>Series · Phần 5/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 5/7</div><h1>Cho AI nhìn<br>vào database<br><span class='acc'>production.</span></h1><div style="height:30px"></div><p class="lead">Và vẫn ngủ ngon.</p><div class="grow"></div><div class="ticket sm"><div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Khẩn</span></div><div class="tk-title">Khách đã thanh toán, nhưng kho không nhận được đơn.</div></div><div style="height:24px"></div><p class="p">Tài liệu nói đơn được thử lại 3 lần. Nhưng <b>đơn A-10293</b> thì sao?</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nghe đã thấy sợ</div><h2>3 nỗi sợ khi<br><span class='acc'>AI chạm vào DB</span></h2><div style="height:26px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">AI chạy nhầm UPDATE, DELETE</div><div class=d>Một câu lệnh là mất dữ liệu thật</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Truy vấn nặng làm khoá bảng</div><div class=d>Khách đang đặt hàng thì hệ thống đứng</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Mật khẩu, API key lọt vào chat</div><div class=d>Lọt rồi thì không lấy lại được</div></div></div></div><div class="grow"></div><p class="p">Nên nhiều team chọn cách dễ nhất: <b>cấm hẳn</b>. Và AI lại phải đoán.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Cách mình làm</div><h2>4 lớp <span class='acc'>chỉ-đọc</span></h2><div style="height:22px"></div><div class="ring" style="--o:25%"><div class="rl"><b>1</b>Chỉ nhận đúng một câu SELECT</div><div class="ring" style="--o:45%"><div class="rl"><b>2</b>Bảng nào cũng phải đọc không khoá (NOLOCK)</div><div class="ring" style="--o:70%"><div class="rl"><b>3</b>Phiên chỉ-đọc, chờ khoá tối đa 5 giây</div><div class="ring" style="--o:100%"><div class="rl"><b>4</b>Chạy trong transaction, luôn rollback</div><div class="core">Database production</div></div></div></div></div><div class="grow"></div><p class="p">Một lớp sót thì còn ba lớp sau.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Điều quan trọng nhất</div><div class="quote">Chốt chặn thật là <span class="acc">quyền của tài khoản database.</span></div><div style="height:34px"></div><div class="g2"><div class="kc"><div class="t">Chỉ được đọc</div><div class="v">Tài khoản riêng cho AI, không có quyền ghi</div></div><div class="kc"><div class="t">Cấm cột bí mật</div><div class="v">Cấm ngay ở database, nhờ DBA cài</div></div></div><div style="height:22px"></div><p class="p">Bốn lớp ở trên là <b>phòng hờ</b>. Kể cả khi tất cả cùng hỏng, tài khoản này vẫn không ghi được gì.</p><div class="grow"></div><p class="p">Và xem dữ liệu luôn là bước <b>cuối cùng</b>, sau khi đã đọc tài liệu.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 6/7</div><div class="t">23 giờ, tài liệu<br>tự viết lại</div></div><div style="height:36px"></div><p class="lead">Hai tuần sau, code đổi. Tài liệu đứng yên. Kho bắt đầu <b>nói dối</b>, và AI tin nó.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 21.0, "step": 0.5, "scenes": [{"a": 0, "d": 4.0}, {"a": 4.0, "d": 4.0}, {"a": 8.0, "d": 4.0}, {"a": 12.0, "d": 4.0}, {"a": 16.0, "d": 5.0}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>

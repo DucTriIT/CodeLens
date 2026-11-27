@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · trailer-phan-6</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#ff5fa2}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>Series · Phần 6/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 6/7</div><div class="mono acc" style="font-size:150px;font-weight:800;line-height:1">23:00</div><h1>Tài liệu tự<br>viết lại.</h1><div style="height:24px"></div><p class="lead">Còn bạn thì đi ngủ.</p><div class="grow"></div><div class="quote" style="font-size:46px">Kho kiến thức có một kẻ thù: <span class="acc">thời gian.</span></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Hai tuần sau</div><h2>Code đổi.<br><span class='acc'>Tài liệu đứng yên.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>OrderSyncJob.cs  ·  commit mới</div><pre><span class='r'>-   Retry(order, 3);</span>
+<span class='g'>+   Retry(order, 5);</span></pre></div><div style="height:18px"></div><div class="doc"><div class="sec" style="margin-top:0">## Business view</div><ul><li>Gửi lỗi thì thử lại <b>3 lần</b>.</li></ul><div class="side" style="top:-18px;right:24px">vẫn ghi 3</div></div><div class="grow"></div><p class="p">Từ giây phút đó, kho bắt đầu <b>nói dối</b>. Và Claude tin kho hơn tin code.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bước 2 · mỗi đêm</div><h2>Ca đêm của <span class='acc'>Claude</span></h2><div style="height:24px"></div><div class="tl"><div><span class="tm">23:00</span>Chạy test của chính bộ công cụ<small>Test hỏng thì dừng, không cho AI chạy</small></div><div><span class="tm">tiếp theo</span>Lập danh sách trang đã cũ</div><div><span class="tm">song song</span>3 worker Claude, mỗi worker một nhóm trang<small>Trang nào không cần sửa thì không đụng tới</small></div><div><span class="tm">sau cùng</span>1 integrator gom lại<small>Sửa mục lục, viết trang mới cho luồng mới</small></div><div><span class="tm">kết thúc</span>Dựng lại chỉ mục tìm kiếm, viết báo cáo</div></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nguyên tắc</div><h2>AI sửa.<br><span class='acc'>Người duyệt.</span></h2><div style="height:26px"></div><div class="stackc"><div class="rw"><span class="num">1</span><span>AI sửa trang<small>Trang mang nhãn “AI · chưa duyệt”</small></span></div><div class="rw"><span class="num">2</span><span>Bạn xem phần thay đổi<small>git diff đúng trang đó</small></span></div><div class="rw"><span class="num">3</span><span>Bạn bấm duyệt<small>Nhãn biến mất</small></span></div><div class="rw"><span class="num">4</span><span>Bạn tự commit<small>Job không bao giờ commit thay bạn</small></span></div></div><div class="grow"></div><p class="p">AI làm phần nặng. Chữ ký cuối cùng vẫn là <b>của người</b>.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 7/7</div><div class="t">Dán một dòng lỗi,<br>biết ngay nó ở đâu</div></div><div style="height:36px"></div><p class="lead">Phần cuối: ticket quay lại đúng lúc đang trực. Lần này mình <b>không mở code</b>.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 21.0, "step": 0.5, "scenes": [{"a": 0, "d": 4.0}, {"a": 4.0, "d": 4.0}, {"a": 8.0, "d": 4.0}, {"a": 12.0, "d": 4.0}, {"a": 16.0, "d": 5.0}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>

@@ -1,0 +1,49 @@
+PHẦN 3: MỘT TRANG TÀI LIỆU, HAI KIỂU NGƯỜI ĐỌC
+
+=== CAPTION BÀI ĐĂNG ===
+
+Tài liệu kỹ thuật của team bạn, QA có đọc nổi không? 👇
+
+Trong kho kiến thức của mình, mỗi trang phải phục vụ hai kiểu người đọc cùng lúc:
+
+👉 Nửa trên viết cho người: tóm tắt, quy tắc nghiệp vụ, cách test. Không một dòng code
+👉 Vài dòng đầu file viết cho máy: trang dựa trên file code nào, kiểm tra hôm nào
+👉 Phần liệt kê (bảng, queue, câu báo lỗi) để script tự quét
+👉 Kho chia thư mục theo câu hỏi, mở ra là biết tìm ở đâu
+
+Nhờ vậy QA hỏi Claude thì nhận lời thường, dev hỏi thì Claude dẫn tới đúng file code.
+
+Mẫu 4 mục để bạn viết thử nằm ở ảnh 8.
+
+Team bạn đang để tài liệu ở đâu: wiki, Notion hay trong repo? 👇
+
+#codelens #claude #AI #tailieu #laptrinh
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+Một trang tài liệu mà cả QA lẫn Claude đều đọc được thì viết thế nào? Vuốt để xem 👉
+
+02.png
+Ticket sang tay QA. Chị ấy cần biết đây là lỗi hay đúng thiết kế, và test thế nào. Nhưng QA đâu đọc code.
+
+03.png
+Kho chia thư mục theo câu hỏi: việc này chạy thế nào, lỗi này nghĩa là gì, dữ liệu nằm đâu. Mở ra là biết tìm ở ngăn nào.
+
+04.png
+Nửa trên mỗi trang viết bằng lời thường: tóm tắt, quy tắc nghiệp vụ, cách test. QA đọc tới đó là đủ.
+
+05.png
+Đầu mỗi trang có vài dòng cho máy: trang dựa trên file code nào, bảng nào, lần cuối kiểm tra khi nào. Nhờ đó Claude mở đúng file.
+
+06.png
+Phần liệt kê để script tự quét từ code: mọi bảng, mọi queue, mọi câu báo lỗi. Người chỉ viết phần 'vì sao'.
+
+07.png
+QA hỏi thì Claude trả lời bằng phần viết cho người làm nghiệp vụ. Dev hỏi thì Claude đi tiếp xuống phần code. Cùng một trang.
+
+08.png
+Bạn làm thử: viết 1 trang cho luồng hay bị hỏi nhất theo 4 mục này, rồi đưa một bạn QA đọc thử.
+
+09.png
+Phần 4: làm sao để AI biết nói 'tôi không biết' thay vì trả lời gần đúng? Follow CodeLens để xem tiếp.
