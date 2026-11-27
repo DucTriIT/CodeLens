@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · clip-phan-6</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#ff5fa2}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>acme-kb · Phần 6/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 6/7</div><div class="mono acc" style="font-size:150px;font-weight:800;line-height:1">23:00</div><h1>Tài liệu tự<br>viết lại.</h1><div style="height:24px"></div><p class="lead">Còn bạn thì đi ngủ.</p><div class="grow"></div><div class="quote" style="font-size:46px">Kho kiến thức có một kẻ thù: <span class="acc">thời gian.</span></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Hai tuần sau</div><h2>Code đổi.<br><span class='acc'>Tài liệu đứng yên.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>OrderSyncJob.cs  ·  commit mới</div><pre><span class='r'>-   Retry(order, 3);</span>
+<span class='g'>+   Retry(order, 5);</span></pre></div><div style="height:18px"></div><div class="doc"><div class="sec" style="margin-top:0">## Business view</div><ul><li>Gửi lỗi thì thử lại <b>3 lần</b>.</li></ul><div class="side" style="top:-18px;right:24px">vẫn ghi 3</div></div><div class="grow"></div><p class="p">Từ giây phút đó, kho bắt đầu <b>nói dối</b>. Và Claude tin kho hơn tin code.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bước 1</div><h2>Biết trang nào<br><span class='acc'>đã cũ</span></h2><div style="height:24px"></div><div class="g2"><div class="kc"><div class="k">sources:</div><div class="v">OrderSyncJob.cs<br><span class='mono'>verified: 20/11</span></div></div><div class="kc hi"><div class="k">git log</div><div class="v">OrderSyncJob.cs<br><span class='mono'>commit: 25/11</span></div></div></div><div style="height:16px"></div><div class="res"><div class="pth">flows/dong-bo-don-sang-kho.md</div><div class="bd"><span class="bdg stale">⚠ CŨ: 1 commit chưa xem lại</span></div></div><div style="height:22px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Mở Claude lên là thấy</div><pre><span class='y'>1 trang đã cũ. Chạy /kb-update</span></pre></div><div class="grow"></div><p class="p">Nhờ mỗi trang ghi rõ nó dựa trên file nào, việc so sánh là <b>tự động</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bước 2 · mỗi đêm</div><h2>Ca đêm của <span class='acc'>Claude</span></h2><div style="height:24px"></div><div class="tl"><div><span class="tm">23:00</span>Chạy test của chính bộ công cụ<small>Test hỏng thì dừng, không cho AI chạy</small></div><div><span class="tm">tiếp theo</span>Lập danh sách trang đã cũ</div><div><span class="tm">song song</span>3 worker Claude, mỗi worker một nhóm trang<small>Trang nào không cần sửa thì không đụng tới</small></div><div><span class="tm">sau cùng</span>1 integrator gom lại<small>Sửa mục lục, viết trang mới cho luồng mới</small></div><div><span class="tm">kết thúc</span>Dựng lại chỉ mục tìm kiếm, viết báo cáo</div></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Không ai canh</div><h2>Nên ca đêm<br><span class='acc'>bị trói tay</span></h2><div style="height:24px"></div><div class="ck"><div class="y"><i>✓</i><span>Đọc code ở mọi repo</span></div><div class="y"><i>✓</i><span>Sửa file trong thư mục kho</span></div><div class="n"><i>✕</i><span>Commit, push, pull</span></div><div class="n"><i>✕</i><span>Chạm vào database</span></div><div class="n"><i>✕</i><span>Lên mạng, gọi agent phụ</span></div></div><div style="height:20px"></div><div class="tabs"><span>Mỗi worker có trần ngân sách</span></div><div class="grow"></div><p class="p">Việc gì không ai xem thì quyền phải <b>hẹp hơn</b> ban ngày.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Buổi sáng</div><h2>Pha cà phê,<br><span class='acc'>đọc báo cáo</span></h2><div style="height:24px"></div><div class="doc"><h4 style="font-size:34px">Báo cáo đêm qua</h4><div class="sec">Đã sửa</div>flows/dong-bo-don-sang-kho.md<br><span style="opacity:.6">Số lần thử lại: 3 → 5</span><div class="sec">Không đổi</div>4 trang đã xem, nội dung còn đúng<div class="sec">Chờ bạn duyệt</div>1 trang do AI sửa<div class="side" style="top:-18px;right:24px">ví dụ</div></div><div class="grow"></div><p class="p">Trang nào sửa, <b>vì sao</b> sửa, trang nào còn cũ, trang nào chờ duyệt.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nguyên tắc</div><h2>AI sửa.<br><span class='acc'>Người duyệt.</span></h2><div style="height:26px"></div><div class="stackc"><div class="rw"><span class="num">1</span><span>AI sửa trang<small>Trang mang nhãn “AI · chưa duyệt”</small></span></div><div class="rw"><span class="num">2</span><span>Bạn xem phần thay đổi<small>git diff đúng trang đó</small></span></div><div class="rw"><span class="num">3</span><span>Bạn bấm duyệt<small>Nhãn biến mất</small></span></div><div class="rw"><span class="num">4</span><span>Bạn tự commit<small>Job không bao giờ commit thay bạn</small></span></div></div><div class="grow"></div><p class="p">AI làm phần nặng. Chữ ký cuối cùng vẫn là <b>của người</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bạn làm thử</div><h2 style=font-size:66px>Chưa cần job đêm.<br><span class='acc'>Chỉ cần biết trang<br>nào đang nói dối.</span></h2><div style="height:24px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Ghi nguồn cho mỗi trang</div><div class=d>Trang này dựa trên những file code nào</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Ghi ngày kiểm tra cuối</div><div class=d>Một dòng ở đầu trang là đủ</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Viết script hỏi git</div><div class=d>File nguồn có commit mới sau ngày đó không?</div></div></div></div><div class="grow"></div><p class="p">Ba bước này làm được trong một buổi chiều.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 7/7</div><div class="t">Dán một dòng lỗi,<br>biết ngay nó ở đâu</div></div><div style="height:36px"></div><p class="lead">Phần cuối: ticket quay lại đúng lúc đang trực. Lần này mình <b>không mở code</b>.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 79.46, "step": 1.1, "scenes": [{"a": 0, "d": 10.11, "subs": [{"from": 0.3, "to": 3.5, "text": "Kho kiến thức có một kẻ thù: thời gian."}, {"from": 3.5, "to": 7.03, "text": "Hai tuần sau, code đổi, tài liệu thành sai,"}, {"from": 7.03, "to": 9.66, "text": "và AI lại tự tin đọc cái sai đó."}]}, {"a": 10.11, "d": 9.75, "subs": [{"from": 10.41, "to": 14.16, "text": "Ví dụ ai đó sửa số lần thử lại từ ba lên năm."}, {"from": 14.16, "to": 17.74, "text": "Trang tài liệu vẫn ghi ba. Từ giây phút đó,"}, {"from": 17.74, "to": 19.41, "text": "kho bắt đầu nói dối."}]}, {"a": 19.86, "d": 7.42, "subs": [{"from": 20.16, "to": 22.93, "text": "Nhờ mỗi trang ghi rõ nó dựa trên file nào,"}, {"from": 22.93, "to": 26.83, "text": "một script so với lịch sử git và biết ngay trang nào đã cũ."}]}, {"a": 27.28, "d": 9.92, "subs": [{"from": 27.58, "to": 31.02, "text": "Mỗi đêm, một job tự chạy. Nó chạy test trước,"}, {"from": 31.02, "to": 34.76, "text": "rồi giao cho ba worker Claude cập nhật song song,"}, {"from": 34.76, "to": 36.75, "text": "và một integrator gom lại."}]}, {"a": 37.2, "d": 9.97, "subs": [{"from": 37.5, "to": 40.34, "text": "Vì không ai canh, ca đêm bị trói tay."}, {"from": 40.34, "to": 43.95, "text": "Nó được sửa trong kho, nhưng không được commit,"}, {"from": 43.95, "to": 46.72, "text": "không đụng database, không lên mạng."}]}, {"a": 47.17, "d": 6.49, "subs": [{"from": 47.47, "to": 49.22, "text": "Sáng ra mình đọc báo cáo:"}, {"from": 49.22, "to": 51.11, "text": "trang nào đã sửa và vì sao,"}, {"from": 51.11, "to": 53.21, "text": "trang nào đang chờ mình duyệt."}]}, {"a": 53.66, "d": 8.05, "subs": [{"from": 53.96, "to": 57.04, "text": "Trang AI sửa đều mang nhãn chưa duyệt."}, {"from": 57.04, "to": 59.8, "text": "Mình xem phần thay đổi, bấm duyệt,"}, {"from": 59.8, "to": 61.26, "text": "rồi tự tay commit."}]}, {"a": 61.71, "d": 7.78, "subs": [{"from": 62.01, "to": 63.52, "text": "Bạn chưa cần job đêm."}, {"from": 63.52, "to": 67.03, "text": "Chỉ cần ghi nguồn và ngày kiểm tra cho mỗi trang,"}, {"from": 67.03, "to": 69.04, "text": "rồi viết một script hỏi git."}]}, {"a": 69.49, "d": 9.97, "subs": [{"from": 69.79, "to": 70.68, "text": "Ở phần cuối,"}, {"from": 70.68, "to": 73.88, "text": "kho kiến thức trở thành công cụ trực sự cố:"}, {"from": 73.88, "to": 76.4, "text": "dán một dòng lỗi là biết nó ở đâu."}, {"from": 76.4, "to": 79.01, "text": "Follow CodeLens để không bỏ lỡ nhé."}]}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>
