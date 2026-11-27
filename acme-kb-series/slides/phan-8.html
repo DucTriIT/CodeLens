@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · Phần 8</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#22d3ee}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}</style></head><body>
+<section class="s" id="s1"><div class="fitc">
+<div class="eyebrow">Bài kỹ thuật · acme-kb</div><h1>Cùng một<br>model.<br><span class='acc'>Khác ở thứ<br>nó được đọc.</span></h1><div class="grow"></div><div class="g3"><div class="kc"><div class="t">Khôn hơn</div><div class="v">đọc đúng thứ tự</div></div><div class="kc"><div class="t">Nhanh hơn</div><div class="v">đọc ít hơn</div></div><div class="kc"><div class="t">Chính xác hơn</div><div class="v">biết nói “không có”</div></div></div><div style="height:24px"></div><p class="lead">Bên trong kho kiến thức: kỹ thuật nào làm ra ba điều này?</p>
+</div></section>
+<section class="s" id="s2"><div class="fitc">
+<div class="eyebrow">So sánh</div><h2>3 cách cho AI<br><span class='acc'>hiểu hệ thống</span></h2><div style="height:22px"></div><div class="cmp"><div class="hd"></div><div class="hd">Đọc code<br>mỗi phiên</div><div class="hd">Dán tài liệu<br>vào chat</div><div class="hd win">Kho + công cụ</div><div>Nhớ được giữa các phiên</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div><div>Không tốn token đọc lại</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div><div>Khớp với code hiện tại</div><div class="c y">✓</div><div class="c n">✕</div><div class="c m win">báo trang<br>đã cũ</div><div>Biết nói “chưa có tài liệu”</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div><div>Người không code dùng được</div><div class="c n">✕</div><div class="c y">✓</div><div class="c y win">✓</div><div>Trả lời được khi không có AI</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div></div><div class="grow"></div><p class="p">Đọc code thì đúng nhưng chậm. Dán tài liệu thì nhanh nhưng <b>không biết nó đã cũ</b>.</p>
+</div></section>
+<section class="s" id="s3"><div class="fitc">
+<div class="eyebrow">Nền móng</div><h2>Sơ đồ tri thức:<br><span class='acc'>một file mục lục</span></h2><div style="height:22px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>INDEX.md  ·  câu hỏi → trang</div><div style="padding:20px"><div class="map2"><div><span>Đơn không sang kho?</span><i>→</i><b>flows/dong-bo-don…</b></div><div><span>Lỗi timeout kho là gì?</span><i>→</i><b>troubleshooting/loi-kho</b></div><div><span>Bảng Orders có gì?</span><i>→</i><b>data/orders</b></div><div><span>Team đặt tên nhánh sao?</span><i>→</i><b>conventions/branches</b></div></div></div></div><div style="height:20px"></div><div class="stackc"><div class="rw"><span class="num">→</span><span>Bản đồ hệ thống + bảng “câu hỏi → trang”<small>Giữ dưới 120 dòng để luôn gọn</small></span></div><div class="rw"><span class="num">→</span><span>Người và AI dùng chung một bản đồ<small>Claude tự nạp nó ở mọi phiên; QA mở ra đọc</small></span></div></div><div class="grow"></div>
+</div></section>
+<section class="s" id="s4"><div class="fitc">
+<div class="eyebrow">Khôn hơn</div><h2>Đọc theo thứ tự,<br><span class='acc'>từ rộng tới hẹp</span></h2><div style="height:22px"></div><div class="tl"><div><span class="tm">1 · mục lục</span>Biết câu hỏi thuộc ngăn nào</div><div><span class="tm">2 · kb_search</span>Tìm đoạn tài liệu liên quan</div><div><span class="tm">3 · kb_lookup</span>Tra một cái tên: class, bảng, queue, câu báo lỗi</div><div><span class="tm">4 · kb_get</span>Đọc trọn trang khi cần</div><div><span class="tm">5 · sources</span>Mở đúng file code mà trang trỏ tới</div><div><span class="tm">6 · db_query</span>Bước cuối: xác nhận bằng dữ liệu thật, chỉ-đọc</div></div><div class="grow"></div><p class="p">Mỗi bước thu hẹp phạm vi. Claude <b>không bao giờ phải quét cả repo</b>.</p>
+</div></section>
+<section class="s" id="s5"><div class="fitc">
+<div class="eyebrow">Nhanh hơn</div><h2>Đọc ít hơn,<br><span class='acc'>không đọc lại</span></h2><div style="height:22px"></div><div class="stackc"><div class="rw"><span class="num">01</span><span>Mỗi trang chỉ trả về tối đa 2 đoạn<small>Các mục khớp khác chỉ liệt kê tên</small></span></div><div class="rw"><span class="num">02</span><span>Chỉ mục tự dựng lại khi tài liệu đổi<small>Chỉ tính lại embedding cho trang vừa sửa</small></span></div><div class="rw"><span class="num">03</span><span>Model embedding nạp sẵn trong tiến trình<small>Hỏi trên giao diện web không phải khởi động lại</small></span></div><div class="rw"><span class="num">04</span><span>Danh mục code do script quét sẵn<small>Tra tên bảng, tên class không cần grep</small></span></div></div><div class="grow"></div><p class="p">Ít chữ đi vào ngữ cảnh hơn thì trả lời nhanh hơn và <b>tốn ít token hơn</b>.</p>
+</div></section>
+<section class="s" id="s6"><div class="fitc">
+<div class="eyebrow">Chính xác hơn</div><h2>Bên trong<br><span class='acc'>kb_search</span></h2><div style="height:20px"></div><div class="stackc"><div class="g2"><div class="kc"><div class="k">BM25</div><div class="v">Từ khoá, trên SQLite FTS5</div></div><div class="kc"><div class="k">bge-small</div><div class="v">Embedding, chạy trên máy</div></div></div><div class="kc hi"><div class="k">RRF</div><div class="v">Trộn hai bảng xếp hạng thành một</div></div><div class="g2"><div class="kc"><div class="t">Tăng điểm</div><div class="v">Trang gắn đúng cái tên được hỏi</div></div><div class="kc"><div class="t">Giảm điểm</div><div class="v">Mục “liên quan”, “câu hỏi mở”</div></div></div><div class="g2"><div class="kc"><div class="t">Ngưỡng tối thiểu</div><div class="v">Dưới ngưỡng: “No KB match”</div></div><div class="kc"><div class="t">Dò khoảng trống</div><div class="v">Tên có trong code, kho chưa viết</div></div></div></div><div class="grow"></div><p class="p">Hai lớp cuối là thứ RAG thường thiếu: <b>quyền không trả lời</b>.</p>
+</div></section>
+<section class="s" id="s7"><div class="fitc">
+<div class="eyebrow">Điểm hữu dụng nhất</div><h2>QA tự hỏi,<br><span class='acc'>tự có câu trả lời</span></h2><div style="height:22px"></div><div class="stackc"><div class="lvl"><div class="tm">không AI</div><div><div class="h">Mở mục lục, đọc trang</div><div class="d">Mỗi trang có Summary và Business view bằng lời thường</div></div></div><div class="lvl"><div class="tm">không AI<br>tức thì</div><div><div class="h">Tìm kiếm trên giao diện web</div><div class="d">Gõ câu hỏi thường, bấm chế độ Business</div></div></div><div class="lvl ai"><div class="tm">có AI<br>10–60 giây</div><div><div class="h">Hỏi Claude, chỉ dùng kho</div><div class="d">Trả lời có dẫn tới trang, không đọc code</div></div></div></div><div class="grow"></div><p class="p">Chỉ cần quy tắc nghiệp vụ thì dừng ở <b>hai mức đầu</b>: không tốn phí, không phải chờ dev.</p>
+</div></section>
+<section class="s" id="s8"><div class="fitc">
+<div class="eyebrow">QA dùng thế nào</div><h2>Gõ câu hỏi thường,<br><span class='acc'>nhận lời thường</span></h2><div style="height:20px"></div><div class="inp">đơn trả tiền rồi mà kho không thấy</div><div style="height:14px"></div><div class="tabs"><span>Tất cả</span><span class=on>Business</span><span>Tech</span></div><div style="height:16px"></div><div class="res"><div class="pth">flows/dong-bo-don-sang-kho.md  ·  Business view</div><div class="sn" style="color:#dfe5f1">Chỉ đơn đã thanh toán mới sang kho. Gửi lỗi thì thử lại 3 lần. Hết 3 lần, đơn nằm trong danh sách lỗi chờ xử lý tay. <b>Cách test:</b> tắt kho giả lập, đặt một đơn…</div><div class="bd"><span class="bdg good">Người đã duyệt · còn mới</span></div></div><div class="grow"></div><p class="p">Chế độ Business xếp phần viết cho người làm nghiệp vụ lên đầu. <b>Không có AI nào chạy</b> ở bước này.</p>
+</div></section>
+<section class="s" id="s9"><div class="fitc">
+<div class="eyebrow">Lợi ích</div><h2>Một kho,<br><span class='acc'>bốn người hưởng</span></h2><div style="height:22px"></div><div class="g2"><div class="kc"><div class="t">QA</div><div class="v">Tự trả lời câu hỏi nghiệp vụ, có sẵn cách test</div></div><div class="kc"><div class="t">Dev</div><div class="v">Thôi bị hỏi lại cùng một câu. AI mở đúng file.</div></div><div class="kc"><div class="t">Người mới</div><div class="v">Có bản đồ hệ thống từ ngày đầu</div></div><div class="kc hi"><div class="t">Claude</div><div class="v">Bớt đoán, biết khi nào phải nói “chưa có”</div></div></div><div class="grow"></div><p class="p">Cùng một trang tài liệu phục vụ cả bốn. Viết một lần, <b>không phải bảo trì hai bản</b>.</p>
+</div></section>
+<section class="s" id="s10"><div class="fitc">
+<div class="eyebrow">Bạn làm thử</div><h2>Bắt đầu từ<br><span class='acc'>sơ đồ tri thức</span></h2><div style="height:22px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Viết một file mục lục</div><div class=d>Bảng “câu hỏi → trang”, dưới 120 dòng</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Mỗi trang mở đầu bằng lời thường</div><div class=d>Summary và Business view, có cách test</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Rồi mới thêm tìm kiếm</div><div class=d>Từ khoá trước, embedding sau</div></div></div></div><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem cả series</span><span>→</span></div>
+</div></section>
+<script>
+  window.FITTED = false;
+  // Phóng nội dung mỗi ảnh cho đầy khung 928×1070 mà không tràn
+  document.fonts.ready.then(() => {
+    document.querySelectorAll(".fitc").forEach(w => {
+      const box = w.parentNode.getBoundingClientRect();
+      for (let z = 1.3; z >= 1; z -= 0.02) {
+        w.style.zoom = z; w.style.width = 928 / z + "px"; w.style.height = "auto";
+        const r = w.getBoundingClientRect();
+        if (r.bottom <= box.top + 1220 || z <= 1.001) { w.style.height = 1070 / z + "px"; break; }
+      }
+    });
+    window.FITTED = true;
+  });
+  const S = [...document.querySelectorAll(".s")], n = S.length;
+  S.forEach((s, i) => {
+    const dots = S.map((_, j) => `<b class="${j === i ? "on" : ""}"></b>`).join("");
+    s.insertAdjacentHTML("afterbegin", `<div class="top"><div class="brand"><i></i>CODELENS</div><div>acme-kb · ${String(i + 1).padStart(2, "0")}/${String(n).padStart(2, "0")}</div></div>`);
+    s.insertAdjacentHTML("beforeend", `<div class="bot"><div class="dots">${dots}</div><div class="swipe">${i < n - 1 ? "Vuốt →" : "Hết bài"}</div></div>`);
+  });
+</script></body></html>

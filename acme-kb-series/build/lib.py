@@ -76,7 +76,7 @@ def gen_slides(P):
     s.insertAdjacentHTML("beforeend", `<div class="bot"><div class="dots">${dots}</div><div class="swipe">${i < n - 1 ? "Vuốt →" : "%s"}</div></div>`);
   });
 </script></body></html>
-""" % ("Hết series" if n == TOTAL else f"Hết phần {n}")
+""" % (P.get("end") or ("Hết series" if n == TOTAL else f"Hết phần {n}"))
     open(os.path.join(SLIDES, f"phan-{n}.html"), "w").write(out)
 
 # ---------- trang clip / trailer: mỗi ảnh thành một cảnh động ----------
@@ -141,7 +141,7 @@ def gen_trailer(P):
     for k in range(len(idx)):
         d = 4.0 if k < len(idx) - 1 else 5.0
         scenes.append({"a": round(t, 2), "d": d}); t += d
-    gen_movie(P, f"trailer-phan-{P['n']}", idx, {"total": round(t, 2), "step": 0.5, "scenes": scenes}, f"Series · Phần {P['n']}/{TOTAL}")
+    gen_movie(P, f"trailer-phan-{P['n']}", idx, {"total": round(t, 2), "step": 0.5, "scenes": scenes}, P.get("tag") or f"Series · Phần {P['n']}/{TOTAL}")
 
 # ---------- giọng đọc ----------
 SAY = [("acme-kb", "Acme K B"), ("CLAUDE.md", "Claude chấm M D"), ("/kb-update", "K B update"), ("MCP", "M C P"), ("QA", "Q A"),
@@ -172,12 +172,12 @@ def voice(P):
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mp3, "-af", f"adelay={int(LEAD*1000)}:all=1,apad", "-t", str(d), "-ar", "44100", "-ac", "2", f"{V}/s{i+1}.wav"], check=True)
     open(f"{V}/list.txt", "w").write("".join(f"file '{V}/s{i+1}.wav'\n" for i in range(len(texts))))
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", f"{V}/list.txt", "-c", "copy", f"{V}/voice.wav"], check=True)
-    gen_movie(P, f"clip-phan-{n}", list(range(len(P["slides"]))), {"total": round(t0, 2), "step": 1.1, "scenes": scenes}, f"acme-kb · Phần {n}/{TOTAL}")
+    gen_movie(P, f"clip-phan-{n}", list(range(len(P["slides"]))), {"total": round(t0, 2), "step": 1.1, "scenes": scenes}, P.get("tag") or f"acme-kb · Phần {n}/{TOTAL}")
     print(f"phần {n}: clip {round(t0, 1)} giây" + ("  ⚠ dài hơn 90 giây" if t0 > 90 else ""))
 
 # ---------- caption và kịch bản CodeLens ----------
 def gen_caption(P):
-    n = P["n"]; out = f"PHẦN {n}: {P['title'].upper()}\n\n=== CAPTION BÀI ĐĂNG ===\n\n{P['caption'].strip()}\n\n=== CHÚ THÍCH TỪNG ẢNH ===\n"
+    n = P["n"]; out = f"{P.get('head') or f'PHẦN {n}'}: {P['title'].upper()}\n\n=== CAPTION BÀI ĐĂNG ===\n\n{P['caption'].strip()}\n\n=== CHÚ THÍCH TỪNG ẢNH ===\n"
     for i, s in enumerate(P["slides"]): out += f"\n{i+1:02d}.png\n{s['cap']}\n"
     open(os.path.join(HERE, f"caption-phan-{n}.txt"), "w").write(out)
 
@@ -211,5 +211,7 @@ if __name__ == "__main__":
     cmd, n = sys.argv[1], int(sys.argv[2])
     sys.path.insert(0, HERE)
     P = importlib.import_module(f"p{n}").PART
-    if cmd == "gen": gen_slides(P); gen_trailer(P); gen_caption(P); gen_script(P)
+    if cmd == "gen":
+        gen_slides(P); gen_trailer(P); gen_caption(P)
+        if not P.get("noscript"): gen_script(P)
     elif cmd == "voice": voice(P)

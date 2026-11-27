@@ -1,0 +1,51 @@
+BÀI KỸ THUẬT: CÙNG MỘT MODEL, KHÁC Ở THỨ NÓ ĐƯỢC ĐỌC
+
+=== CAPTION BÀI ĐĂNG ===
+
+Cùng một model Claude, sao lúc trả lời rất chuẩn, lúc lại đoán bừa? Khác nhau ở thứ nó được đọc 👇
+
+Bài này mở nắp kho kiến thức trong repo của mình để xem kỹ thuật bên trong:
+
+🧠 Khôn hơn: đọc theo thứ tự từ rộng tới hẹp. Mục lục → tìm kiếm → tra tên → đọc trang → mới mở đúng file code
+⚡ Nhanh hơn: mỗi trang chỉ trả về tối đa 2 đoạn, chỉ mục và danh mục code dựng sẵn
+🎯 Chính xác hơn: tìm kiếm lai BM25 + embedding trộn bằng RRF, thêm ngưỡng tối thiểu và dò chỗ kho còn thiếu. AI được quyền nói "chưa có tài liệu"
+
+Nhưng điểm mình thấy hữu dụng nhất lại không cần AI: nhờ có sơ đồ tri thức, QA tự gõ câu hỏi và nhận ngay quy tắc nghiệp vụ kèm cách test. Không tốn phí, không phải chờ dev.
+
+Ảnh 2 so sánh 3 cách cho AI hiểu hệ thống. Ảnh 10 là 3 bước để bạn bắt đầu.
+
+Team bạn đang cho AI đọc gì: code, wiki, hay chưa có gì? 👇
+
+#codelens #claude #AI #RAG #laptrinh
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+Cùng một model, khác nhau ở thứ nó được đọc. Kỹ thuật nào giúp Claude khôn hơn, nhanh hơn, chính xác hơn? Vuốt để xem 👉
+
+02.png
+So sánh 3 cách cho AI hiểu hệ thống: đọc code mỗi phiên, dán tài liệu vào chat, và kho kiến thức kèm công cụ tra cứu.
+
+03.png
+Nền móng là sơ đồ tri thức: một file mục lục ghi câu hỏi nào thì đọc trang nào. Claude tự nạp nó, QA mở ra đọc.
+
+04.png
+Khôn hơn: Claude đọc theo thứ tự từ rộng tới hẹp. Mục lục, tìm kiếm, tra tên, đọc trang, rồi mới mở đúng file code.
+
+05.png
+Nhanh hơn: mỗi trang chỉ trả về tối đa 2 đoạn, chỉ mục dựng sẵn, danh mục code quét sẵn. Ít chữ vào ngữ cảnh, tốn ít token.
+
+06.png
+Chính xác hơn: bên trong kb_search là BM25 + embedding trộn bằng RRF, thêm ngưỡng tối thiểu và dò chỗ kho còn thiếu.
+
+07.png
+Điểm hữu dụng nhất: QA tự hỏi, tự có câu trả lời. Hai mức đầu không cần AI, không tốn phí, không phải chờ dev.
+
+08.png
+QA gõ câu hỏi thường, bấm chế độ Business, nhận ngay quy tắc nghiệp vụ và cách test. Không có AI nào chạy ở bước này.
+
+09.png
+Một kho, bốn người hưởng: QA, dev, người mới và Claude. Viết một lần, không phải bảo trì hai bản tài liệu.
+
+10.png
+Bạn làm thử: viết một file mục lục và cho mỗi trang một phần mở đầu bằng lời thường. Tìm kiếm và AI thêm sau.

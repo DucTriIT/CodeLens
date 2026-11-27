@@ -102,3 +102,22 @@
 .nextbox .n{font-family:var(--mono);font-size:28px;font-weight:800;color:var(--acc);letter-spacing:.08em}
 .nextbox .t{font-size:54px;font-weight:800;line-height:1.12;margin-top:10px;letter-spacing:-.015em}
 .h1x{font-size:112px;line-height:1.04;font-weight:800;letter-spacing:-.025em}
+
+/* Bảng so sánh */
+.cmp{display:grid;grid-template-columns:1.55fr 1fr 1fr 1fr;gap:8px}
+.cmp>div{background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:16px 14px;font-size:25px;font-weight:600;line-height:1.22;display:flex;align-items:center}
+.cmp>div.hd{background:none;border:none;font-size:22px;font-weight:800;color:var(--mut);justify-content:center;text-align:center;padding:6px 4px}
+.cmp>div.hd.win{color:var(--acc)}
+.cmp>div.c{justify-content:center;font-size:34px;font-weight:800}
+.cmp>div.y{color:var(--ok)}.cmp>div.n{color:#ff8080}.cmp>div.m{color:var(--warn);font-size:22px;text-align:center}
+.cmp>div.win{border-color:color-mix(in srgb,var(--acc) 60%,transparent);background:color-mix(in srgb,var(--acc) 9%,var(--panel))}
+/* Bảng câu hỏi → trang */
+.map2{display:flex;flex-direction:column;gap:10px}
+.map2>div{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:18px 22px;font-size:27px;font-weight:600;line-height:1.25}
+.map2 i{font-style:normal;color:var(--acc);font-weight:800}
+.map2 b{font-family:var(--mono);font-size:23px;color:var(--acc);font-weight:700}
+.lvl{display:flex;gap:24px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:24px;padding:24px 28px}
+.lvl .tm{font-family:var(--mono);font-size:26px;font-weight:800;color:#0a0c11;background:var(--acc);border-radius:14px;padding:14px 10px;width:170px;text-align:center;flex:none;line-height:1.2}
+.lvl .h{font-size:33px;font-weight:800;line-height:1.2}.lvl .d{font-size:26px;color:var(--mut);font-weight:500;margin-top:6px;line-height:1.32}
+.lvl.ai .tm{background:#2a3040;color:var(--ink)}
+.inp{background:#07090d;border:2px solid var(--acc);border-radius:18px;padding:20px 24px;font-size:29px;font-weight:600}
