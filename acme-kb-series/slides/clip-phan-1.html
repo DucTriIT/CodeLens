@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>acme-kb · Clip phần 1</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{--acc:#ff5d3b;width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+  .bgfx{position:absolute;inset:0;background:
+    radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),
+    radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+  .grid{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+  .brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+  .prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+  .prog i{display:block;height:100%;width:0;background:var(--acc)}
+  /* Mỗi cảnh: --a là giây bắt đầu, --d là độ dài; phần tử con dùng --t tính từ đầu cảnh */
+  .sc{position:absolute;left:0;right:0;top:230px;height:1230px;padding:0 76px;display:flex;flex-direction:column;justify-content:center;animation:sc var(--d) linear var(--a) both}
+  .sc>*{flex-shrink:0}
+  @keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+  @keyframes sc-last{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+  .in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+  @keyframes in{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
+  .drop{animation:drop .8s cubic-bezier(.2,1.3,.4,1) calc(var(--a) + var(--t)) both}
+  @keyframes drop{from{opacity:0;transform:translateY(-220px) rotate(-12deg)}to{opacity:1;transform:rotate(-3deg)}}
+  .pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1) calc(var(--a) + var(--t)) both}
+  @keyframes pop{from{opacity:0;transform:scale(2.2) rotate(-12deg)}to{opacity:1;transform:scale(1) rotate(-12deg)}}
+  .glow{animation:glow .9s ease-out calc(var(--a) + var(--t)) both}
+  @keyframes glow{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+  .big{font-size:112px;line-height:1.05;font-weight:800;letter-spacing:-.025em}
+  .eyebrow{font-size:30px}
+  .ticket .tk-title{font-size:58px}.ticket .tk-top{font-size:28px}.ticket .tk-pri{font-size:26px}.ticket .tk-meta{font-size:28px}
+  .bub{font-size:40px;max-width:92%}.who{font-size:24px}
+  .sess-l{font-size:28px;font-weight:700;letter-spacing:.12em;color:var(--mut);text-transform:uppercase;margin:34px 0 14px}
+  .rel{position:relative}
+  .stamp{font-size:76px}
+  .chips{display:flex;flex-wrap:wrap;gap:14px}
+  .chip{border-radius:40px;padding:12px 28px;font-size:32px;font-weight:700;background:#ffffff10;border:1.5px solid #ffffff22}
+  .rw{display:flex;gap:28px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:26px;padding:34px 36px;font-size:42px;font-weight:600;line-height:1.25;margin-top:20px}
+  .rw .num{font-size:46px;width:74px;flex:none}
+  .code{font-size:36px;padding:34px 36px}
+  .q{font-size:42px;font-weight:700;line-height:1.3;margin-top:36px}
+  .layer{border-radius:30px;padding:34px 36px;border:1.5px solid var(--line);background:var(--panel)}
+  .layer .lb{font-size:26px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-bottom:18px}
+  .layer.kb{background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 30%,#141821),#141821 70%);border:2px solid var(--acc);box-shadow:0 0 90px color-mix(in srgb,var(--acc) 40%,transparent)}
+  .layer.kb .lb{color:var(--acc)}
+  .layer.kb .name{font-family:var(--mono);font-size:76px;font-weight:800;margin-bottom:20px}
+  .layer.kb .chip{background:#0a0c1188;border-color:color-mix(in srgb,var(--acc) 50%,transparent)}
+  .repos{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .repos div{background:#0c0f15;border:1.5px dashed #343b4d;border-radius:16px;padding:22px 0;text-align:center;font-family:var(--mono);font-size:26px;color:var(--dim)}
+  .gap{height:28px}
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .ba>div{border-radius:30px;padding:32px 28px;border:1.5px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:14px}
+  .ba .t{font-size:28px;font-weight:800;letter-spacing:.14em}
+  .ba .st{background:#0c0f15;border-radius:20px;padding:28px 24px;font-size:36px;font-weight:600;line-height:1.25}
+  .ba .ar{text-align:center;color:var(--dim);font-size:32px;line-height:.9}
+  .ba .after{border-color:var(--ok);box-shadow:0 0 70px #3ddc9730}
+  .ba .after .t{color:var(--ok)}.ba .before .t{color:var(--acc)}
+  .sign{display:flex;gap:30px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:28px;padding:34px 36px;margin-top:22px}
+  .sign .n{font-size:96px;font-weight:800;line-height:.9;color:var(--acc);width:90px;flex:none}
+  .sign .h{font-size:42px;font-weight:800;line-height:1.2}
+  .puz{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .puz div{border-radius:28px;padding:54px 32px;border:1.5px solid var(--line);background:var(--panel);font-family:var(--mono);font-size:46px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+  .puz div span{font-family:"BVP";font-size:27px;font-weight:700;color:var(--mut)}
+  .cta{background:var(--acc);color:#140703;border-radius:30px;padding:36px 40px;font-size:44px;font-weight:800;display:flex;justify-content:space-between}
+  /* Phụ đề */
+  #sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+  #sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+</style>
+</head>
+<body>
+<div class="bgfx"></div><div class="grid"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>acme-kb · Phần 1/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+
+<!-- 1. Hook -->
+<div class="sc">
+  <div class="eyebrow in" style="--t:.1s">Mình dùng Claude để lập trình</div>
+  <div class="big in" style="--t:.3s;font-size:128px">AI trả lời<br>rất tự tin.</div>
+  <div class="big in acc" style="--t:4.3s;font-size:128px">Và sai.</div>
+  <div class="rel" style="margin-top:70px">
+    <div class="bub ai in" style="--t:1.6s;max-width:80%"><div class="who"><i></i>Claude</div>Mình đã xem code. Chắc chắn lỗi do <b>timeout</b>.</div>
+    <div class="stamp pop" style="--t:5s;right:0;top:-60px">SAI</div>
+  </div>
+</div>
+
+<!-- 2. Ticket -->
+<div class="sc">
+  <div class="eyebrow in" style="--t:.1s">Giả sử sáng thứ Hai</div>
+  <div class="big in" style="--t:.3s">Một ticket rơi<br>vào tay bạn.</div>
+  <div class="ticket drop" style="--t:1.6s;margin-top:70px">
+    <div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Khẩn</span></div>
+    <div class="tk-title">Khách đã thanh toán, nhưng kho không nhận được đơn.</div>
+    <div class="tk-meta"><span>Acme Shop · đơn A-10293</span><span>08:12</span></div>
+  </div>
+  <div class="chips in" style="--t:5.4s;margin-top:70px"><span class="chip">Nhiều ứng dụng</span><span class="chip">Nhiều database</span><span class="chip">Nhiều queue</span></div>
+</div>
+
+<!-- 3. Hai phiên -->
+<div class="sc">
+  <div class="bub me in" style="--t:.2s;align-self:flex-end">Vì sao đơn không sang kho?</div>
+  <div class="sess-l in" style="--t:.5s">Phiên 1</div>
+  <div class="bub ai in" style="--t:.7s"><div class="who"><i></i>Claude</div>Chắc chắn do <b>timeout</b> khi gọi sang kho.</div>
+  <div class="sess-l in" style="--t:3.2s">Phiên 2</div>
+  <div class="bub ai in" style="--t:3.4s"><div class="who"><i></i>Claude</div>Chắc chắn do <b>hàng đợi</b> bỏ qua message.</div>
+  <div class="big in" style="--t:6.6s;margin-top:80px;font-size:100px">Hai phiên.<br><span class="acc">Hai đáp án.</span></div>
+</div>
+
+<!-- 4. Mất trí nhớ -->
+<div class="sc">
+  <div class="big in" style="--t:.2s;font-size:98px">Claude không dốt.</div>
+  <div class="big in acc" style="--t:1.5s;font-size:98px;margin-bottom:50px">Claude mất trí nhớ.</div>
+  <div class="rw in" style="--t:4s"><span class="num">01</span><span>Đọc lại code từ đầu</span></div>
+  <div class="rw in" style="--t:5.4s"><span class="num">02</span><span>Đoán nghiệp vụ qua tên hàm</span></div>
+  <div class="rw in" style="--t:7.2s"><span class="num">03</span><span>Mỗi lần đoán ra một kiểu</span></div>
+</div>
+
+<!-- 5. Vì sao -->
+<div class="sc">
+  <div class="big in" style="--t:.2s;font-size:100px">Code nói hệ thống làm gì.</div>
+  <div class="big in acc" style="--t:2.2s;font-size:100px;margin-bottom:56px">Không nói vì sao.</div>
+  <div class="code in" style="--t:1s"><span class="c">// OrderSyncJob.cs</span>
+<span class="k">if</span> (order.Paid &amp;&amp; !order.Synced)
+    <span class="hl">Retry(order, <span class="n">3</span>);</span></div>
+  <div class="q in" style="--t:4.4s">Vì sao là 3 lần?</div>
+  <div class="q in mut" style="--t:6.3s;margin-top:14px">Câu trả lời nằm trong đầu vài người cũ.</div>
+</div>
+
+<!-- 6. Lớp kiến thức -->
+<div class="sc">
+  <div class="eyebrow in" style="--t:.1s">Cách mình sửa</div>
+  <div class="big in" style="--t:.3s;font-size:96px;margin-bottom:56px">Thêm một lớp<br><span class="acc">nằm trên code.</span></div>
+  <div class="layer in" style="--t:5.2s"><div class="lb">Ai đọc</div><div class="chips"><span class="chip">QA</span><span class="chip">Dev mới</span><span class="chip" style="border-color:#d97757;color:#f0a58c">Claude</span></div></div>
+  <div class="gap"></div>
+  <div class="layer kb glow" style="--t:2.6s"><div class="lb">Kho kiến thức</div><div class="name">acme-kb</div><div class="chips"><span class="chip">Luồng nghiệp vụ</span><span class="chip">Danh mục lỗi</span><span class="chip">Database</span><span class="chip">Queue</span></div></div>
+  <div class="gap"></div>
+  <div class="layer in" style="--t:1.2s"><div class="lb">Code</div><div class="repos"><div>repo</div><div>repo</div><div>repo</div><div>repo</div><div>repo</div></div></div>
+</div>
+
+<!-- 7. Trước / sau -->
+<div class="sc">
+  <div class="big in" style="--t:.2s;font-size:100px;margin-bottom:56px">Đọc kho trước.<br>Chạm code sau.</div>
+  <div class="ba">
+    <div class="before in" style="--t:.8s"><div class="t">TRƯỚC</div><div class="st">Bạn hỏi</div><div class="ar">↓</div><div class="st">Đọc lại cả đống repo</div><div class="ar">↓</div><div class="st">Đoán</div><div class="ar">↓</div><div class="st acc">Mỗi lần một đáp án</div></div>
+    <div class="after in" style="--t:2s"><div class="t">SAU</div><div class="st">Bạn hỏi</div><div class="ar">↓</div><div class="st">Tra acme-kb</div><div class="ar">↓</div><div class="st">Mở đúng file</div><div class="ar">↓</div><div class="st ok">Đáp án có dẫn nguồn</div></div>
+  </div>
+</div>
+
+<!-- 8. Dấu hiệu -->
+<div class="sc">
+  <div class="eyebrow in" style="--t:.1s">Còn repo của bạn?</div>
+  <div class="big in" style="--t:.3s;font-size:80px;margin-bottom:30px">3 dấu hiệu bạn<br><span class="acc">cần một kho kiến thức</span></div>
+  <div class="sign in" style="--t:1.8s"><div class="n">1</div><div class="h">Giải thích cùng một luồng cho AI lần thứ ba</div></div>
+  <div class="sign in" style="--t:3.4s"><div class="n">2</div><div class="h">Hỏi hai lần, AI trả lời hai kiểu</div></div>
+  <div class="sign in" style="--t:5s"><div class="n">3</div><div class="h">Người mới phải hỏi đúng một người mới hiểu</div></div>
+</div>
+
+<!-- 9. Phần sau -->
+<div class="sc" style="animation-name:sc-last">
+  <div class="eyebrow in" style="--t:.1s">Phần 2 · sắp đăng</div>
+  <div class="big in" style="--t:.3s;font-size:96px;margin-bottom:56px">4 mảnh ghép để<br>Claude <span class="acc">“ở”</span> trong<br>repo của bạn</div>
+  <div class="puz">
+    <div class="in" style="--t:1.4s">CLAUDE.md<span>luật</span></div>
+    <div class="in" style="--t:1.8s">MCP<span>công cụ</span></div>
+    <div class="in" style="--t:2.2s">Skill<span>quy trình</span></div>
+    <div class="in" style="--t:2.6s">Hook<span>bảo vệ</span></div>
+  </div>
+  <div class="cta in" style="--t:4.6s;margin-top:60px"><span>Follow CodeLens</span><span>→</span></div>
+</div>
+
+<div id="sub"><span></span></div>
+
+<script src="clip-phan-1.data.js"></script>
+<script>
+  // Gán thời điểm cho từng cảnh từ dữ liệu giọng đọc
+  const scs = [...document.querySelectorAll(".sc")];
+  scs.forEach((el, i) => { el.style.setProperty("--a", CLIP.scenes[i].a + "s"); el.style.setProperty("--d", CLIP.scenes[i].d + "s"); });
+  const subs = CLIP.scenes.flatMap(s => s.subs), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+  window.DURATION = CLIP.total;
+  window.render = t => {
+    document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+    const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+    sub.textContent = s ? s.text : ""; sub.style.visibility = s ? "visible" : "hidden";
+    bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+  };
+</script>
+</body>
+</html>

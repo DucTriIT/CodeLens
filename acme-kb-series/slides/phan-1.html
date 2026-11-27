@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>acme-kb · Phần 1</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{--acc:#ff5d3b}
+  /* 1 */
+  #s1 h1{font-size:128px}
+  #s1 .scene{position:relative;height:500px;margin-top:36px}
+  #s1 .ticket{position:absolute;left:0;top:10px;width:640px;transform:rotate(-3deg)}
+  #s1 .bub{position:absolute;right:0;top:250px;width:600px;max-width:none;font-size:35px;box-shadow:0 24px 60px #000a;background:#141821}
+  #s1 .stamp{right:14px;top:188px}
+  /* 2 */
+  .map{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .map div{background:var(--panel);border:1.5px solid var(--line);border-radius:20px;padding:22px 22px;font-size:26px;font-weight:600;color:#c9c6bf;display:flex;align-items:center;gap:14px}
+  .map svg{flex:none}
+  /* 3 */
+  #s3 .bub{font-size:30px;padding:16px 24px}
+  #s3 .chat-b{padding:20px 24px 22px;gap:14px}
+  /* 4 */
+  .loop{display:flex;align-items:stretch;gap:0}
+  .sess{flex:1;background:var(--panel);border:1.5px solid var(--line);border-radius:22px;padding:22px 24px;text-align:center}
+  .sess .d{font-size:22px;font-weight:700;letter-spacing:.1em;color:var(--mut);text-transform:uppercase}
+  .sess .v{font-size:30px;font-weight:700;margin-top:8px}
+  .sess .z{font-family:var(--mono);font-size:54px;font-weight:800;color:var(--acc);margin-top:6px}
+  .wipe{width:70px;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:38px}
+  .rows{display:flex;flex-direction:column;gap:18px}
+  .rw{display:flex;gap:26px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:22px;padding:32px 32px;font-size:37px;font-weight:600;line-height:1.3}
+  .rw .num{font-size:40px;width:64px;flex:none}
+  /* 5 */
+  .heads{display:flex;gap:34px;justify-content:center;align-items:flex-end}
+  .head{width:230px;text-align:center;font-size:24px;font-weight:600;color:var(--mut)}
+  .head .bubble{background:var(--paper);color:var(--paperink);border-radius:20px;padding:16px 14px;font-size:25px;font-weight:700;line-height:1.25;margin-bottom:14px;position:relative}
+  .head .bubble::after{content:"";position:absolute;left:50%;bottom:-10px;width:20px;height:20px;background:var(--paper);transform:translateX(-50%) rotate(45deg)}
+  /* 6 */
+  .layer{border-radius:28px;padding:28px 32px;border:1.5px solid var(--line);background:var(--panel)}
+  .layer .lb{font-size:22px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-bottom:16px}
+  .chips{display:flex;flex-wrap:wrap;gap:12px}
+  .chip{border-radius:40px;padding:10px 24px;font-size:27px;font-weight:700;background:#ffffff10;border:1.5px solid #ffffff22}
+  .layer.kb{background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 30%,#141821),#141821 70%);border:2px solid var(--acc);box-shadow:0 0 70px color-mix(in srgb,var(--acc) 35%,transparent)}
+  .layer.kb .lb{color:var(--acc)}
+  .layer.kb .name{font-family:var(--mono);font-size:58px;font-weight:800;margin-bottom:18px}
+  .layer.kb .chip{background:#0a0c1188;border-color:color-mix(in srgb,var(--acc) 50%,transparent)}
+  .repos{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .repos div{background:#0c0f15;border:1.5px dashed #343b4d;border-radius:14px;padding:18px 0;text-align:center;font-family:var(--mono);font-size:22px;color:var(--dim)}
+  .conn{height:40px;display:flex;justify-content:center;gap:150px}
+  .conn i{width:3px;background:linear-gradient(var(--acc),transparent);display:block}
+  .conn.up i{background:linear-gradient(transparent,var(--acc))}
+  /* 7 */
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .ba>div{border-radius:28px;padding:30px 28px;border:1.5px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:14px}
+  .ba .t{font-size:24px;font-weight:800;letter-spacing:.14em}
+  .ba .st{background:#0c0f15;border-radius:18px;padding:26px 22px;font-size:32px;font-weight:600;line-height:1.28}
+  .ba .ar{text-align:center;color:var(--dim);font-size:30px;line-height:.9}
+  .ba .after{border-color:var(--ok);box-shadow:0 0 60px #3ddc9722}
+  .ba .after .t{color:var(--ok)}.ba .before .t{color:var(--acc)}
+  .ba .end{font-weight:800}
+  /* 8 */
+  .sign{display:flex;gap:28px;align-items:flex-start;background:var(--panel);border:1.5px solid var(--line);border-radius:26px;padding:30px 34px}
+  .sign .n{font-size:86px;font-weight:800;line-height:.9;color:var(--acc);width:84px;flex:none}
+  .sign .h{font-size:38px;font-weight:800;line-height:1.2}
+  .sign .d{font-size:28px;color:var(--mut);margin-top:8px;line-height:1.35;font-weight:500}
+  /* 9 */
+  .puz{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .puz div{border-radius:26px;padding:52px 32px;border:1.5px solid var(--line);background:var(--panel);font-family:var(--mono);font-size:42px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+  .puz div span{font-family:"BVP";font-size:24px;font-weight:700;color:var(--mut)}
+  .cta{background:var(--acc);color:#140703;border-radius:26px;padding:28px 34px;font-size:36px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+
+<!-- 1. Hook -->
+<section class="s" id="s1">
+  <div class="eyebrow">Mình dùng Claude để lập trình · Phần 1/7</div>
+  <h1>AI trả lời<br>rất tự tin.<br><span class="acc">Và sai.</span></h1>
+  <div class="scene">
+    <div class="ticket sm">
+      <div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Khẩn</span></div>
+      <div class="tk-title">Khách đã thanh toán, nhưng kho không nhận được đơn.</div>
+    </div>
+    <div class="bub ai"><div class="who"><i></i>Claude</div>Mình đã xem code. Chắc chắn lỗi do <b>timeout</b> khi gọi sang kho.</div>
+    <div class="stamp">SAI</div>
+  </div>
+  <div class="grow"></div>
+  <p class="lead">Chuyện gì đã xảy ra, và mình sửa nó thế nào?</p>
+</section>
+
+<!-- 2. Ticket -->
+<section class="s" id="s2">
+  <div class="eyebrow">Giả sử sáng thứ Hai</div>
+  <h2>Ticket này rơi<br>vào tay bạn.</h2>
+  <div class="ticket mt48">
+    <div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Khẩn</span></div>
+    <div class="tk-title">Khách đã thanh toán, nhưng kho không nhận được đơn.</div>
+    <div class="tk-meta"><span>Acme Shop · đơn A-10293</span><span>mở lúc 08:12</span></div>
+  </div>
+  <p class="lead mt48">Hệ thống Acme không nhỏ. Để trả lời, bạn phải biết đơn hàng <b>đi qua những đâu</b>:</p>
+  <div class="map mt24">
+    <div><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ff5d3b" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/></svg>Nhiều ứng dụng</div>
+    <div><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ff5d3b" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Nhiều database</div>
+    <div><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ff5d3b" stroke-width="2"><rect x="2" y="8" width="5" height="8" rx="1"/><rect x="9.5" y="8" width="5" height="8" rx="1"/><rect x="17" y="8" width="5" height="8" rx="1"/></svg>Nhiều queue</div>
+  </div>
+  <div class="grow"></div>
+  <p class="p">Bạn mở Claude ngay trong repo và hỏi. Hợp lý mà, đúng không?</p>
+</section>
+
+<!-- 3. Hai phiên, hai đáp án -->
+<section class="s" id="s3">
+  <div class="eyebrow">Cùng một câu hỏi</div>
+  <h2>Hai phiên. <span class="acc">Hai đáp án.</span></h2>
+  <div class="chat mt32">
+    <div class="chat-h"><span>Phiên 1</span><span>Thứ Hai · 08:20</span></div>
+    <div class="chat-b">
+      <div class="bub me">Vì sao đơn đã thanh toán mà không sang kho?</div>
+      <div class="bub ai"><div class="who"><i></i>Claude</div>Lỗi nằm ở <b>OrderService</b>: gọi sang kho bị timeout.</div>
+    </div>
+  </div>
+  <div class="chat mt24">
+    <div class="chat-h"><span>Phiên 2</span><span>Thứ Ba · 09:05</span></div>
+    <div class="chat-b">
+      <div class="bub me">Vì sao đơn đã thanh toán mà không sang kho?</div>
+      <div class="bub ai"><div class="who"><i></i>Claude</div>Lỗi nằm ở <b>hàng đợi đồng bộ</b>: message bị bỏ qua khi retry.</div>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <p class="p">Cả hai nghe đều rất hợp lý. Bạn tin câu nào?</p>
+</section>
+
+<!-- 4. Mất trí nhớ -->
+<section class="s" id="s4">
+  <div class="eyebrow">Vấn đề thật</div>
+  <h2>Claude không dốt.<br>Claude <span class="acc">mất trí nhớ.</span></h2>
+  <p class="lead mt24">Mỗi phiên mới, AI bắt đầu lại từ con số 0.</p>
+  <div class="loop mt32">
+    <div class="sess"><div class="d">Phiên 1</div><div class="v">Hiểu biết về Acme</div><div class="z">0%</div></div>
+    <div class="wipe">↻</div>
+    <div class="sess"><div class="d">Phiên 2</div><div class="v">Hiểu biết về Acme</div><div class="z">0%</div></div>
+    <div class="wipe">↻</div>
+    <div class="sess"><div class="d">Phiên 3</div><div class="v">Hiểu biết về Acme</div><div class="z">0%</div></div>
+  </div>
+  <div class="rows mt32">
+    <div class="rw"><span class="num">01</span><span>Đọc lại code từ đầu: chậm và tốn token.</span></div>
+    <div class="rw"><span class="num">02</span><span>Đoán nghiệp vụ qua tên hàm, tên bảng.</span></div>
+    <div class="rw"><span class="num">03</span><span>Mỗi lần đoán ra một kiểu.</span></div>
+  </div>
+  <div class="grow"></div>
+  <p class="p">Tệ nhất: đáp án nào nghe cũng chắc nịch.</p>
+</section>
+
+<!-- 5. Code không nói vì sao -->
+<section class="s" id="s5">
+  <div class="eyebrow">Gốc rễ</div>
+  <h2>Code nói hệ thống<br>làm gì. Không nói<br><span class="acc">vì sao.</span></h2>
+  <div class="code mt32"><span class="c">// OrderSyncJob.cs</span>
+<span class="k">if</span> (order.Paid &amp;&amp; !order.Synced)
+    <span class="hl">Retry(order, <span class="n">3</span>);</span></div>
+  <p class="p mt24">Vì sao là 3 lần? Hết 3 lần thì đơn đi đâu? Ai được báo?</p>
+  <div class="grow"></div>
+  <div class="heads">
+    <div class="head"><div class="bubble">“Hồi đó kho hay sập nên…”</div><svg width="110" height="110" viewBox="0 0 100 100"><circle cx="50" cy="36" r="22" fill="#2a3142"/><path d="M10 100c0-24 18-38 40-38s40 14 40 38z" fill="#2a3142"/></svg><div>Anh dev cũ</div></div>
+    <div class="head"><div class="bubble">“Hết 3 lần thì vào bảng lỗi.”</div><svg width="110" height="110" viewBox="0 0 100 100"><circle cx="50" cy="36" r="22" fill="#2a3142"/><path d="M10 100c0-24 18-38 40-38s40 14 40 38z" fill="#2a3142"/></svg><div>Chị tech lead</div></div>
+    <div class="head"><div class="bubble" style="background:#2a3142;color:#969dad">“…?”</div><svg width="110" height="110" viewBox="0 0 100 100"><rect x="22" y="18" width="56" height="48" rx="14" fill="#d97757"/><circle cx="40" cy="42" r="6" fill="#0a0c11"/><circle cx="60" cy="42" r="6" fill="#0a0c11"/><path d="M14 100c0-18 16-26 36-26s36 8 36 26z" fill="#d97757"/></svg><div>Claude</div></div>
+  </div>
+  <p class="p mt24" style="text-align:center">Câu trả lời nằm trong đầu vài người. <b>AI không đọc được ở đó.</b></p>
+</section>
+
+<!-- 6. Lớp kiến thức -->
+<section class="s" id="s6">
+  <div class="eyebrow">Cách mình sửa</div>
+  <h2>Thêm một lớp<br><span class="acc">nằm trên code.</span></h2>
+  <div class="layer mt32">
+    <div class="lb">Ai đọc</div>
+    <div class="chips"><span class="chip">QA</span><span class="chip">Dev mới</span><span class="chip">Người làm nghiệp vụ</span><span class="chip" style="border-color:#d97757;color:#f0a58c">Claude</span></div>
+  </div>
+  <div class="conn"><i></i><i></i><i></i></div>
+  <div class="layer kb">
+    <div class="lb">Kho kiến thức</div>
+    <div class="name">acme-kb</div>
+    <div class="chips"><span class="chip">Luồng nghiệp vụ</span><span class="chip">Danh mục lỗi</span><span class="chip">Hệ thống</span><span class="chip">Database</span><span class="chip">Queue</span><span class="chip">Quy ước team</span></div>
+  </div>
+  <div class="conn"><i></i><i></i><i></i></div>
+  <div class="layer">
+    <div class="lb">Code</div>
+    <div class="repos"><div>repo</div><div>repo</div><div>repo</div><div>repo</div><div>repo</div></div>
+  </div>
+  <div class="grow"></div>
+  <p class="p">Mỗi trang <b>trỏ đúng file code và bảng</b> đứng sau nó.</p>
+</section>
+
+<!-- 7. Trước / sau -->
+<section class="s" id="s7">
+  <div class="eyebrow">Ticket #4827, lần hai</div>
+  <h2>Đọc kho trước.<br>Chạm code sau.</h2>
+  <div class="ba mt32">
+    <div class="before">
+      <div class="t">TRƯỚC</div>
+      <div class="st">Bạn hỏi</div><div class="ar">↓</div>
+      <div class="st">Claude đọc lại cả đống repo</div><div class="ar">↓</div>
+      <div class="st">Đoán nghiệp vụ</div><div class="ar">↓</div>
+      <div class="st end acc">Mỗi lần một đáp án</div>
+    </div>
+    <div class="after">
+      <div class="t">SAU</div>
+      <div class="st">Bạn hỏi</div><div class="ar">↓</div>
+      <div class="st">Claude tra acme-kb</div><div class="ar">↓</div>
+      <div class="st">Mở đúng file cần xem</div><div class="ar">↓</div>
+      <div class="st end ok">Đáp án có dẫn nguồn</div>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <p class="p">Giống người mới vào team: đọc sổ tay người cũ để lại, rồi mới mở code.</p>
+</section>
+
+<!-- 8. 3 dấu hiệu -->
+<section class="s" id="s8">
+  <div class="eyebrow">Bạn làm thử</div>
+  <h2>3 dấu hiệu repo bạn<br><span class="acc">cần một kho kiến thức</span></h2>
+  <div class="col mt32" style="gap:18px">
+    <div class="sign"><div class="n">1</div><div><div class="h">Bạn giải thích cùng một luồng cho AI lần thứ ba.</div><div class="d">Phiên mới nào cũng phải kể lại từ đầu.</div></div></div>
+    <div class="sign"><div class="n">2</div><div><div class="h">Hỏi hai lần, AI trả lời hai kiểu.</div><div class="d">Vì mỗi lần nó đoán theo một hướng khác.</div></div></div>
+    <div class="sign"><div class="n">3</div><div><div class="h">Người mới và QA phải hỏi đúng một người mới hiểu.</div><div class="d">Kiến thức đang nằm trong đầu người, chưa nằm trong repo.</div></div></div>
+  </div>
+  <div class="grow"></div>
+  <p class="p">Dính từ 2 dấu hiệu? Phần sau dành cho bạn.</p>
+</section>
+
+<!-- 9. Phần sau -->
+<section class="s" id="s9">
+  <div class="eyebrow">Phần 2 · sắp đăng</div>
+  <h2>4 mảnh ghép để<br>Claude <span class="acc">“ở”</span> trong<br>repo của bạn</h2>
+  <div class="puz mt48">
+    <div>CLAUDE.md<span>luật</span></div>
+    <div>MCP<span>công cụ</span></div>
+    <div>Skill<span>quy trình</span></div>
+    <div>Hook<span>bảo vệ</span></div>
+  </div>
+  <p class="lead mt32">Kho kiến thức mới là một nửa. Nửa còn lại: làm sao để Claude <b>tự biết mở kho ra đọc</b>?</p>
+  <div class="grow"></div>
+  <div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</section>
+
+<script>
+  // Khung chung: logo, số trang, chấm tiến độ
+  const S = [...document.querySelectorAll(".s")], n = S.length;
+  S.forEach((s, i) => {
+    const dots = S.map((_, j) => `<b class="${j === i ? "on" : ""}"></b>`).join("");
+    s.insertAdjacentHTML("afterbegin", `<div class="top"><div class="brand"><i></i>CODELENS</div><div>acme-kb · ${String(i + 1).padStart(2, "0")}/${String(n).padStart(2, "0")}</div></div>`);
+    s.insertAdjacentHTML("beforeend", `<div class="bot"><div class="dots">${dots}</div><div class="swipe">${i < n - 1 ? "Vuốt →" : "Hết phần 1"}</div></div>`);
+  });
+</script>
+</body>
+</html>

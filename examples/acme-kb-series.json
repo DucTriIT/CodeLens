@@ -1,0 +1,294 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "id": "acme-kb-p1",
+   "title": "Mình dùng Claude để lập trình (Phần 1): AI tự tin, và sai",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "symptom",
+   "hook": "Cùng một câu hỏi, hai phiên, Claude trả lời hai kiểu?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "Kho kiến thức trong repo",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 1,
+    "total": 7
+   },
+   "nextTeaser": "Ở phần hai, mình chỉ bốn mảnh ghép để Claude tự biết mở kho ra đọc.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "AI TỰ TIN, *VÀ SAI*",
+     "subtitle": "Cùng một câu hỏi, hai phiên, *hai đáp án*",
+     "narration": "Mình hỏi Claude cùng một câu ở hai phiên khác nhau. Hai câu trả lời đều rất tự tin, và khác hẳn nhau.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "intro",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "MỘT TICKET *KHÓ CHỊU*",
+     "subtitle": "Khách đã thanh toán, kho *không nhận được đơn*",
+     "narration": "Giả sử bạn nhận một ticket: khách đã thanh toán nhưng kho không nhận được đơn. Đơn hàng thì đi qua rất nhiều ứng dụng và queue.",
+     "actors": [
+      {
+       "icon": "cart",
+       "label": "Thanh toán",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Queue",
+       "side": ""
+      },
+      {
+       "icon": "truck",
+       "label": "Kho",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": "gửi đơn"
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": "mất đơn"
+      }
+     ],
+     "focus": 2,
+     "mark": {
+      "index": 2,
+      "type": "cross"
+     },
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "compare",
+     "duration": 4,
+     "heading": "HAI PHIÊN, *HAI ĐÁP ÁN*",
+     "subtitle": "Câu nào nghe cũng *hợp lý*. Bạn tin câu nào?",
+     "narration": "Phiên đầu, Claude bảo lỗi do timeout. Phiên sau lại bảo do hàng đợi bỏ qua message. Câu nào nghe cũng hợp lý.",
+     "actors": [
+      {
+       "icon": "robot",
+       "label": "Do timeout",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "Do retry",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "CLAUDE *MẤT TRÍ NHỚ*",
+     "subtitle": "Mỗi phiên mới bắt đầu lại từ *con số không*",
+     "narration": "Claude không dốt, Claude chỉ mất trí nhớ. Mỗi phiên mới, nó đọc lại code từ đầu rồi đoán nghiệp vụ, nên mỗi lần đoán một kiểu.",
+     "actors": [
+      {
+       "icon": "code",
+       "label": "Đọc lại code",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "Đoán nghiệp vụ",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Mỗi lần một kiểu",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "code",
+     "duration": 4,
+     "heading": "CODE KHÔNG NÓI *VÌ SAO*",
+     "subtitle": "Vì sao thử lại *3 lần*? Hết 3 lần thì sao?",
+     "narration": "Code cho biết hệ thống làm gì, nhưng không cho biết vì sao. Vì sao thử lại ba lần? Câu trả lời nằm trong đầu vài người cũ.",
+     "actors": [],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "// đồng bộ đơn sang kho\nif (order.Paid && !order.Synced)\n!!    Retry(order, 3);",
+     "codeTitle": "OrderSyncJob.cs"
+    },
+    {
+     "part": "body",
+     "layout": "hub",
+     "duration": 4,
+     "heading": "MỘT LỚP *TRÊN CODE*",
+     "subtitle": "Kho kiến thức viết cho cả *người lẫn AI*",
+     "narration": "Mình thêm một kho kiến thức nằm trên code, tên là acme kb. Nó ghi lại luồng nghiệp vụ và danh mục lỗi, mỗi trang trỏ đúng file code đứng sau.",
+     "actors": [
+      {
+       "icon": "book",
+       "label": "acme-kb",
+       "side": ""
+      },
+      {
+       "icon": "group",
+       "label": "QA, dev mới",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "Claude",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Code",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 1,
+       "to": 0,
+       "label": "đọc"
+      },
+      {
+       "from": 2,
+       "to": 0,
+       "label": "đọc"
+      },
+      {
+       "from": 0,
+       "to": 3,
+       "label": "trỏ tới"
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "before-after",
+     "duration": 4,
+     "heading": "ĐỌC KHO *TRƯỚC*",
+     "subtitle": "Tra kho trước, rồi mới *mở đúng file*",
+     "narration": "Từ đó, Claude tra kho trước rồi mới mở đúng file cần xem, như người mới đọc sổ tay của người cũ.",
+     "actors": [
+      {
+       "icon": "search",
+       "label": "Đọc cả repo",
+       "side": "L"
+      },
+      {
+       "icon": "book",
+       "label": "Tra kho trước",
+       "side": "R"
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "TRƯỚC",
+     "right": "SAU",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BẠN CÓ *CẦN KHO* KHÔNG?",
+     "subtitle": "Dính *hai dấu hiệu* là nên làm",
+     "narration": "Repo của bạn cũng cần một kho như vậy, nếu bạn phải giải thích cùng một luồng cho AI hết lần này đến lần khác.",
+     "actors": [
+      {
+       "icon": "clock",
+       "label": "Giải thích lần ba",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Hai lần hai kiểu",
+       "side": ""
+      },
+      {
+       "icon": "person",
+       "label": "Phải hỏi một người",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
+  }
+ ]
+}

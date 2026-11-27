@@ -1,0 +1,49 @@
+PHẦN 1: AI TRẢ LỜI RẤT TỰ TIN. VÀ SAI.
+
+=== CAPTION BÀI ĐĂNG ===
+
+Cùng một câu hỏi, hỏi Claude hai lần, ra hai đáp án khác nhau. Câu nào cũng nghe rất chắc 👇
+
+Mình từng nghĩ do AI kém. Hoá ra không phải.
+
+👉 Mỗi phiên mới, AI quên sạch dự án của bạn
+👉 Nó phải đọc lại code từ đầu, rồi đoán
+👉 Code chỉ nói hệ thống làm gì, không nói vì sao
+👉 Phần "vì sao" nằm trong đầu vài người cũ, AI không đọc được ở đó
+
+Cách mình sửa: viết phần "vì sao" ra thành một kho kiến thức nằm ngay trong repo. Người mới đọc được, QA đọc được, Claude cũng đọc được. Claude tra kho trước, rồi mới mở code.
+
+Đây là phần 1 trong series 7 phần về cách mình dùng Claude để lập trình. Vuốt ảnh để xem từ đầu nhé.
+
+Repo của bạn dính mấy dấu hiệu ở ảnh 8? Bình luận cho mình biết 👇
+
+#codelens #claude #AI #laptrinh #developer
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+AI trả lời rất chắc chắn, nhưng lại sai. Chuyện gì đã xảy ra? Vuốt để xem 👉
+
+02.png
+Giả sử sáng thứ Hai bạn nhận ticket này: khách đã trả tiền mà kho không nhận được đơn. Đơn hàng đi qua rất nhiều chỗ, biết tìm ở đâu?
+
+03.png
+Mình hỏi Claude cùng một câu ở hai phiên khác nhau. Hai đáp án khác hẳn nhau, câu nào nghe cũng hợp lý. Bạn tin câu nào?
+
+04.png
+Claude không dốt, chỉ là mỗi phiên mới nó quên sạch dự án của bạn. Nó phải đọc lại code từ đầu, rồi đoán.
+
+05.png
+Code chỉ cho biết hệ thống làm gì, không cho biết vì sao. Phần "vì sao" nằm trong đầu vài người cũ, và AI không đọc được ở đó.
+
+06.png
+Cách mình sửa: viết phần "vì sao" ra thành một kho kiến thức nằm ngay trên code. QA, người mới và Claude đều đọc chung một chỗ.
+
+07.png
+Từ đó Claude tra kho trước, rồi mới mở đúng file cần xem. Giống người mới vào team đọc sổ tay của người cũ trước khi mở code.
+
+08.png
+3 dấu hiệu repo của bạn cần một kho kiến thức. Bạn dính mấy cái? Bình luận cho mình biết nhé 👇
+
+09.png
+Phần 2: 4 mảnh ghép để Claude tự biết mở kho ra đọc ngay trong repo của bạn. Follow CodeLens để không bỏ lỡ.
