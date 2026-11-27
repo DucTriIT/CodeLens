@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · clip-phan-3</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#ffb23e}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>acme-kb · Phần 3/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 3/7</div><h1>Một trang<br>tài liệu.<br><span class='acc'>Hai kiểu<br>người đọc.</span></h1><div class="grow"></div><div class="g2"><div class="kc"><div class="t">QA</div><div class="v">Cần biết quy tắc và cách test. Không đọc code.</div></div><div class="kc"><div class="t">Claude</div><div class="v">Cần biết file nào, bảng nào. Không đọc được suy nghĩ.</div></div></div><div style="height:26px"></div><p class="lead">Viết thế nào để cả hai cùng hiểu?</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Ticket #4827 sang tay QA</div><h2>QA cũng cần<br>hiểu ticket này.</h2><div style="height:26px"></div><div class="ticket sm"><div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Khẩn</span></div><div class="tk-title">Khách đã thanh toán, nhưng kho không nhận được đơn.</div></div><div style="height:26px"></div><div class="chat"><div class="chat-h"><span>Chị QA nhắn</span><span>10:15</span></div><div class="chat-b"><div class="bub me">Thanh toán xong mà kho không thấy đơn: là lỗi, hay hệ thống thiết kế như vậy? Mình test lại thế nào?</div></div></div><div class="grow"></div><p class="p">QA không đọc code. Và <b>không nên phải đọc</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Sắp xếp kho</div><h2>Chia thư mục<br><span class='acc'>theo câu hỏi</span></h2><div style="height:26px"></div><div class="dir"><div><b>flows/</b><span>Việc này chạy thế nào?</span></div><div><b>troubleshooting/</b><span>Lỗi này nghĩa là gì?</span></div><div><b>systems/</b><span>Ứng dụng này làm gì?</span></div><div><b>data/  integrations/</b><span>Dữ liệu, queue nằm đâu?</span></div><div><b>conventions/</b><span>Team quy ước gì?</span></div><div class=dimd><b>_generated/</b><span>Máy tự quét. Không sửa tay.</span></div></div><div class="grow"></div><p class="p">Mở kho ra là biết câu hỏi của mình thuộc ngăn nào.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nửa trên của trang</div><h2>Viết cho <span class='acc'>người</span></h2><div style="height:24px"></div><div class="doc"><h4>Đồng bộ đơn sang kho</h4><div class="sec">## Summary</div>Sau khi khách thanh toán, đơn được gửi sang hệ thống kho.<div class="sec">## Business view</div><ul><li>Chỉ đơn <b>đã thanh toán</b> mới sang kho.</li><li>Gửi lỗi thì thử lại <b>3 lần</b>.</li><li>Hết 3 lần: đơn nằm trong danh sách lỗi, chờ xử lý tay.</li><li><b>Cách test:</b> tắt kho giả lập, đặt một đơn, xem danh sách lỗi.</li></ul><div class="cut"></div><div class="dimx"><div class="sec">## Steps</div>OrderSyncJob.cs → WarehouseClient.Send() → …</div><div class="side" style="top:-20px;right:24px">QA đọc tới đây là đủ</div></div><div class="grow"></div><p class="p">Lời thường, có quy tắc và <b>cách test</b>. Không một dòng code.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Phần đầu file</div><h2>Vài dòng cho <span class='acc'>máy</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>flows/dong-bo-don-sang-kho.md</div><pre><span class='d'>---</span>
+<span class='a'>title:</span> Đồng bộ đơn sang kho
+<span class='a'>sources:</span>
+  - OrderService/OrderSyncJob.cs
+  - OrderService/WarehouseClient.cs
+<span class='a'>tables:</span> [Orders, OrderSyncErrors]
+<span class='a'>verified:</span> 2026-11-20
+<span class='d'>---</span></pre></div><div style="height:24px"></div><div class="stackc"><div class="rw"><span class="num">→</span><span>sources<small>Trang này dựa trên những file code nào</small></span></div><div class="rw"><span class="num">→</span><span>verified<small>Lần cuối có người kiểm tra nội dung</small></span></div></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Phần nhàm chán</div><h2>Để script<br><span class='acc'>tự quét từ code</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Terminal</div><pre><span class='a'>&gt;</span> <span class='w'>python tools/generate.py</span></pre></div><div style="height:18px"></div><div class="g2"><div class="kc"><div class="t">Mọi bảng</div><div class="v">và đoạn code nào đang dùng nó</div></div><div class="kc"><div class="t">Mọi queue</div><div class="v">tên và nơi gửi, nơi nhận</div></div><div class="kc"><div class="t">Mọi class</div><div class="v">nằm ở project nào, file nào</div></div><div class="kc hi"><div class="t">Mọi câu báo lỗi</div><div class="v">kèm class, hàm, file ném ra nó</div></div></div><div class="grow"></div><p class="p">Người viết phần <b>vì sao</b>. Máy liệt kê phần <b>có gì</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Cùng một trang</div><h2>Hai cách hỏi,<br><span class='acc'>hai cách trả lời</span></h2><div style="height:24px"></div><div class="chat"><div class="chat-h"><span>QA hỏi Claude</span><span>10:32</span></div><div class="chat-b"><div class="bub me">Dùng acme-kb, giải thích cho QA: đơn sang kho hoạt động thế nào?</div><div class="bub ai"><div class="who"><i></i>Claude</div>Đơn chỉ sang kho <b>sau khi thanh toán xong</b>. Nếu gửi lỗi, hệ thống thử lại 3 lần. Để test: tắt kho giả lập rồi đặt một đơn…</div></div></div><div style="height:22px"></div><p class="p">Claude tìm theo chế độ dành cho <b>người làm nghiệp vụ</b>, nên ưu tiên phần viết bằng lời thường.</p><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bạn làm thử</div><h2>Viết 1 trang cho<br><span class='acc'>luồng hay bị hỏi nhất</span></h2><div style="height:24px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Summary</div><div class=d>3 câu: luồng này làm gì</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Business view</div><div class=d>Quy tắc và cách test, bằng lời thường</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Steps</div><div class=d>Đi qua file nào, bảng nào</div></div></div><div class="sign"><div class="n">4</div><div><div class="h">sources + verified</div><div class=d>Dựa trên file nào, kiểm tra hôm nào</div></div></div></div><div class="grow"></div><p class="p">Đưa cho một bạn QA đọc thử. Bạn ấy hiểu là đạt.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 4/7</div><div class="t">Dạy AI nói<br>“tôi không biết”</div></div><div style="height:36px"></div><p class="lead">Kho chưa viết về một thứ, AI sẽ lấy trang <b>gần giống nhất</b> và trả lời như thật. Chặn chuyện đó thế nào?</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 72.65, "step": 1.1, "scenes": [{"a": 0, "d": 8.05, "subs": [{"from": 0.3, "to": 3.29, "text": "Tài liệu kỹ thuật thường chỉ dev đọc nổi."}, {"from": 3.29, "to": 4.68, "text": "Trong kho của mình,"}, {"from": 4.68, "to": 7.6, "text": "mỗi trang phải phục vụ cả QA lẫn Claude."}]}, {"a": 8.05, "d": 7.37, "subs": [{"from": 8.35, "to": 10.24, "text": "Ticket cũ giờ sang tay QA."}, {"from": 10.24, "to": 13.52, "text": "Chị ấy cần biết đây là lỗi hay đúng thiết kế,"}, {"from": 13.52, "to": 14.97, "text": "và test lại thế nào."}]}, {"a": 15.42, "d": 8.5, "subs": [{"from": 15.72, "to": 19.22, "text": "Kho chia thư mục theo câu hỏi: luồng nghiệp vụ,"}, {"from": 19.22, "to": 21.98, "text": "danh mục lỗi, từng ứng dụng, dữ liệu,"}, {"from": 21.98, "to": 23.47, "text": "và quy ước của team."}]}, {"a": 23.92, "d": 8.96, "subs": [{"from": 24.22, "to": 28.62, "text": "Mỗi trang mở đầu bằng tóm tắt và phần viết bằng lời thường:"}, {"from": 28.62, "to": 32.43, "text": "quy tắc là gì, test thế nào. QA chỉ cần đọc tới đó."}]}, {"a": 32.88, "d": 7.35, "subs": [{"from": 33.18, "to": 35.66, "text": "Đầu mỗi trang có vài dòng cho máy đọc:"}, {"from": 35.66, "to": 37.56, "text": "trang dựa trên file code nào,"}, {"from": 37.56, "to": 39.78, "text": "và lần cuối được kiểm tra khi nào."}]}, {"a": 40.23, "d": 8.84, "subs": [{"from": 40.53, "to": 44.06, "text": "Phần liệt kê thì mình để script quét từ code:"}, {"from": 44.06, "to": 46.97, "text": "mọi bảng, mọi queue, mọi câu báo lỗi."}, {"from": 46.97, "to": 48.62, "text": "Không ai phải gõ tay."}]}, {"a": 49.07, "d": 6.41, "subs": [{"from": 49.37, "to": 51.24, "text": "Khi QA nhờ Claude giải thích,"}, {"from": 51.24, "to": 55.03, "text": "Claude trả lời bằng đúng phần viết cho người làm nghiệp vụ."}]}, {"a": 55.48, "d": 7.59, "subs": [{"from": 55.78, "to": 59.42, "text": "Bạn thử viết một trang cho luồng hay bị hỏi nhất,"}, {"from": 59.42, "to": 62.62, "text": "rồi đưa một bạn QA đọc. Bạn ấy hiểu là đạt."}]}, {"a": 63.07, "d": 9.58, "subs": [{"from": 63.37, "to": 64.18, "text": "Ở phần bốn,"}, {"from": 64.18, "to": 67.79, "text": "mình chỉ cách làm cho AI biết nói tôi không biết,"}, {"from": 67.79, "to": 69.63, "text": "thay vì trả lời gần đúng."}, {"from": 69.63, "to": 72.2, "text": "Follow CodeLens để không bỏ lỡ nhé."}]}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>
