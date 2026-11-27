@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · clip-phan-4</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#b07cff}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>acme-kb · Phần 4/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 4/7</div><h1>Dạy AI nói<br><span class='acc'>“tôi không<br>biết”</span></h1><div class="grow"></div><div class="quote" style="font-size:52px">Câu trả lời sai thì dễ thấy. Câu trả lời <span class="acc">gần đúng</span> mới nguy hiểm.</div><div style="height:30px"></div><p class="lead">3 nhãn giúp AI tự khai độ tin cậy.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Chuyện xảy ra</div><h2>Kho thiếu.<br><span class='acc'>AI mượn tạm.</span></h2><div style="height:24px"></div><div class="chat"><div class="chat-h"><span>Hỏi về job hoàn tiền</span><span>14:02</span></div><div class="chat-b"><div class="bub me">RefundSyncJob chạy thế nào?</div><div class="bub ai"><div class="who"><i></i>Claude</div>Theo tài liệu <b>đồng bộ đơn</b>, job sẽ thử lại 3 lần rồi ghi vào bảng lỗi…</div></div></div><div style="height:22px"></div><div class="g2"><div class="kc"><div class="t">Kho có</div><div class="v">Trang về <b>OrderSyncJob</b> (đồng bộ đơn)</div></div><div class="kc hi"><div class="t">Bạn hỏi</div><div class="v"><b>RefundSyncJob</b> (hoàn tiền). Chưa ai viết.</div></div></div><div class="grow"></div><p class="p">Hai job tên gần giống nhau. Câu trả lời nghe rất thuyết phục, và <b>không ai kiểm chứng</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bước 1 · tìm cho chuẩn</div><h2>Tìm bằng<br><span class='acc'>hai con mắt</span></h2><div style="height:24px"></div><div class="g2"><div class="kc"><div class="t">Từ khoá</div><div class="v">Khớp đúng tên riêng: <span class='mono'>OrderSyncErrors</span></div></div><div class="kc"><div class="t">Ý nghĩa</div><div class="v">“đơn không sang kho” ≈ “đồng bộ thất bại”</div></div></div><div style="height:16px"></div><div class="kc hi"><div class="t">Trộn hai bảng xếp hạng thành một</div><div class="v">Trang nào được cả hai mắt chọn thì lên đầu.</div></div><div style="height:22px"></div><div class="tabs"><span class=on>Chạy hoàn toàn trên máy</span><span class=on>Không tốn phí API</span></div><div class="grow"></div><p class="p">Tìm trượt ngay từ đầu thì phía sau có cẩn thận mấy cũng vô ích.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nhãn 1 và 2</div><h2>Mỗi kết quả tự khai<br><span class='acc'>độ tin cậy</span></h2><div style="height:24px"></div><div class="stackc"><div class="res"><div class="pth">flows/dong-bo-don-sang-kho.md</div><div class="sn">Đơn được gửi lại tối đa 3 lần…</div><div class="bd"><span class="bdg ai">AI viết · chưa ai duyệt</span></div></div><div class="res"><div class="pth">troubleshooting/loi-kho.md</div><div class="sn">Timeout khi gọi API kho…</div><div class="bd"><span class="bdg stale">⚠ CŨ: 3 commit chưa xem lại</span></div></div><div class="res"><div class="pth">systems/order-service.md</div><div class="sn">Ứng dụng nhận và xử lý đơn…</div><div class="bd"><span class="bdg good">Người đã duyệt · còn mới</span></div></div></div><div class="grow"></div><p class="p">Claude đọc nhãn và biết <b>nên tin trang nào đến đâu</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nhãn 3 · quan trọng nhất</div><h2>Kho chưa có?<br><span class='acc'>Nói thẳng.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>kb_search</div><pre><span class='a'>&gt;</span> <span class='w'>RefundSyncJob chạy thế nào?</span>
+
+<span class='y'>⚠ KB gap:</span> RefundSyncJob có trong code,
+nhưng chưa trang nào trong kho nhắc tới.
+
+<span class='g'>Hãy đọc code:</span> Refund/RefundSyncJob.cs
+
+<span class='d'>2 kết quả rút gọn · chỉ là chủ đề lân cận</span></pre></div><div style="height:22px"></div><p class="p">Công cụ biết cái tên này <b>có trong code</b> nhờ danh mục script quét ở phần 3.</p><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Hỏi lạc đề</div><h2>Không có thì<br><span class='acc'>trả về tay trắng</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>kb_search</div><pre><span class='a'>&gt;</span> <span class='w'>cách nấu phở bò</span>
+
+<span class='d'>No KB match</span></pre></div><div style="height:22px"></div><p class="p">Công cụ tìm kiếm nào cũng có thể trả về “10 kết quả gần nhất”. Nhưng với AI, một kết quả không liên quan là <b>một cái cớ để bịa</b>.</p><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Giữ cho tìm kiếm không tệ đi</div><h2 style=font-size:64px>AI trả lời tệ?<br><span class='acc'>Thêm một bài kiểm tra.</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Terminal</div><pre><span class='a'>&gt;</span> <span class='w'>python tools/eval_search.py</span>
+
+<span class='d'>đo trên bộ câu hỏi thật:</span>
+  hit@1     <span class='d'>đúng ngay kết quả đầu</span>
+  hit@3     <span class='d'>đúng trong 3 kết quả đầu</span>
+  coverage  <span class='d'>độ phủ</span>
+  tokens    <span class='d'>tốn bao nhiêu chữ</span></pre></div><div style="height:22px"></div><p class="p">Mỗi lần một câu hỏi thật bị trả lời tệ, mình thêm nó vào bộ này. Chỉnh xong thuật toán thì chạy lại.</p><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bạn làm thử</div><h2>3 nhãn cho công cụ<br><span class='acc'>AI của bạn</span></h2><div style="height:24px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Ai viết, ai duyệt</div><div class=d>AI viết mà chưa ai xem thì phải ghi rõ</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Còn mới hay đã cũ</div><div class=d>Code đổi sau lần kiểm tra cuối là cũ</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">“Chưa có tài liệu”</div><div class=d>Thay vì đưa ra kết quả gần giống</div></div></div></div><div class="grow"></div><p class="p">Áp dụng được cho mọi thứ bạn đưa cho AI đọc: wiki, RAG, tài liệu nội bộ.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 5/7</div><div class="t">Cho AI nhìn vào<br>database production</div></div><div style="height:36px"></div><p class="lead">Tài liệu nói đơn được thử lại 3 lần. Nhưng <b>đơn này</b> thì sao? Muốn chắc, phải nhìn dữ liệu thật.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 74.04, "step": 1.1, "scenes": [{"a": 0, "d": 8.17, "subs": [{"from": 0.3, "to": 4.01, "text": "Có kho rồi vẫn chưa yên. Hỏi một thứ kho chưa viết,"}, {"from": 4.01, "to": 7.72, "text": "AI sẽ lấy trang gần giống nhất và trả lời như thật."}]}, {"a": 8.17, "d": 8.12, "subs": [{"from": 8.47, "to": 10.93, "text": "Ví dụ mình hỏi về job hoàn tiền,"}, {"from": 10.93, "to": 13.92, "text": "mà kho chỉ có trang về job đồng bộ đơn."}, {"from": 13.92, "to": 15.84, "text": "Claude mượn tạm trang đó."}]}, {"a": 16.29, "d": 7.66, "subs": [{"from": 16.59, "to": 18.61, "text": "Đầu tiên là tìm cho chuẩn."}, {"from": 18.61, "to": 22.18, "text": "Kho tìm theo từ khoá và theo ý nghĩa cùng lúc,"}, {"from": 22.18, "to": 23.5, "text": "rồi trộn kết quả."}]}, {"a": 23.95, "d": 9.68, "subs": [{"from": 24.25, "to": 26.68, "text": "Mỗi kết quả tự khai độ tin cậy."}, {"from": 26.68, "to": 30.05, "text": "Trang AI viết mà chưa ai duyệt thì có nhãn."}, {"from": 30.05, "to": 33.18, "text": "Trang mà code đã đổi thì bị đánh dấu cũ."}]}, {"a": 33.63, "d": 8.57, "subs": [{"from": 33.93, "to": 34.95, "text": "Quan trọng nhất:"}, {"from": 34.95, "to": 37.94, "text": "hỏi một cái tên có trong code mà kho chưa viết,"}, {"from": 37.94, "to": 40.16, "text": "công cụ báo thẳng là kho còn thiếu,"}, {"from": 40.16, "to": 41.75, "text": "và chỉ đúng file cần đọc."}]}, {"a": 42.2, "d": 6.53, "subs": [{"from": 42.5, "to": 45.93, "text": "Còn hỏi lạc đề thì công cụ trả về không có kết quả,"}, {"from": 45.93, "to": 48.28, "text": "chứ không cố nhét một trang cho có."}]}, {"a": 48.73, "d": 7.78, "subs": [{"from": 49.03, "to": 51.67, "text": "Mỗi lần một câu hỏi thật bị trả lời tệ,"}, {"from": 51.67, "to": 53.63, "text": "mình thêm nó vào bộ kiểm tra,"}, {"from": 53.63, "to": 56.06, "text": "để lần chỉnh sau không làm hỏng lại."}]}, {"a": 56.51, "d": 8.38, "subs": [{"from": 56.81, "to": 61.33, "text": "Bạn có thể thêm ba nhãn này vào bất cứ thứ gì đưa cho AI đọc:"}, {"from": 61.33, "to": 64.44, "text": "ai duyệt, mới hay cũ, và chưa có tài liệu."}]}, {"a": 64.89, "d": 9.15, "subs": [{"from": 65.19, "to": 66.05, "text": "Ở phần năm,"}, {"from": 66.05, "to": 69.55, "text": "mình cho Claude nhìn vào database production,"}, {"from": 69.55, "to": 73.59, "text": "mà vẫn ngủ ngon. Follow CodeLens để không bỏ lỡ nhé."}]}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>
