@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · clip-phan-8</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#22d3ee}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>acme-kb · Bài kỹ thuật</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bài kỹ thuật · acme-kb</div><h1>Cùng một<br>model.<br><span class='acc'>Khác ở thứ<br>nó được đọc.</span></h1><div class="grow"></div><div class="g3"><div class="kc"><div class="t">Khôn hơn</div><div class="v">đọc đúng thứ tự</div></div><div class="kc"><div class="t">Nhanh hơn</div><div class="v">đọc ít hơn</div></div><div class="kc"><div class="t">Chính xác hơn</div><div class="v">biết nói “không có”</div></div></div><div style="height:24px"></div><p class="lead">Bên trong kho kiến thức: kỹ thuật nào làm ra ba điều này?</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">So sánh</div><h2>3 cách cho AI<br><span class='acc'>hiểu hệ thống</span></h2><div style="height:22px"></div><div class="cmp"><div class="hd"></div><div class="hd">Đọc code<br>mỗi phiên</div><div class="hd">Dán tài liệu<br>vào chat</div><div class="hd win">Kho + công cụ</div><div>Nhớ được giữa các phiên</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div><div>Không tốn token đọc lại</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div><div>Khớp với code hiện tại</div><div class="c y">✓</div><div class="c n">✕</div><div class="c m win">báo trang<br>đã cũ</div><div>Biết nói “chưa có tài liệu”</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div><div>Người không code dùng được</div><div class="c n">✕</div><div class="c y">✓</div><div class="c y win">✓</div><div>Trả lời được khi không có AI</div><div class="c n">✕</div><div class="c n">✕</div><div class="c y win">✓</div></div><div class="grow"></div><p class="p">Đọc code thì đúng nhưng chậm. Dán tài liệu thì nhanh nhưng <b>không biết nó đã cũ</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nền móng</div><h2>Sơ đồ tri thức:<br><span class='acc'>một file mục lục</span></h2><div style="height:22px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>INDEX.md  ·  câu hỏi → trang</div><div style="padding:20px"><div class="map2"><div><span>Đơn không sang kho?</span><i>→</i><b>flows/dong-bo-don…</b></div><div><span>Lỗi timeout kho là gì?</span><i>→</i><b>troubleshooting/loi-kho</b></div><div><span>Bảng Orders có gì?</span><i>→</i><b>data/orders</b></div><div><span>Team đặt tên nhánh sao?</span><i>→</i><b>conventions/branches</b></div></div></div></div><div style="height:20px"></div><div class="stackc"><div class="rw"><span class="num">→</span><span>Bản đồ hệ thống + bảng “câu hỏi → trang”<small>Giữ dưới 120 dòng để luôn gọn</small></span></div><div class="rw"><span class="num">→</span><span>Người và AI dùng chung một bản đồ<small>Claude tự nạp nó ở mọi phiên; QA mở ra đọc</small></span></div></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Khôn hơn</div><h2>Đọc theo thứ tự,<br><span class='acc'>từ rộng tới hẹp</span></h2><div style="height:22px"></div><div class="tl"><div><span class="tm">1 · mục lục</span>Biết câu hỏi thuộc ngăn nào</div><div><span class="tm">2 · kb_search</span>Tìm đoạn tài liệu liên quan</div><div><span class="tm">3 · kb_lookup</span>Tra một cái tên: class, bảng, queue, câu báo lỗi</div><div><span class="tm">4 · kb_get</span>Đọc trọn trang khi cần</div><div><span class="tm">5 · sources</span>Mở đúng file code mà trang trỏ tới</div><div><span class="tm">6 · db_query</span>Bước cuối: xác nhận bằng dữ liệu thật, chỉ-đọc</div></div><div class="grow"></div><p class="p">Mỗi bước thu hẹp phạm vi. Claude <b>không bao giờ phải quét cả repo</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nhanh hơn</div><h2>Đọc ít hơn,<br><span class='acc'>không đọc lại</span></h2><div style="height:22px"></div><div class="stackc"><div class="rw"><span class="num">01</span><span>Mỗi trang chỉ trả về tối đa 2 đoạn<small>Các mục khớp khác chỉ liệt kê tên</small></span></div><div class="rw"><span class="num">02</span><span>Chỉ mục tự dựng lại khi tài liệu đổi<small>Chỉ tính lại embedding cho trang vừa sửa</small></span></div><div class="rw"><span class="num">03</span><span>Model embedding nạp sẵn trong tiến trình<small>Hỏi trên giao diện web không phải khởi động lại</small></span></div><div class="rw"><span class="num">04</span><span>Danh mục code do script quét sẵn<small>Tra tên bảng, tên class không cần grep</small></span></div></div><div class="grow"></div><p class="p">Ít chữ đi vào ngữ cảnh hơn thì trả lời nhanh hơn và <b>tốn ít token hơn</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Chính xác hơn</div><h2>Bên trong<br><span class='acc'>kb_search</span></h2><div style="height:20px"></div><div class="stackc"><div class="g2"><div class="kc"><div class="k">BM25</div><div class="v">Từ khoá, trên SQLite FTS5</div></div><div class="kc"><div class="k">bge-small</div><div class="v">Embedding, chạy trên máy</div></div></div><div class="kc hi"><div class="k">RRF</div><div class="v">Trộn hai bảng xếp hạng thành một</div></div><div class="g2"><div class="kc"><div class="t">Tăng điểm</div><div class="v">Trang gắn đúng cái tên được hỏi</div></div><div class="kc"><div class="t">Giảm điểm</div><div class="v">Mục “liên quan”, “câu hỏi mở”</div></div></div><div class="g2"><div class="kc"><div class="t">Ngưỡng tối thiểu</div><div class="v">Dưới ngưỡng: “No KB match”</div></div><div class="kc"><div class="t">Dò khoảng trống</div><div class="v">Tên có trong code, kho chưa viết</div></div></div></div><div class="grow"></div><p class="p">Hai lớp cuối là thứ RAG thường thiếu: <b>quyền không trả lời</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Điểm hữu dụng nhất</div><h2>QA tự hỏi,<br><span class='acc'>tự có câu trả lời</span></h2><div style="height:22px"></div><div class="stackc"><div class="lvl"><div class="tm">không AI</div><div><div class="h">Mở mục lục, đọc trang</div><div class="d">Mỗi trang có Summary và Business view bằng lời thường</div></div></div><div class="lvl"><div class="tm">không AI<br>tức thì</div><div><div class="h">Tìm kiếm trên giao diện web</div><div class="d">Gõ câu hỏi thường, bấm chế độ Business</div></div></div><div class="lvl ai"><div class="tm">có AI<br>10–60 giây</div><div><div class="h">Hỏi Claude, chỉ dùng kho</div><div class="d">Trả lời có dẫn tới trang, không đọc code</div></div></div></div><div class="grow"></div><p class="p">Chỉ cần quy tắc nghiệp vụ thì dừng ở <b>hai mức đầu</b>: không tốn phí, không phải chờ dev.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">QA dùng thế nào</div><h2>Gõ câu hỏi thường,<br><span class='acc'>nhận lời thường</span></h2><div style="height:20px"></div><div class="inp">đơn trả tiền rồi mà kho không thấy</div><div style="height:14px"></div><div class="tabs"><span>Tất cả</span><span class=on>Business</span><span>Tech</span></div><div style="height:16px"></div><div class="res"><div class="pth">flows/dong-bo-don-sang-kho.md  ·  Business view</div><div class="sn" style="color:#dfe5f1">Chỉ đơn đã thanh toán mới sang kho. Gửi lỗi thì thử lại 3 lần. Hết 3 lần, đơn nằm trong danh sách lỗi chờ xử lý tay. <b>Cách test:</b> tắt kho giả lập, đặt một đơn…</div><div class="bd"><span class="bdg good">Người đã duyệt · còn mới</span></div></div><div class="grow"></div><p class="p">Chế độ Business xếp phần viết cho người làm nghiệp vụ lên đầu. <b>Không có AI nào chạy</b> ở bước này.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Lợi ích</div><h2>Một kho,<br><span class='acc'>bốn người hưởng</span></h2><div style="height:22px"></div><div class="g2"><div class="kc"><div class="t">QA</div><div class="v">Tự trả lời câu hỏi nghiệp vụ, có sẵn cách test</div></div><div class="kc"><div class="t">Dev</div><div class="v">Thôi bị hỏi lại cùng một câu. AI mở đúng file.</div></div><div class="kc"><div class="t">Người mới</div><div class="v">Có bản đồ hệ thống từ ngày đầu</div></div><div class="kc hi"><div class="t">Claude</div><div class="v">Bớt đoán, biết khi nào phải nói “chưa có”</div></div></div><div class="grow"></div><p class="p">Cùng một trang tài liệu phục vụ cả bốn. Viết một lần, <b>không phải bảo trì hai bản</b>.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Bạn làm thử</div><h2>Bắt đầu từ<br><span class='acc'>sơ đồ tri thức</span></h2><div style="height:22px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">Viết một file mục lục</div><div class=d>Bảng “câu hỏi → trang”, dưới 120 dòng</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Mỗi trang mở đầu bằng lời thường</div><div class=d>Summary và Business view, có cách test</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Rồi mới thêm tìm kiếm</div><div class=d>Từ khoá trước, embedding sau</div></div></div></div><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem cả series</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 82.24, "step": 1.1, "scenes": [{"a": 0, "d": 8.0, "subs": [{"from": 0.3, "to": 1.38, "text": "Cùng một model,"}, {"from": 1.38, "to": 4.82, "text": "Claude trả lời khác hẳn tuỳ vào thứ nó được đọc."}, {"from": 4.82, "to": 7.55, "text": "Mình mở nắp kho kiến thức cho bạn xem."}]}, {"a": 8.0, "d": 8.81, "subs": [{"from": 8.3, "to": 11.27, "text": "Đọc code mỗi phiên thì đúng nhưng chậm."}, {"from": 11.27, "to": 13.93, "text": "Dán tài liệu thì nhanh nhưng dễ cũ."}, {"from": 13.93, "to": 16.36, "text": "Kho kèm công cụ lấy được cả hai."}]}, {"a": 16.81, "d": 8.33, "subs": [{"from": 17.11, "to": 19.14, "text": "Nền móng là sơ đồ tri thức:"}, {"from": 19.14, "to": 22.97, "text": "một file mục lục ghi câu hỏi nào thì đọc trang nào."}, {"from": 22.97, "to": 24.69, "text": "Người và AI dùng chung."}]}, {"a": 25.14, "d": 8.5, "subs": [{"from": 25.44, "to": 28.93, "text": "Khôn hơn là nhờ đọc từ rộng tới hẹp: mục lục,"}, {"from": 28.93, "to": 31.18, "text": "tìm kiếm, tra tên, đọc trang,"}, {"from": 31.18, "to": 33.19, "text": "rồi mới mở đúng file code."}]}, {"a": 33.64, "d": 8.41, "subs": [{"from": 33.94, "to": 36.04, "text": "Nhanh hơn là nhờ đọc ít hơn."}, {"from": 36.04, "to": 38.82, "text": "Mỗi trang chỉ trả về tối đa hai đoạn,"}, {"from": 38.82, "to": 41.6, "text": "chỉ mục và danh mục code đã dựng sẵn."}]}, {"a": 42.05, "d": 8.91, "subs": [{"from": 42.35, "to": 45.02, "text": "Chính xác hơn là nhờ tìm kiếm lai,"}, {"from": 45.02, "to": 48.63, "text": "từ khoá cộng embedding. Thêm ngưỡng tối thiểu,"}, {"from": 48.63, "to": 50.51, "text": "và dò chỗ kho còn thiếu."}]}, {"a": 50.96, "d": 9.37, "subs": [{"from": 51.26, "to": 55.49, "text": "Điểm hữu dụng nhất: QA tự hỏi và tự có câu trả lời."}, {"from": 55.49, "to": 57.56, "text": "Hai mức đầu không cần AI,"}, {"from": 57.56, "to": 59.88, "text": "chỉ cần mục lục và tìm kiếm."}]}, {"a": 60.33, "d": 8.17, "subs": [{"from": 60.63, "to": 65.29, "text": "QA gõ câu hỏi bằng lời thường và nhận ngay quy tắc nghiệp vụ,"}, {"from": 65.29, "to": 68.05, "text": "kèm cách test. Không có AI nào chạy."}]}, {"a": 68.5, "d": 6.87, "subs": [{"from": 68.8, "to": 73.66, "text": "Một kho mà bốn bên cùng hưởng: QA, dev, người mới,"}, {"from": 73.66, "to": 74.92, "text": "và cả Claude."}]}, {"a": 75.37, "d": 6.87, "subs": [{"from": 75.67, "to": 78.24, "text": "Bạn có thể bắt đầu từ sơ đồ tri thức:"}, {"from": 78.24, "to": 81.79, "text": "một file mục lục, mỗi trang mở đầu bằng lời thường."}]}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>
