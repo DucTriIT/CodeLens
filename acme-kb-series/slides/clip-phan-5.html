@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · clip-phan-5</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#2ed3b0}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>acme-kb · Phần 5/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Dùng Claude để lập trình · Phần 5/7</div><h1>Cho AI nhìn<br>vào database<br><span class='acc'>production.</span></h1><div style="height:30px"></div><p class="lead">Và vẫn ngủ ngon.</p><div class="grow"></div><div class="ticket sm"><div class="tk-top"><span>TICKET #4827</span><span class="tk-pri">Khẩn</span></div><div class="tk-title">Khách đã thanh toán, nhưng kho không nhận được đơn.</div></div><div style="height:24px"></div><p class="p">Tài liệu nói đơn được thử lại 3 lần. Nhưng <b>đơn A-10293</b> thì sao?</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Nghe đã thấy sợ</div><h2>3 nỗi sợ khi<br><span class='acc'>AI chạm vào DB</span></h2><div style="height:26px"></div><div class="stackc"><div class="sign"><div class="n">1</div><div><div class="h">AI chạy nhầm UPDATE, DELETE</div><div class=d>Một câu lệnh là mất dữ liệu thật</div></div></div><div class="sign"><div class="n">2</div><div><div class="h">Truy vấn nặng làm khoá bảng</div><div class=d>Khách đang đặt hàng thì hệ thống đứng</div></div></div><div class="sign"><div class="n">3</div><div><div class="h">Mật khẩu, API key lọt vào chat</div><div class=d>Lọt rồi thì không lấy lại được</div></div></div></div><div class="grow"></div><p class="p">Nên nhiều team chọn cách dễ nhất: <b>cấm hẳn</b>. Và AI lại phải đoán.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Cách mình làm</div><h2>4 lớp <span class='acc'>chỉ-đọc</span></h2><div style="height:22px"></div><div class="ring" style="--o:25%"><div class="rl"><b>1</b>Chỉ nhận đúng một câu SELECT</div><div class="ring" style="--o:45%"><div class="rl"><b>2</b>Bảng nào cũng phải đọc không khoá (NOLOCK)</div><div class="ring" style="--o:70%"><div class="rl"><b>3</b>Phiên chỉ-đọc, chờ khoá tối đa 5 giây</div><div class="ring" style="--o:100%"><div class="rl"><b>4</b>Chạy trong transaction, luôn rollback</div><div class="core">Database production</div></div></div></div></div><div class="grow"></div><p class="p">Một lớp sót thì còn ba lớp sau.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Thử lách xem</div><h2>Sai luật là<br><span class='acc'>bị từ chối ngay</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>db_query</div><pre><span class='w'>UPDATE Orders SET Synced = 1 …</span>
+<span class='r'>✕ Từ chối: chỉ nhận SELECT</span>
+
+<span class='w'>SELECT * FROM Orders</span>
+<span class='r'>✕ Từ chối: thiếu WITH (NOLOCK)</span>
+
+<span class='w'>SELECT … FROM OrderSyncErrors
+  WITH (NOLOCK) WHERE OrderId = 10293</span>
+<span class='g'>✓ [env: prod]  3 dòng</span></pre></div><div style="height:22px"></div><div class="tabs"><span>Tối đa 50 dòng mỗi lần</span><span>Luôn ghi rõ môi trường</span></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bí mật</div><h2>Che ngay cả khi<br><span class='acc'>lỡ lọt qua</span></h2><div style="height:24px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>db_query</div><pre><span class='w'>SELECT PasswordHash FROM Users …</span>
+<span class='r'>✕ Từ chối: cột bí mật</span>
+
+<span class='w'>SELECT * FROM Partners WITH (NOLOCK)</span>
+<span class='d'>Name      ApiKey   Config</span>
+Kho Bắc   <span class='y'>***</span>      {"token": "<span class='y'>***</span>"}</pre></div><div style="height:22px"></div><div class="stackc"><div class="rw"><span class="num">→</span><span>Hỏi thẳng cột bí mật: từ chối</span></div><div class="rw"><span class="num">→</span><span>Lọt qua SELECT *: che thành ***</span></div><div class="rw"><span class="num">→</span><span>Token nằm trong chuỗi: cũng che</span></div></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Mật khẩu database</div><h2 style=font-size:66px>Không nằm trong chat.<br><span class='acc'>Không nằm trong git.</span></h2><div style="height:26px"></div><div class="ck"><div class="y"><i>✓</i><span>Bạn tự gõ mật khẩu trong terminal của mình</span></div><div class="y"><i>✓</i><span>Lưu dạng mã hoá, chỉ tài khoản Windows của bạn trên máy này mở được</span></div><div class="y"><i>✓</i><span>Hook chặn mọi lệnh cố đọc file cấu hình</span></div><div class="n"><i>✕</i><span>Không bao giờ dán mật khẩu vào khung chat với AI</span></div></div><div class="grow"></div><p class="p">AI dùng được kết nối, nhưng <b>không bao giờ nhìn thấy mật khẩu</b>.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Điều quan trọng nhất</div><div class="quote">Chốt chặn thật là <span class="acc">quyền của tài khoản database.</span></div><div style="height:34px"></div><div class="g2"><div class="kc"><div class="t">Chỉ được đọc</div><div class="v">Tài khoản riêng cho AI, không có quyền ghi</div></div><div class="kc"><div class="t">Cấm cột bí mật</div><div class="v">Cấm ngay ở database, nhờ DBA cài</div></div></div><div style="height:22px"></div><p class="p">Bốn lớp ở trên là <b>phòng hờ</b>. Kể cả khi tất cả cùng hỏng, tài khoản này vẫn không ghi được gì.</p><div class="grow"></div><p class="p">Và xem dữ liệu luôn là bước <b>cuối cùng</b>, sau khi đã đọc tài liệu.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Bạn làm thử</div><h2>Checklist trước khi<br><span class='acc'>cho AI chạm DB</span></h2><div style="height:24px"></div><div class="ck"><div class="y"><i>✓</i><span>Tài khoản riêng, chỉ có quyền đọc</span></div><div class="y"><i>✓</i><span>Công cụ chỉ nhận SELECT, có giới hạn số dòng</span></div><div class="y"><i>✓</i><span>Không khoá bảng, có giới hạn thời gian chờ</span></div><div class="y"><i>✓</i><span>Che cột bí mật trong kết quả</span></div><div class="y"><i>✓</i><span>Mật khẩu không nằm trong chat hay git</span></div></div><div class="grow"></div><p class="p">Thiếu mục đầu tiên thì bốn mục sau chưa đủ.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 6/7</div><div class="t">23 giờ, tài liệu<br>tự viết lại</div></div><div style="height:36px"></div><p class="lead">Hai tuần sau, code đổi. Tài liệu đứng yên. Kho bắt đầu <b>nói dối</b>, và AI tin nó.</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 78.87, "step": 1.1, "scenes": [{"a": 0, "d": 9.32, "subs": [{"from": 0.3, "to": 3.03, "text": "Tài liệu nói đơn được thử lại ba lần."}, {"from": 3.03, "to": 5.47, "text": "Nhưng đơn này thì sao? Muốn chắc,"}, {"from": 5.47, "to": 8.87, "text": "Claude phải nhìn dữ liệu thật trên production."}]}, {"a": 9.32, "d": 8.14, "subs": [{"from": 9.62, "to": 13.08, "text": "Nghe là thấy sợ. AI có thể ghi nhầm dữ liệu,"}, {"from": 13.08, "to": 17.01, "text": "làm khoá bảng, hoặc để lộ mật khẩu vào khung chat."}]}, {"a": 17.46, "d": 10.3, "subs": [{"from": 17.76, "to": 20.29, "text": "Mình bọc database bằng bốn lớp."}, {"from": 20.29, "to": 23.96, "text": "Chỉ nhận một câu SELECT. Phải đọc không khoá."}, {"from": 23.96, "to": 27.31, "text": "Phiên làm việc chỉ đọc. Và luôn rollback."}]}, {"a": 27.76, "d": 8.57, "subs": [{"from": 28.06, "to": 30.97, "text": "Câu lệnh ghi bị từ chối ngay ở công cụ."}, {"from": 30.97, "to": 33.13, "text": "Kết quả tối đa năm mươi dòng,"}, {"from": 33.13, "to": 35.88, "text": "và luôn ghi rõ đang ở môi trường nào."}]}, {"a": 36.33, "d": 8.55, "subs": [{"from": 36.63, "to": 39.54, "text": "Hỏi thẳng cột mật khẩu thì bị từ chối."}, {"from": 39.54, "to": 42.29, "text": "Lỡ lọt qua thì bị che thành dấu sao,"}, {"from": 42.29, "to": 44.43, "text": "kể cả token nằm trong chuỗi."}]}, {"a": 44.88, "d": 8.72, "subs": [{"from": 45.18, "to": 48.79, "text": "Mật khẩu database thì mình tự gõ trong terminal."}, {"from": 48.79, "to": 49.92, "text": "Nó được mã hoá,"}, {"from": 49.92, "to": 53.15, "text": "và hook chặn mọi lệnh cố đọc file cấu hình."}]}, {"a": 53.6, "d": 7.71, "subs": [{"from": 53.9, "to": 57.91, "text": "Nhưng chốt chặn thật vẫn là quyền của tài khoản database:"}, {"from": 57.91, "to": 60.86, "text": "chỉ được đọc. Mấy lớp kia chỉ là phòng hờ."}]}, {"a": 61.31, "d": 8.48, "subs": [{"from": 61.61, "to": 64.16, "text": "Trước khi cho AI chạm vào database,"}, {"from": 64.16, "to": 66.06, "text": "bạn kiểm tra năm việc này."}, {"from": 66.06, "to": 69.34, "text": "Thiếu việc đầu tiên thì bốn việc sau chưa đủ."}]}, {"a": 69.79, "d": 9.08, "subs": [{"from": 70.09, "to": 70.92, "text": "Ở phần sáu,"}, {"from": 70.92, "to": 74.37, "text": "mình chỉ cách để tài liệu tự cập nhật mỗi đêm,"}, {"from": 74.37, "to": 75.79, "text": "trong lúc mình ngủ."}, {"from": 75.79, "to": 78.42, "text": "Follow CodeLens để không bỏ lỡ nhé."}]}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>
