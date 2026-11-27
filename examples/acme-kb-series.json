@@ -289,6 +289,1967 @@
      "codeTitle": ""
     }
    ]
+  },
+  {
+   "id": "acme-kb-p2",
+   "title": "Mình dùng Claude để lập trình (Phần 2): 4 mảnh ghép để Claude “ở” trong repo",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "howto",
+   "hook": "Có kho kiến thức rồi, sao Claude vẫn đi đoán?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "CLAUDE.md, MCP, skill, hook",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 2,
+    "total": 7
+   },
+   "nextTeaser": "Ở phần ba, mình chỉ cách viết một trang tài liệu mà cả QA lẫn Claude đều đọc được.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "KHO CÓ, CLAUDE *KHÔNG MỞ*",
+     "subtitle": "Cần *4 mảnh ghép* để Claude tự làm đúng",
+     "narration": "Phần trước mình đã có kho kiến thức. Nhưng Claude đâu tự biết phải đọc kho trước khi đụng vào code.",
+     "actors": [
+      {
+       "icon": "book",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "CHƯA AI *DẶN LUẬT*",
+     "subtitle": "Kho nằm ngay đó, Claude vẫn *đi đọc code*",
+     "narration": "Mở phiên mới, hỏi lại ticket cũ, Claude vẫn lao vào đọc code. Vì chưa ai dặn nó luật chơi của repo.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "Bạn hỏi",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "Claude",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Đọc code, đoán",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "MẢNH 1: *CLAUDE.MD*",
+     "subtitle": "Luật của team và *mục lục kho*, tự nạp mỗi phiên",
+     "narration": "Mảnh một là file CLAUDE.md. Claude tự nạp nó ở mọi phiên, trong đó có luật của team và mục lục của kho.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Luật của team",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "Mục lục kho",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "Tự nạp mỗi phiên",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "hub",
+     "duration": 4,
+     "heading": "MẢNH 2: *MCP*",
+     "subtitle": "Claude *tự tra kho* như gọi một hàm",
+     "narration": "Mảnh hai là MCP, bộ công cụ để Claude tự tra kho: tìm kiếm, tra một cái tên, hoặc đọc cả trang.",
+     "actors": [
+      {
+       "icon": "robot",
+       "label": "Claude",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "kb_search",
+       "side": ""
+      },
+      {
+       "icon": "key",
+       "label": "kb_lookup",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "kb_get",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "MẢNH 3: *SKILL*",
+     "subtitle": "Gõ *một lệnh*, Claude chạy cả quy trình",
+     "narration": "Mảnh ba là skill, một quy trình viết sẵn. Gõ một lệnh, Claude tự tìm trang tài liệu đã cũ rồi cập nhật.",
+     "actors": [
+      {
+       "icon": "laptop",
+       "label": "/kb-update",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "Tìm trang cũ",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "Cập nhật",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "MẢNH 4: *HOOK*",
+     "subtitle": "Script chạy *trước mỗi lệnh*, chặn việc nguy hiểm",
+     "narration": "Mảnh bốn là hook, một script chạy trước mỗi lệnh. Ghi git, xoá hàng loạt hay đọc file mật khẩu đều bị chặn.",
+     "actors": [
+      {
+       "icon": "shield",
+       "label": "Chặn ghi git",
+       "side": ""
+      },
+      {
+       "icon": "lock",
+       "label": "Chặn file mật khẩu",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Cho qua tra cứu",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "hub",
+     "duration": 4,
+     "heading": "MỘT LỆNH, *CÀI CẢ BỐN*",
+     "subtitle": "Máy nào chạy cũng ra *cùng một cấu hình*",
+     "narration": "Cả bốn mảnh được cài bằng đúng một lệnh. Máy đồng nghiệp chạy lệnh đó là giống hệt máy mình.",
+     "actors": [
+      {
+       "icon": "laptop",
+       "label": "setup.py",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "CLAUDE.md",
+       "side": ""
+      },
+      {
+       "icon": "api",
+       "label": "MCP",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "Skill",
+       "side": ""
+      },
+      {
+       "icon": "shield",
+       "label": "Hook",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 3,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 4,
+       "label": ""
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "CLAUDE *TỰ MỞ KHO*",
+     "subtitle": "Tra kho trước, rồi mới *mở đúng file*",
+     "narration": "Giờ hỏi lại ticket cũ, việc đầu tiên Claude làm là tra kho, rồi mới mở đúng file mà kho trỏ tới.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "Bạn hỏi",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "Tra kho",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Mở đúng file",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BẮT ĐẦU TỪ *MẢNH 1*",
+     "subtitle": "Chưa cần MCP hay hook, chỉ cần *một file*",
+     "narration": "Bạn có thể bắt đầu từ mảnh một: tạo file CLAUDE.md, viết năm điều hay phải nhắc AI, và một mục lục ngắn.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Tạo CLAUDE.md",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Viết 5 luật",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "Thêm mục lục",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "acme-kb-p3",
+   "title": "Mình dùng Claude để lập trình (Phần 3): Một trang tài liệu, hai kiểu người đọc",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "concept",
+   "hook": "Tài liệu kỹ thuật của bạn, QA có đọc nổi không?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "Trang tài liệu cho người và AI",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 3,
+    "total": 7
+   },
+   "nextTeaser": "Ở phần bốn, mình chỉ cách làm cho AI biết nói tôi không biết, thay vì trả lời gần đúng.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "MỘT TRANG, *HAI NGƯỜI ĐỌC*",
+     "subtitle": "QA đọc được, *Claude cũng đọc được*",
+     "narration": "Tài liệu kỹ thuật thường chỉ dev đọc nổi. Trong kho của mình, mỗi trang phải phục vụ cả QA lẫn Claude.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "QA *KHÔNG ĐỌC CODE*",
+     "subtitle": "Lỗi thật, hay *đúng thiết kế*? Test thế nào?",
+     "narration": "Ticket cũ giờ sang tay QA. Chị ấy cần biết đây là lỗi hay đúng thiết kế, và test lại thế nào.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "QA hỏi",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "Tài liệu",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Biết cách test",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "CHIA THEO *CÂU HỎI*",
+     "subtitle": "Mỗi thư mục trả lời *một loại câu hỏi*",
+     "narration": "Kho chia thư mục theo câu hỏi: luồng nghiệp vụ, danh mục lỗi, từng ứng dụng, dữ liệu, và quy ước của team.",
+     "actors": [
+      {
+       "icon": "truck",
+       "label": "Luồng nghiệp vụ",
+       "side": ""
+      },
+      {
+       "icon": "bug",
+       "label": "Danh mục lỗi",
+       "side": ""
+      },
+      {
+       "icon": "server",
+       "label": "Từng ứng dụng",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Dữ liệu, queue",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "NỬA TRÊN: *CHO NGƯỜI*",
+     "subtitle": "Tóm tắt, quy tắc và *cách test*, bằng lời thường",
+     "narration": "Mỗi trang mở đầu bằng tóm tắt và phần viết bằng lời thường: quy tắc là gì, test thế nào. QA chỉ cần đọc tới đó.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Tóm tắt",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Quy tắc",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "Cách test",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "code",
+     "duration": 4,
+     "heading": "VÀI DÒNG *CHO MÁY*",
+     "subtitle": "File code nào, bảng nào, *kiểm tra khi nào*",
+     "narration": "Đầu mỗi trang có vài dòng cho máy đọc: trang dựa trên file code nào, và lần cuối được kiểm tra khi nào.",
+     "actors": [],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "---\ntitle: Đồng bộ đơn sang kho\n!!sources:\n!!  - OrderService/OrderSyncJob.cs\ntables: [Orders, OrderSyncErrors]\n!!verified: 2026-11-20\n---",
+     "codeTitle": "dong-bo-don-sang-kho.md"
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "MÁY *TỰ LIỆT KÊ*",
+     "subtitle": "Người viết *vì sao*, máy liệt kê *có gì*",
+     "narration": "Phần liệt kê thì mình để script quét từ code: mọi bảng, mọi queue, mọi câu báo lỗi. Không ai phải gõ tay.",
+     "actors": [
+      {
+       "icon": "code",
+       "label": "Code",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "Script quét",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "Danh mục",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "compare",
+     "duration": 4,
+     "heading": "CÙNG TRANG, *HAI CÁCH HỎI*",
+     "subtitle": "QA nhận lời thường, dev nhận *đường tới code*",
+     "narration": "Khi QA nhờ Claude giải thích, Claude trả lời bằng đúng phần viết cho người làm nghiệp vụ.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "QA: lời thường",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Dev: tới code",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "THỬ VIẾT *MỘT TRANG*",
+     "subtitle": "Chọn luồng *hay bị hỏi nhất* trong team",
+     "narration": "Bạn thử viết một trang cho luồng hay bị hỏi nhất, rồi đưa một bạn QA đọc. Bạn ấy hiểu là đạt.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Summary",
+       "side": ""
+      },
+      {
+       "icon": "person",
+       "label": "Business view",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Steps",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "sources, verified",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "acme-kb-p4",
+   "title": "Mình dùng Claude để lập trình (Phần 4): Dạy AI nói “tôi không biết”",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "concept",
+   "hook": "AI trả lời gần đúng còn nguy hiểm hơn trả lời sai?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "Nhãn tin cậy cho kết quả tìm kiếm",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 4,
+    "total": 7
+   },
+   "nextTeaser": "Ở phần năm, mình cho Claude nhìn vào database production, mà vẫn ngủ ngon.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "DẠY AI NÓI *KHÔNG BIẾT*",
+     "subtitle": "Câu trả lời *gần đúng* mới là câu nguy hiểm",
+     "narration": "Có kho rồi vẫn chưa yên. Hỏi một thứ kho chưa viết, AI sẽ lấy trang gần giống nhất và trả lời như thật.",
+     "actors": [
+      {
+       "icon": "robot",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "compare",
+     "duration": 4,
+     "heading": "KHO THIẾU, AI *MƯỢN TẠM*",
+     "subtitle": "Hỏi job hoàn tiền, nhận câu trả lời của *job khác*",
+     "narration": "Ví dụ mình hỏi về job hoàn tiền, mà kho chỉ có trang về job đồng bộ đơn. Claude mượn tạm trang đó.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Kho: đồng bộ đơn",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Hỏi: hoàn tiền",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "TÌM BẰNG *HAI CÁCH*",
+     "subtitle": "Từ khoá và ý nghĩa, *trộn làm một*",
+     "narration": "Đầu tiên là tìm cho chuẩn. Kho tìm theo từ khoá và theo ý nghĩa cùng lúc, rồi trộn kết quả.",
+     "actors": [
+      {
+       "icon": "key",
+       "label": "Từ khoá",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "Ý nghĩa",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Trộn kết quả",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "KẾT QUẢ *TỰ KHAI*",
+     "subtitle": "Ai viết, ai duyệt, *còn mới hay đã cũ*",
+     "narration": "Mỗi kết quả tự khai độ tin cậy. Trang AI viết mà chưa ai duyệt thì có nhãn. Trang mà code đã đổi thì bị đánh dấu cũ.",
+     "actors": [
+      {
+       "icon": "robot",
+       "label": "AI viết, chưa duyệt",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Đã cũ",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Người đã duyệt",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "KHO THIẾU? *NÓI THẲNG*",
+     "subtitle": "Báo *kho còn thiếu* và chỉ đúng file cần đọc",
+     "narration": "Quan trọng nhất: hỏi một cái tên có trong code mà kho chưa viết, công cụ báo thẳng là kho còn thiếu, và chỉ đúng file cần đọc.",
+     "actors": [
+      {
+       "icon": "search",
+       "label": "Hỏi tên lạ",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Báo kho thiếu",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Đọc đúng file",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "compare",
+     "duration": 4,
+     "heading": "KHÔNG CÓ? *TAY TRẮNG*",
+     "subtitle": "Không cố nhét *một kết quả cho có*",
+     "narration": "Còn hỏi lạc đề thì công cụ trả về không có kết quả, chứ không cố nhét một trang cho có.",
+     "actors": [
+      {
+       "icon": "cross",
+       "label": "Kết quả gần nhất",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Không có kết quả",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "TRẢ LỜI TỆ? *THÊM TEST*",
+     "subtitle": "Câu hỏi thật thành *bài kiểm tra* cho tìm kiếm",
+     "narration": "Mỗi lần một câu hỏi thật bị trả lời tệ, mình thêm nó vào bộ kiểm tra, để lần chỉnh sau không làm hỏng lại.",
+     "actors": [
+      {
+       "icon": "bug",
+       "label": "Trả lời tệ",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "Thêm vào bộ test",
+       "side": ""
+      },
+      {
+       "icon": "chart",
+       "label": "Đo lại",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BA NHÃN *NÊN CÓ*",
+     "subtitle": "Dùng được cho wiki, RAG, *tài liệu nội bộ*",
+     "narration": "Bạn có thể thêm ba nhãn này vào bất cứ thứ gì đưa cho AI đọc: ai duyệt, mới hay cũ, và chưa có tài liệu.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "Ai viết, ai duyệt",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Mới hay cũ",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Chưa có tài liệu",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "acme-kb-p5",
+   "title": "Mình dùng Claude để lập trình (Phần 5): Cho AI nhìn vào database production",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "architecture",
+   "hook": "Bạn có dám cho AI chạy truy vấn trên production không?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "Truy vấn chỉ-đọc nhiều lớp",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 5,
+    "total": 7
+   },
+   "nextTeaser": "Ở phần sáu, mình chỉ cách để tài liệu tự cập nhật mỗi đêm, trong lúc mình ngủ.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "AI NHÌN VÀO *PRODUCTION*",
+     "subtitle": "Xem dữ liệu thật, mà vẫn *ngủ ngon*",
+     "narration": "Tài liệu nói đơn được thử lại ba lần. Nhưng đơn này thì sao? Muốn chắc, Claude phải nhìn dữ liệu thật trên production.",
+     "actors": [
+      {
+       "icon": "robot",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "shield",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BA *NỖI SỢ*",
+     "subtitle": "Ghi nhầm, khoá bảng, *lộ mật khẩu*",
+     "narration": "Nghe là thấy sợ. AI có thể ghi nhầm dữ liệu, làm khoá bảng, hoặc để lộ mật khẩu vào khung chat.",
+     "actors": [
+      {
+       "icon": "cross",
+       "label": "Ghi nhầm dữ liệu",
+       "side": ""
+      },
+      {
+       "icon": "lock",
+       "label": "Khoá bảng",
+       "side": ""
+      },
+      {
+       "icon": "key",
+       "label": "Lộ mật khẩu",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BỐN LỚP *CHỈ ĐỌC*",
+     "subtitle": "Sót một lớp thì *còn ba lớp sau*",
+     "narration": "Mình bọc database bằng bốn lớp. Chỉ nhận một câu SELECT. Phải đọc không khoá. Phiên làm việc chỉ đọc. Và luôn rollback.",
+     "actors": [
+      {
+       "icon": "check",
+       "label": "Chỉ SELECT",
+       "side": ""
+      },
+      {
+       "icon": "door",
+       "label": "Đọc không khoá",
+       "side": ""
+      },
+      {
+       "icon": "lock",
+       "label": "Phiên chỉ đọc",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Luôn rollback",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "code",
+     "duration": 4,
+     "heading": "SAI LUẬT, *TỪ CHỐI NGAY*",
+     "subtitle": "Câu lệnh ghi *không bao giờ* tới được database",
+     "narration": "Câu lệnh ghi bị từ chối ngay ở công cụ. Kết quả tối đa năm mươi dòng, và luôn ghi rõ đang ở môi trường nào.",
+     "actors": [],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "UPDATE Orders SET Synced = 1\n!!-- từ chối: chỉ nhận SELECT\n\nSELECT * FROM OrderSyncErrors\n  WITH (NOLOCK)\n  WHERE OrderId = 10293\n-- [env: prod] 3 dòng",
+     "codeTitle": "db_query"
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BÍ MẬT *BỊ CHE*",
+     "subtitle": "Hỏi thẳng thì từ chối, lọt qua thì *che lại*",
+     "narration": "Hỏi thẳng cột mật khẩu thì bị từ chối. Lỡ lọt qua thì bị che thành dấu sao, kể cả token nằm trong chuỗi.",
+     "actors": [
+      {
+       "icon": "cross",
+       "label": "Từ chối cột bí mật",
+       "side": ""
+      },
+      {
+       "icon": "lock",
+       "label": "Che thành dấu sao",
+       "side": ""
+      },
+      {
+       "icon": "key",
+       "label": "Che cả token",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "MẬT KHẨU *NGOÀI CHAT*",
+     "subtitle": "AI dùng kết nối, *không thấy mật khẩu*",
+     "narration": "Mật khẩu database thì mình tự gõ trong terminal. Nó được mã hoá, và hook chặn mọi lệnh cố đọc file cấu hình.",
+     "actors": [
+      {
+       "icon": "person",
+       "label": "Bạn tự gõ",
+       "side": ""
+      },
+      {
+       "icon": "lock",
+       "label": "Mã hoá",
+       "side": ""
+      },
+      {
+       "icon": "shield",
+       "label": "Hook chặn đọc",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "hub",
+     "duration": 4,
+     "heading": "CHỐT CHẶN *THẬT*",
+     "subtitle": "Tài khoản *chỉ được đọc*, cấm cột bí mật",
+     "narration": "Nhưng chốt chặn thật vẫn là quyền của tài khoản database: chỉ được đọc. Mấy lớp kia chỉ là phòng hờ.",
+     "actors": [
+      {
+       "icon": "database",
+       "label": "Tài khoản DB",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Chỉ đọc",
+       "side": ""
+      },
+      {
+       "icon": "cross",
+       "label": "Cấm cột bí mật",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "CHECKLIST *NĂM MỤC*",
+     "subtitle": "Thiếu mục đầu thì *bốn mục sau chưa đủ*",
+     "narration": "Trước khi cho AI chạm vào database, bạn kiểm tra năm việc này. Thiếu việc đầu tiên thì bốn việc sau chưa đủ.",
+     "actors": [
+      {
+       "icon": "key",
+       "label": "Tài khoản chỉ đọc",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Chỉ SELECT",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Có giới hạn",
+       "side": ""
+      },
+      {
+       "icon": "lock",
+       "label": "Che bí mật",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "acme-kb-p6",
+   "title": "Mình dùng Claude để lập trình (Phần 6): 23 giờ, tài liệu tự viết lại",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "howto",
+   "hook": "Tài liệu của bạn còn đúng được bao lâu sau khi viết?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "Tự cập nhật tài liệu, người duyệt",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 6,
+    "total": 7
+   },
+   "nextTeaser": "Ở phần cuối, kho kiến thức trở thành công cụ trực sự cố: dán một dòng lỗi là biết nó ở đâu.",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "TÀI LIỆU *TỰ VIẾT LẠI*",
+     "subtitle": "Mỗi đêm lúc *23 giờ*, trong lúc bạn ngủ",
+     "narration": "Kho kiến thức có một kẻ thù: thời gian. Hai tuần sau, code đổi, tài liệu thành sai, và AI lại tự tin đọc cái sai đó.",
+     "actors": [
+      {
+       "icon": "clock",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "before-after",
+     "duration": 4,
+     "heading": "CODE ĐỔI, *KHO ĐỨNG YÊN*",
+     "subtitle": "Code ghi 5 lần, tài liệu *vẫn ghi 3*",
+     "narration": "Ví dụ ai đó sửa số lần thử lại từ ba lên năm. Trang tài liệu vẫn ghi ba. Từ giây phút đó, kho bắt đầu nói dối.",
+     "actors": [
+      {
+       "icon": "code",
+       "label": "Code: 5 lần",
+       "side": "L"
+      },
+      {
+       "icon": "document",
+       "label": "Kho: 3 lần",
+       "side": "R"
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "CODE",
+     "right": "TÀI LIỆU",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "BIẾT TRANG *ĐÃ CŨ*",
+     "subtitle": "So *file nguồn* của trang với lịch sử git",
+     "narration": "Nhờ mỗi trang ghi rõ nó dựa trên file nào, một script so với lịch sử git và biết ngay trang nào đã cũ.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Trang ghi nguồn",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "So với git",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Báo trang cũ",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "CA ĐÊM *CỦA CLAUDE*",
+     "subtitle": "Test trước, *3 worker* song song, 1 integrator",
+     "narration": "Mỗi đêm, một job tự chạy. Nó chạy test trước, rồi giao cho ba worker Claude cập nhật song song, và một integrator gom lại.",
+     "actors": [
+      {
+       "icon": "check",
+       "label": "Chạy test",
+       "side": ""
+      },
+      {
+       "icon": "group",
+       "label": "3 worker",
+       "side": ""
+      },
+      {
+       "icon": "manager",
+       "label": "Integrator",
+       "side": ""
+      },
+      {
+       "icon": "document",
+       "label": "Báo cáo",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 2,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "compare",
+     "duration": 4,
+     "heading": "CA ĐÊM *BỊ TRÓI TAY*",
+     "subtitle": "Không ai canh thì quyền phải *hẹp hơn*",
+     "narration": "Vì không ai canh, ca đêm bị trói tay. Nó được sửa trong kho, nhưng không được commit, không đụng database, không lên mạng.",
+     "actors": [
+      {
+       "icon": "check",
+       "label": "Đọc, sửa trong kho",
+       "side": ""
+      },
+      {
+       "icon": "cross",
+       "label": "Commit, database",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "SÁNG RA *ĐỌC BÁO CÁO*",
+     "subtitle": "Sửa gì, vì sao, và *trang nào chờ duyệt*",
+     "narration": "Sáng ra mình đọc báo cáo: trang nào đã sửa và vì sao, trang nào đang chờ mình duyệt.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Đã sửa",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Còn đúng",
+       "side": ""
+      },
+      {
+       "icon": "person",
+       "label": "Chờ bạn duyệt",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "AI SỬA, *NGƯỜI DUYỆT*",
+     "subtitle": "Job *không bao giờ* tự commit",
+     "narration": "Trang AI sửa đều mang nhãn chưa duyệt. Mình xem phần thay đổi, bấm duyệt, rồi tự tay commit.",
+     "actors": [
+      {
+       "icon": "robot",
+       "label": "AI sửa",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "Bạn xem diff",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Bạn duyệt",
+       "side": ""
+      },
+      {
+       "icon": "key",
+       "label": "Bạn commit",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 2,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "BẮT ĐẦU *TỪ NHỎ*",
+     "subtitle": "Chỉ cần biết trang nào *đang nói dối*",
+     "narration": "Bạn chưa cần job đêm. Chỉ cần ghi nguồn và ngày kiểm tra cho mỗi trang, rồi viết một script hỏi git.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "Ghi nguồn",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Ghi ngày kiểm tra",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Script hỏi git",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "acme-kb-p7",
+   "title": "Mình dùng Claude để lập trình (Phần 7): Dán một dòng lỗi, biết ngay nó ở đâu",
+   "topic": "Kho kiến thức cho AI trong repo",
+   "category": "AI",
+   "format": "architecture",
+   "hook": "Đang trực mà gặp lỗi lạ, bạn mở gì đầu tiên?",
+   "metaphor": "Ticket: khách đã thanh toán nhưng kho không nhận được đơn, trong hệ thống đặt hàng giả định của Acme",
+   "concept": "Trace, Triage, Health từ kho kiến thức",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": false,
+   "reviewNotes": [],
+   "series": {
+    "id": "acme-kb-series",
+    "title": "Mình dùng Claude để lập trình: acme-kb",
+    "part": 7,
+    "total": 7
+   },
+   "nextTeaser": "",
+   "scenes": [
+    {
+     "part": "intro",
+     "layout": "title",
+     "duration": 4,
+     "heading": "DÁN LỖI, *BIẾT NGAY*",
+     "subtitle": "Kho kiến thức thành *công cụ trực sự cố*",
+     "narration": "Phần cuối. Một ticket giống hệt quay lại lúc mình đang trực. Lần này mình không mở code, mình mở trình duyệt.",
+     "actors": [
+      {
+       "icon": "bug",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "hub",
+     "duration": 4,
+     "heading": "MỞ *TRÌNH DUYỆT*",
+     "subtitle": "Ba công cụ *không dùng AI*, không tốn phí",
+     "narration": "Kho có thêm một giao diện web chạy ngay trên máy. Ba công cụ chính không dùng AI nên không tốn phí.",
+     "actors": [
+      {
+       "icon": "browser",
+       "label": "Giao diện kho",
+       "side": ""
+      },
+      {
+       "icon": "search",
+       "label": "Trace",
+       "side": ""
+      },
+      {
+       "icon": "bug",
+       "label": "Triage",
+       "side": ""
+      },
+      {
+       "icon": "chart",
+       "label": "Health",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 0,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": 0,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "TRACE: *DÒNG THỜI GIAN*",
+     "subtitle": "Gõ mã đơn, thấy đơn *đi qua những đâu*",
+     "narration": "Trace: gõ mã đơn, vài giây sau có dòng thời gian của đơn đó, gom từ nhiều bảng, kèm các điểm bất thường.",
+     "actors": [
+      {
+       "icon": "cart",
+       "label": "Thanh toán",
+       "side": ""
+      },
+      {
+       "icon": "queue",
+       "label": "Gửi sang kho",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Lỗi 3 lần",
+       "side": ""
+      },
+      {
+       "icon": "database",
+       "label": "Bảng lỗi",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      },
+      {
+       "from": 2,
+       "to": 3,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": {
+      "index": 2,
+      "type": "cross"
+     },
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "TRIAGE: *PHÁN QUYẾT*",
+     "subtitle": "Lỗi mới, *tăng vọt*, hay chỉ là nhiễu cũ?",
+     "narration": "Triage: dán một dòng lỗi vào, nó cho biết lỗi này mới, đang tăng vọt hay chỉ là nhiễu cũ, và được ném ra ở file nào.",
+     "actors": [
+      {
+       "icon": "bug",
+       "label": "Dán dòng lỗi",
+       "side": ""
+      },
+      {
+       "icon": "chart",
+       "label": "Mới hay cũ",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Ném ra ở đâu",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "HEALTH: *CÁI GÌ HỎNG?*",
+     "subtitle": "So lỗi hôm nay với *mức thường ngày*",
+     "narration": "Health cho biết cái gì đang hỏng, bằng các thẻ đỏ, vàng, xanh. Mỗi thẻ so lỗi hôm nay với mức thường ngày.",
+     "actors": [
+      {
+       "icon": "cross",
+       "label": "Đỏ: tăng vọt",
+       "side": ""
+      },
+      {
+       "icon": "warning",
+       "label": "Vàng: như mọi ngày",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Xanh: ổn",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "flow",
+     "duration": 4,
+     "heading": "HỎI AI, *KÈM DỮ LIỆU*",
+     "subtitle": "Trả lời từ kho, *có dẫn nguồn*, không sửa gì",
+     "narration": "Cần giải thích thì mình hỏi AI, kèm luôn dữ liệu vừa trace. Claude trả lời từ kho, có dẫn nguồn, và không sửa được gì.",
+     "actors": [
+      {
+       "icon": "search",
+       "label": "Dữ liệu trace",
+       "side": ""
+      },
+      {
+       "icon": "robot",
+       "label": "Claude",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "Dẫn nguồn",
+       "side": ""
+      }
+     ],
+     "links": [
+      {
+       "from": 0,
+       "to": 1,
+       "label": ""
+      },
+      {
+       "from": 1,
+       "to": 2,
+       "label": ""
+      }
+     ],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "body",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "TICKET *ĐÓNG*",
+     "subtitle": "Bảy lớp, *một kho kiến thức* trong repo",
+     "narration": "Vậy là ticket được đóng, nhờ từng lớp trong series: kho kiến thức, bốn mảnh ghép, nhãn tin cậy, database chỉ đọc, và ca đêm.",
+     "actors": [
+      {
+       "icon": "book",
+       "label": "Kho kiến thức",
+       "side": ""
+      },
+      {
+       "icon": "gear",
+       "label": "4 mảnh ghép",
+       "side": ""
+      },
+      {
+       "icon": "shield",
+       "label": "Database chỉ đọc",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Ca đêm",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    },
+    {
+     "part": "outro",
+     "layout": "stack",
+     "duration": 4,
+     "heading": "NĂM BƯỚC *CHO BẠN*",
+     "subtitle": "Viết luật, viết 3 trang, rồi mới *tính tới công cụ*",
+     "narration": "Bạn có thể bắt đầu ngay: viết file luật, viết ba trang cho ba luồng hay bị hỏi nhất, rồi mới tính tới công cụ.",
+     "actors": [
+      {
+       "icon": "document",
+       "label": "CLAUDE.md",
+       "side": ""
+      },
+      {
+       "icon": "book",
+       "label": "3 trang đầu",
+       "side": ""
+      },
+      {
+       "icon": "clock",
+       "label": "Nguồn, ngày",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "Script báo cũ",
+       "side": ""
+      }
+     ],
+     "links": [],
+     "focus": -1,
+     "mark": null,
+     "left": "",
+     "right": "",
+     "code": "",
+     "codeTitle": ""
+    }
+   ]
   }
  ]
 }

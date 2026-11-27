@@ -7,6 +7,7 @@ const path = require("path");
   const p = await b.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: +(scale || 2) });
   await p.goto("file://" + path.resolve(page));
   await p.evaluate(() => document.fonts.ready);
+  await p.waitForFunction(() => window.FITTED !== false);
   const n = await p.locator(".s").count();
   for (let i = 0; i < n; i++) {
     const el = p.locator(".s").nth(i);

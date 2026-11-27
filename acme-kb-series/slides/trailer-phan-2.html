@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><title>acme-kb · trailer-phan-2</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="kit.css">
+<style>body{--acc:#4da3ff}.fitc{display:flex;flex-direction:column;width:928px}.fitc>*{flex-shrink:0}
+body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+.bgfx{position:absolute;inset:0;background:radial-gradient(1100px 900px at 105% -5%,color-mix(in srgb,var(--acc) 28%,transparent),transparent 60%),radial-gradient(900px 800px at -15% 105%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%)}
+.gridbg{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.brandbar{position:absolute;left:76px;right:76px;top:110px;display:flex;justify-content:space-between;font-size:28px;font-weight:600;color:var(--mut);letter-spacing:.04em}
+.prog{position:absolute;left:76px;right:76px;top:170px;height:6px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.sc{position:absolute;left:0;right:0;top:230px;height:1230px;display:flex;align-items:center;justify-content:center;animation:sc var(--d) linear var(--a) both}
+.sc.last{animation-name:sclast}
+.fit{width:928px;display:flex;flex-direction:column}
+.fit>*{flex-shrink:0}
+.fit .grow{height:34px;flex:none}
+@keyframes sc{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes sclast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.in{animation:in .7s cubic-bezier(.2,.8,.2,1) calc(var(--a) + var(--t)) both}
+@keyframes in{from{opacity:0;transform:translateY(50px)}to{opacity:1;transform:none}}
+#sub{position:absolute;left:60px;right:60px;top:1490px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center}
+#sub span{background:#000000cc;border-radius:20px;padding:14px 28px;font-size:40px;font-weight:700;line-height:1.3;color:#fff}
+</style></head><body>
+<div class="bgfx"></div><div class="gridbg"></div>
+<div class="brandbar"><div class="brand"><i></i>CODELENS</div><div>Series · Phần 2/7</div></div>
+<div class="prog"><i id="bar"></i></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Mình dùng Claude để lập trình · Phần 2/7</div><h1>Có kho rồi.<br>Nhưng Claude<br><span class='acc'>không biết mở.</span></h1><div style="height:40px"></div><div class="puz"><div>CLAUDE.md<span>luật</span></div><div>MCP<span>công cụ</span></div><div>Skill<span>quy trình</span></div><div>Hook<span>bảo vệ</span></div></div><div class="grow"></div><p class="lead">4 mảnh ghép để Claude tự làm đúng, ngay trong repo của bạn.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Ticket #4827, phiên mới</div><h2>Kho nằm ngay đó.<br><span class='acc'>Claude vẫn đoán.</span></h2><div style="height:32px"></div><div class="chat"><div class="chat-h"><span>Phiên mới</span><span>Thứ Tư · 08:40</span></div><div class="chat-b"><div class="bub me">Vì sao đơn đã thanh toán mà không sang kho?</div><div class="bub ai"><div class="who"><i></i>Claude</div>Để mình đọc code trong <b>OrderService</b> xem sao…</div></div></div><div style="height:28px"></div><p class="p">Không ai nói cho Claude biết <b>luật chơi của repo này</b>: có kho, kho nằm ở đâu, và phải đọc kho trước.</p><div class="grow"></div><p class="p">Giống nhân viên mới ngày đầu đi làm mà không ai dặn gì.</p>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Ráp lại</div><h2>Một lệnh,<br><span class='acc'>cài cả bốn.</span></h2><div style="height:28px"></div><div class="term"><div class="tb"><i></i><i></i><i></i>Terminal</div><pre><span class='a'>&gt;</span> <span class='w'>python setup/setup.py</span>
+
+<span class='g'>✓</span> Tạo môi trường Python
+<span class='g'>✓</span> Cài skill /kb-update
+<span class='g'>✓</span> Gắn hook bảo vệ
+<span class='g'>✓</span> Đăng ký MCP server
+<span class='g'>✓</span> Viết CLAUDE.md</pre></div><div style="height:24px"></div><p class="p">Chạy lại bao nhiêu lần cũng được. Máy đồng nghiệp chỉ cần đúng lệnh này.</p><div style="height:14px"></div><div class="tabs"><span>Cũng cài được cho</span><span>Codex</span><span>Copilot</span><span>Grok</span></div><div class="grow"></div>
+</div></div>
+<div class="sc"><div class="fit">
+<div class="eyebrow">Ticket #4827, lần ba</div><h2>Lần này, Claude<br><span class='ok'>tự mở kho.</span></h2><div style="height:28px"></div><div class="chat"><div class="chat-h"><span>Phiên mới</span><span>Thứ Năm · 09:10</span></div><div class="chat-b"><div class="bub me">Vì sao đơn đã thanh toán mà không sang kho?</div><div class="bub ai"><div class="who"><i></i>Claude</div><span class='mono' style='font-size:25px;color:#969dad'>kb_search(“đơn không sang kho”)</span><br>Theo trang <b>flows/dong-bo-don-sang-kho.md</b>: đơn được gửi lại tối đa 3 lần, hết lượt thì ghi vào bảng <b>OrderSyncErrors</b>. Mình mở file kho trỏ tới để kiểm tra.</div></div></div><div class="grow"></div><p class="p">Không ai nhắc. Việc đầu tiên Claude làm là <b>tra kho</b>.</p>
+</div></div>
+<div class="sc last"><div class="fit">
+<div class="eyebrow">Phần sau · sắp đăng</div><div class="nextbox"><div class="n">PHẦN 3/7</div><div class="t">Một trang tài liệu,<br>hai kiểu người đọc</div></div><div style="height:36px"></div><p class="lead">QA không đọc code. Claude không đọc được suy nghĩ. Vậy viết một trang thế nào cho <b>cả hai cùng hiểu</b>?</p><div class="grow"></div><div class="cta"><span>Follow CodeLens để xem tiếp</span><span>→</span></div>
+</div></div>
+<div id="sub"><span></span></div>
+<script>
+const CLIP = {"total": 21.0, "step": 0.5, "scenes": [{"a": 0, "d": 4.0}, {"a": 4.0, "d": 4.0}, {"a": 8.0, "d": 4.0}, {"a": 12.0, "d": 4.0}, {"a": 16.0, "d": 5.0}]};
+const scs = [...document.querySelectorAll(".sc")];
+scs.forEach((el, i) => {
+  const c = CLIP.scenes[i]; el.style.setProperty("--a", c.a + "s"); el.style.setProperty("--d", c.d + "s");
+  const kids = [...el.querySelector(".fit").children].filter(k => !k.classList.contains("grow"));
+  const step = Math.min(CLIP.step, Math.max(0.3, (c.d - 2.6) / kids.length));
+  kids.forEach((k, j) => { k.classList.add("in"); k.style.setProperty("--t", (0.15 + j * step).toFixed(2) + "s"); });
+});
+const subs = CLIP.scenes.flatMap(s => s.subs || []), sub = document.querySelector("#sub span"), bar = document.getElementById("bar");
+let fitted = false;
+window.DURATION = CLIP.total;
+window.render = t => {
+  if (!fitted) { // phóng mỗi cảnh cho vừa khung, sau khi font đã nạp
+    fitted = true;
+    document.querySelectorAll(".sc").forEach(sc => {
+      const f = sc.querySelector(".fit"), o = sc.style.animation; sc.style.animation = "none"; sc.style.opacity = 1;
+      const box = sc.getBoundingClientRect();
+      for (let z = 1.5; z >= 0.6; z -= 0.02) { f.style.zoom = z; f.style.width = 968 / z + "px"; if (f.getBoundingClientRect().height <= box.height) break; }
+      sc.style.animation = o; sc.style.opacity = "";
+    });
+  }
+  document.getAnimations().forEach(a => { a.pause(); a.currentTime = t * 1000; });
+  const s = subs.find(x => t >= x.from && t < x.to + 0.15);
+  sub.textContent = s ? s.text : ""; sub.parentNode.style.visibility = s ? "visible" : "hidden";
+  bar.style.width = Math.min(100, t / CLIP.total * 100) + "%";
+};
+</script></body></html>

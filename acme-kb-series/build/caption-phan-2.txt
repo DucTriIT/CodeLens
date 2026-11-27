@@ -1,0 +1,52 @@
+PHẦN 2: 4 MẢNH GHÉP ĐỂ CLAUDE “Ở” TRONG REPO
+
+=== CAPTION BÀI ĐĂNG ===
+
+Bạn viết tài liệu rất kỹ, rồi AI... không thèm mở ra đọc 👇
+
+Có kho kiến thức mới là một nửa. Nửa còn lại là làm cho Claude tự biết dùng nó. Mình ráp 4 mảnh:
+
+👉 CLAUDE.md: tờ nội quy, Claude tự đọc ở mọi phiên
+👉 MCP: bộ công cụ để Claude tự tra kho
+👉 Skill: quy trình viết sẵn, gõ một lệnh là chạy
+👉 Hook: bảo vệ đứng cổng, chặn lệnh nguy hiểm
+
+Cả bốn cài bằng một lệnh. Máy đồng nghiệp chạy đúng lệnh đó là xong.
+
+Bạn chưa cần làm hết. Bắt đầu từ mảnh 1, mất khoảng 15 phút (xem ảnh 9).
+
+Bạn đang dùng mảnh nào rồi? Bình luận cho mình biết 👇
+
+#codelens #claude #claudecode #AI #laptrinh
+
+=== CHÚ THÍCH TỪNG ẢNH ===
+
+01.png
+Có kho kiến thức rồi vẫn chưa xong: Claude không tự biết phải mở kho ra đọc. Cần thêm 4 mảnh ghép 👉
+
+02.png
+Mở phiên mới, Claude vẫn lao vào đọc code và đoán. Vì chưa ai dặn nó luật chơi của repo.
+
+03.png
+Mảnh 1: CLAUDE.md. Một file ghi luật của team và mục lục kho. Claude tự đọc nó ở mọi phiên, bạn không phải nhắc lại.
+
+04.png
+Mảnh 2: MCP. Bộ công cụ để Claude tự tìm trong kho, tra một cái tên, hoặc đọc trọn một trang. Hết cảnh dán tài liệu vào chat.
+
+05.png
+Mảnh 3: Skill. Một quy trình viết sẵn. Gõ /kb-update là Claude tự tìm trang tài liệu đã cũ và cập nhật.
+
+06.png
+Mảnh 4: Hook. Một script chạy trước mỗi lệnh của Claude. Ghi git, xoá hàng loạt, đọc file mật khẩu đều bị chặn.
+
+07.png
+Cả 4 mảnh được cài bằng một lệnh duy nhất. Máy đồng nghiệp chạy đúng lệnh đó là giống hệt máy mình.
+
+08.png
+Ráp đủ 4 mảnh: mở phiên mới, việc đầu tiên Claude làm là tra kho, rồi mới mở đúng file cần xem.
+
+09.png
+Bạn làm thử: tạo CLAUDE.md ở gốc repo, viết 5 điều hay phải nhắc AI nhất, thêm một mục lục ngắn. Khoảng 15 phút.
+
+10.png
+Phần 3: viết một trang tài liệu thế nào để cả QA lẫn Claude đều đọc được? Follow CodeLens để xem tiếp.
