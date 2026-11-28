@@ -1,0 +1,688 @@
+{
+ "app": "codelens",
+ "version": 1,
+ "scripts": [
+  {
+   "id": "leetcode-200-number-of-islands",
+   "title": "LeetCode 200: Number of Islands (DFS trên lưới)",
+   "topic": "LeetCode 200",
+   "category": "Algorithm",
+   "format": "algo",
+   "hook": "Grid 4x5 có 7 ô đất nhưng đáp án đúng chỉ là 3 đảo: đếm ô '1' thì sai hơn gấp đôi.",
+   "metaphor": "App cảnh báo thiên tai đếm vùng ngập trên bản đồ vệ tinh: grid 4x5 có hàng 11000, 11000, 00100, 00011, đếm ô '1' ra 7 nhưng đáp án đúng là 3 đảo.",
+   "concept": "DFS loang và đánh dấu đã thăm (flood fill) để đếm thành phần liên thông trên grid",
+   "status": "draft",
+   "createdBy": "user",
+   "reviewed": true,
+   "reviewNotes": [],
+   "scenes": [
+    {
+     "actors": [
+      {
+       "icon": "globe",
+       "label": "Grid 4x5",
+       "side": ""
+      },
+      {
+       "icon": "chart",
+       "label": "3 đảo",
+       "side": ""
+      }
+     ],
+     "code": "",
+     "codeTitle": "",
+     "duration": 4,
+     "focus": 1,
+     "heading": "Đếm *đảo* trên lưới",
+     "layout": "title",
+     "left": "",
+     "links": [
+      {
+       "from": 0,
+       "label": "đếm",
+       "to": 1
+      }
+     ],
+     "mark": null,
+     "narration": "Giả sử app cảnh báo thiên tai của bạn đếm ô đất trên grid này ra 7, trong khi đáp án đúng là 3. Đây là LeetCode 200. Ô '1' là đất, ô '0' là nước, và đảo là nhóm ô đất nối nhau theo bốn hướng, đường chéo không tính.",
+     "part": "intro",
+     "right": "",
+     "subtitle": "Lưới 4x5 có 7 ô đất nhưng chỉ có *3 đảo*"
+    },
+    {
+     "part": "intro",
+     "layout": "matrix",
+     "duration": 4,
+     "heading": "Đếm ô là *sai*",
+     "subtitle": "Đếm ô đất cho ra *7*, trong khi đáp án là 3",
+     "narration": "Cách ngây thơ nhất là quét cả lưới, gặp ô đất nào thì cộng một.",
+     "actors": [],
+     "links": [],
+     "rows": [
+      "11000",
+      "11000",
+      "00100",
+      "00011"
+     ],
+     "steps": [
+      {
+       "say": "Mình quét từng hàng từ trái sang phải. Hai ô đầu của hàng 0 đều là đất nên biến đếm đã lên 2.",
+       "at": [
+        0,
+        1
+       ],
+       "hi": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         1
+        ]
+       ],
+       "vars": {
+        "count": "2"
+       }
+      },
+      {
+       "say": "Sang hàng 1 lại gặp thêm hai ô đất nữa, biến đếm thành 4. Nhưng bốn ô này dính liền nhau, thật ra chỉ là một hòn đảo.",
+       "at": [
+        1,
+        1
+       ],
+       "hi": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         1
+        ],
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         1
+        ]
+       ],
+       "vars": {
+        "count": "4"
+       }
+      },
+      {
+       "say": "Quét hết lưới thì ra 7, trong khi đáp án đúng là 3. Cách này đếm ô chứ không đếm nhóm ô nối nhau, nên sai.",
+       "at": [
+        3,
+        4
+       ],
+       "hi": [
+        [
+         0,
+         0
+        ],
+        [
+         0,
+         1
+        ],
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         1
+        ],
+        [
+         2,
+         2
+        ],
+        [
+         3,
+         3
+        ],
+        [
+         3,
+         4
+        ]
+       ],
+       "vars": {
+        "count": "7"
+       }
+      }
+     ]
+    },
+    {
+     "actors": [
+      {
+       "icon": "search",
+       "label": "Gặp ô 1",
+       "side": ""
+      },
+      {
+       "icon": "code",
+       "label": "DFS loang",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Đã thăm",
+       "side": ""
+      }
+     ],
+     "code": "",
+     "codeTitle": "",
+     "duration": 7,
+     "focus": 1,
+     "heading": "Loang và *đánh dấu*",
+     "layout": "title",
+     "left": "",
+     "links": [
+      {
+       "from": 0,
+       "label": "count+1",
+       "to": 1
+      },
+      {
+       "from": 1,
+       "label": "đánh dấu",
+       "to": 2
+      }
+     ],
+     "mark": null,
+     "narration": "Ý tưởng chính là thế này: mỗi lần gặp một ô đất chưa thăm thì tăng count, biến đếm số đảo, lên một. Rồi dùng DFS, tức Depth-First Search, đi sâu hết một nhánh mới quay lại, để loang qua cả đảo và đánh dấu đã thăm. Nhờ vậy mỗi đảo chỉ được đếm một lần.",
+     "part": "body",
+     "right": "",
+     "subtitle": "Gặp ô đất chưa thăm thì *count* thêm 1, rồi nhấn chìm cả đảo"
+    },
+    {
+     "part": "body",
+     "layout": "matrix",
+     "duration": 4,
+     "heading": "Đảo đầu tiên: *4 ô*",
+     "subtitle": "Một lần gọi *dfs* nhấn chìm cả hòn đảo, từng ô một",
+     "narration": "Mình chạy lời giải trên đúng lưới này, đi từng ô một.",
+     "actors": [],
+     "links": [],
+     "rows": [
+      "11000",
+      "11000",
+      "00100",
+      "00011"
+     ],
+     "steps": [
+      {
+       "say": "Mình quét từ góc trên trái. Ô hàng 0 cột 0 là số 1, tức là đất chưa thăm, nên count lên 1 và mình gọi DFS, nhấn chìm ô này thành 0.",
+       "at": [
+        0,
+        0
+       ],
+       "region": [
+        [
+         0,
+         0
+        ]
+       ],
+       "vals": {
+        "0,0": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0"
+        ]
+       },
+       "vars": {
+        "count": "1"
+       }
+      },
+      {
+       "say": "DFS thử đi xuống trước. Ô hàng 1 cột 0 cũng là đất nên mình nhấn chìm nó và có thêm một lời gọi nằm trên stack.",
+       "at": [
+        1,
+        0
+       ],
+       "region": [
+        [
+         0,
+         0
+        ],
+        [
+         1,
+         0
+        ]
+       ],
+       "vals": {
+        "1,0": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0",
+         "1,0"
+        ]
+       },
+       "vars": {
+        "count": "1"
+       }
+      },
+      {
+       "say": "Từ đây, ô bên dưới là nước, ô bên trên đã chìm, còn ô bên phải ở hàng 1 cột 1 là đất. DFS loang sang phải và nhấn chìm ô đó.",
+       "at": [
+        1,
+        1
+       ],
+       "region": [
+        [
+         0,
+         0
+        ],
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         1
+        ]
+       ],
+       "vals": {
+        "1,1": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0",
+         "1,0",
+         "1,1"
+        ]
+       },
+       "vars": {
+        "count": "1"
+       }
+      },
+      {
+       "say": "Bên dưới là nước nên DFS thử đi lên và gặp ô đất cuối cùng ở hàng 0 cột 1. Nhấn chìm nốt, cả bốn ô của hòn đảo đã thành 0.",
+       "at": [
+        0,
+        1
+       ],
+       "region": [
+        [
+         0,
+         0,
+         1,
+         1
+        ]
+       ],
+       "vals": {
+        "0,1": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0",
+         "1,0",
+         "1,1",
+         "0,1"
+        ]
+       },
+       "vars": {
+        "count": "1"
+       }
+      },
+      {
+       "say": "Quanh ô này không còn đất, các lời gọi DFS lần lượt trả về và stack rỗng. Vòng quét trở lại ô xuất phát, hòn đảo này không thể bị đếm lần nữa.",
+       "at": [
+        0,
+        0
+       ],
+       "region": [
+        [
+         0,
+         0,
+         1,
+         1
+        ]
+       ],
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": []
+       },
+       "vars": {
+        "count": "1"
+       }
+      }
+     ]
+    },
+    {
+     "part": "body",
+     "layout": "matrix",
+     "duration": 4,
+     "heading": "Hai đảo *còn lại*",
+     "subtitle": "Hai lần loang nữa, *count* dừng ở 3",
+     "narration": "Bốn ô của đảo đầu giờ đã là nước. Mình quét tiếp phần còn lại.",
+     "actors": [],
+     "links": [],
+     "rows": [
+      "00000",
+      "00000",
+      "00100",
+      "00011"
+     ],
+     "steps": [
+      {
+       "say": "Vòng quét đi tiếp. Những ô vừa chìm giờ đều là 0 nên bị bỏ qua, cho tới ô hàng 2 cột 2 là đất mới. Count lên 2 và mình lại gọi DFS.",
+       "at": [
+        2,
+        2
+       ],
+       "region": [
+        [
+         2,
+         2
+        ]
+       ],
+       "vals": {
+        "2,2": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "2,2"
+        ]
+       },
+       "vars": {
+        "count": "2"
+       }
+      },
+      {
+       "say": "Bốn ô hàng xóm của nó đều là nước nên DFS trả về ngay. Hòn đảo thứ hai chỉ có đúng một ô.",
+       "at": [
+        2,
+        2
+       ],
+       "hi": [
+        [
+         3,
+         2
+        ],
+        [
+         1,
+         2
+        ],
+        [
+         2,
+         3
+        ],
+        [
+         2,
+         1
+        ]
+       ],
+       "region": [
+        [
+         2,
+         2
+        ]
+       ],
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": []
+       },
+       "vars": {
+        "count": "2"
+       }
+      },
+      {
+       "say": "Quét tiếp tới ô hàng 3 cột 3 thì lại gặp đất. Count lên 3, mình nhấn chìm ô này và bắt đầu lượt DFS thứ ba.",
+       "at": [
+        3,
+        3
+       ],
+       "region": [
+        [
+         3,
+         3
+        ]
+       ],
+       "vals": {
+        "3,3": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "3,3"
+        ]
+       },
+       "vars": {
+        "count": "3"
+       }
+      },
+      {
+       "say": "Bên dưới là mép lưới, bên trên là nước, còn bên phải là đất. DFS loang sang ô hàng 3 cột 4 và nhấn chìm nó.",
+       "at": [
+        3,
+        4
+       ],
+       "region": [
+        [
+         3,
+         3,
+         3,
+         4
+        ]
+       ],
+       "vals": {
+        "3,4": "0"
+       },
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "3,3",
+         "3,4"
+        ]
+       },
+       "vars": {
+        "count": "3"
+       }
+      },
+      {
+       "say": "Stack lại rỗng và vòng quét đi hết lưới mà không gặp thêm ô đất nào. Hàm trả về count bằng 3, tức là lưới có ba hòn đảo.",
+       "at": [
+        3,
+        4
+       ],
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": []
+       },
+       "vars": {
+        "count": "3"
+       }
+      }
+     ]
+    },
+    {
+     "actors": [],
+     "code": "def dfs(grid, r, c):\n!!  if not (0 <= r < len(grid)): return\n  if not (0 <= c < len(grid[0])): return\n!!  if grid[r][c] != '1': return\n!!  grid[r][c] = '0'\n  dfs(grid, r+1, c); dfs(grid, r-1, c)\n  dfs(grid, r, c+1); dfs(grid, r, c-1)",
+     "codeTitle": "solution.py (Python)",
+     "duration": 8,
+     "focus": -1,
+     "heading": "*DFS* và điều kiện dừng",
+     "layout": "code",
+     "left": "",
+     "links": [],
+     "mark": null,
+     "narration": "Đây là hàm dfs nhận grid cùng tọa độ hàng r, cột c. Hai dòng đầu dừng khi ra ngoài biên, dòng thứ ba dừng khi ô là nước hoặc đã thăm. Thiếu các dòng này thì đệ quy không có điểm dừng. Dòng ghi đè thành '0' chính là bước xóa đảo, rồi hàm gọi tiếp bốn hướng.",
+     "part": "body",
+     "right": "",
+     "subtitle": "Ra ngoài biên hoặc gặp ô không phải đất thì *return*"
+    },
+    {
+     "actors": [],
+     "code": "def numIslands(grid):\n  count = 0\n  for r in range(len(grid)):\n    for c in range(len(grid[0])):\n!!      if grid[r][c] == '1':\n!!        count += 1\n!!        dfs(grid, r, c)\n  return count",
+     "codeTitle": "solution.py (Python)",
+     "duration": 8,
+     "focus": -1,
+     "heading": "Hàm *numIslands*",
+     "layout": "code",
+     "left": "",
+     "links": [],
+     "mark": null,
+     "narration": "Hàm numIslands dùng hai vòng for quét từng ô, đúng như con trỏ i vừa rồi. Gặp ô đất thì count cộng một và gọi dfs. Ghi đè kiểu này gọi là in-place, sửa thẳng trên input, nên tiết kiệm bộ nhớ nhưng mất dữ liệu gốc. Muốn giữ input thì dùng mảng visited riêng, đổi lại tốn thêm m nhân n ô nhớ.",
+     "part": "body",
+     "right": "",
+     "subtitle": "Hai vòng for, mỗi lần gọi dfs là thêm một *đảo*"
+    },
+    {
+     "part": "body",
+     "layout": "matrix",
+     "duration": 4,
+     "heading": "Quên *đánh dấu*",
+     "subtitle": "Không nhấn chìm ô vừa thăm thì dfs gọi nhau mãi",
+     "narration": "Lỗi hay gặp nhất là quên đánh dấu. Thử với một lưới chỉ có hai ô đất nằm cạnh nhau.",
+     "actors": [],
+     "links": [],
+     "rows": [
+      "11"
+     ],
+     "steps": [
+      {
+       "say": "Giả sử bạn bỏ dòng ghi đè ô thành nước. Lời gọi dfs ở ô đầu tiên đi sang ô đất bên phải.",
+       "at": [
+        0,
+        0
+       ],
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0"
+        ]
+       },
+       "vars": {
+        "độ sâu": "1"
+       }
+      },
+      {
+       "say": "Ở ô bên phải, dfs lại thử ô bên trái. Ô đó vẫn còn là đất vì chưa ai đánh dấu, nên nó được gọi thêm lần nữa.",
+       "at": [
+        0,
+        1
+       ],
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0",
+         "0,1"
+        ]
+       },
+       "vars": {
+        "độ sâu": "2"
+       }
+      },
+      {
+       "say": "Hai ô cứ gọi qua gọi lại, stack các lời gọi dài mãi ra, cho tới khi chương trình báo lỗi tràn đệ quy.",
+       "at": [
+        0,
+        0
+       ],
+       "box": {
+        "kind": "stack",
+        "name": "dfs",
+        "items": [
+         "0,0",
+         "0,1",
+         "0,0",
+         "0,1",
+         "0,0"
+        ]
+       },
+       "vars": {
+        "độ sâu": "5, còn tăng"
+       }
+      }
+     ]
+    },
+    {
+     "actors": [
+      {
+       "icon": "cross",
+       "label": "Đếm ô sai",
+       "side": "L"
+      },
+      {
+       "icon": "check",
+       "label": "DFS O(mn)",
+       "side": "R"
+      }
+     ],
+     "code": "",
+     "codeTitle": "",
+     "duration": 7,
+     "focus": 1,
+     "heading": "Độ phức tạp *O(mn)*",
+     "layout": "before-after",
+     "left": "Đếm ô",
+     "links": [],
+     "mark": {
+      "index": 1,
+      "type": "check"
+     },
+     "narration": "Thời gian là O của m nhân n, vì mỗi ô bị thăm tối đa một lần: đã ghi đè thành nước thì không ai vào lại nữa. Bộ nhớ cũng là O của m nhân n ở trường hợp xấu nhất, vì call stack của đệ quy có thể sâu gần bằng số ô đất.",
+     "part": "outro",
+     "right": "DFS",
+     "subtitle": "Thời gian *O(m×n)*, bộ nhớ O(m×n) khi xấu nhất"
+    },
+    {
+     "actors": [
+      {
+       "icon": "search",
+       "label": "Nhóm ô nối",
+       "side": ""
+      },
+      {
+       "icon": "check",
+       "label": "Loang + đánh dấu",
+       "side": ""
+      }
+     ],
+     "code": "",
+     "codeTitle": "",
+     "duration": 8,
+     "focus": 1,
+     "heading": "Nhận dạng *dạng bài*",
+     "layout": "title",
+     "left": "",
+     "links": [
+      {
+       "from": 0,
+       "label": "nghĩ tới",
+       "to": 1
+      }
+     ],
+     "mark": null,
+     "narration": "Hễ đề nói tới nhóm ô nối nhau trên grid, như vùng, đảo hay mảng màu, thì bạn nghĩ ngay tới loang và đánh dấu đã thăm. Điều cần nhớ là một đảo chỉ được đếm một lần, vì ta xóa dấu vết của nó ngay khi gặp.",
+     "part": "outro",
+     "right": "",
+     "subtitle": "Vùng liên thông trên grid thì nghĩ ngay tới *loang* và đánh dấu"
+    }
+   ]
+  }
+ ]
+}

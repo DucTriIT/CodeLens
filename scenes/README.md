@@ -56,6 +56,9 @@ A module is a plain script that registers one definition:
 
 ### `norm` and `normStep`
 
+- `normStep` gets the whole object `norm` returned, not only the names in `fields`, so `norm` may pass it private
+  values. Only the names in `fields` are stored on the scene.
+
 - Accept what an AI is likely to write: a string where an array is expected, 1 or 2 spellings of a field,
   numbers as strings. Clamp sizes. Drop what is invalid. Return plain JSON.
 - Stable: normalising the output again returns the same thing.
@@ -68,7 +71,8 @@ A module is a plain script that registers one definition:
   else. The area is taller when the scene has no box and no variables; scale the figure to fill it.
 - `f.st` is the current step, `f.pr` the previous one (the same step for the first), `f.k` the step index,
   `f.steps` all steps, `f.tl` seconds since the scene started.
-- `f.u` goes from 0 to 1 over the first 0.4 s of a step. Use it to move from `f.pr` to `f.st`: slide a
+- `f.u` goes from 0 to 1 over the first 0.4 s of a step (it is always 1 on the first step, which has nothing to
+  move from). Use it to move from `f.pr` to `f.st`: slide a
   cursor, fade a highlight in. At `u = 1` the picture must show exactly the state of `f.st`.
 - The page wraps the call in `save()`/`restore()` and catches exceptions; still, do not throw.
 

@@ -75,6 +75,19 @@ Chọn **Dạng clip** ở ô cạnh nút gợi ý (lựa chọn được nhớ 
 - **Tin công nghệ** cần nguồn thật: gõ tin kèm chi tiết chính, hoặc dán bài báo ở **Từ bài viết**. AI không tự biết tin mới, nên nút gợi ý và lịch viết tự động không áp dụng cho dạng này.
 - **Cảnh khung code:** ở các dạng có code, AI dùng bố cục **Khung code** cho cảnh cần hiện code hoặc cấu hình. Trong trình soạn, chọn bố cục này sẽ hiện ô **Tên file hoặc tool** và ô **Code** (tối đa 9 dòng, mỗi dòng 46 ký tự). Gõ `!!` ở đầu dòng để tô sáng dòng quan trọng; các dòng còn lại mờ đi sau khi code hiện xong.
 - **Cảnh mô phỏng mảng:** dạng *Giải bài thuật toán* dùng bố cục **Mô phỏng mảng**: một hàng ô (tối đa 14), các con trỏ có tên trượt giữa các ô, cửa sổ tô xanh, ô đang xét tô cam, ô đã loại làm mờ, và bảng biến bên dưới (giá trị vừa đổi hiện màu cam). Mỗi bước có **lời đọc riêng**; khi render có giọng đọc, hình chuyển sang bước mới đúng lúc giọng đọc bắt đầu nói về bước đó, và phụ đề hiện đúng câu của bước. Trong trình soạn, trạng thái mỗi bước gõ dạng `L=0 R=2 win=0-2 hi=2 dim=0 | best=3; seen={a:0}`.
+- **Các kiểu cảnh mô phỏng khác:** AI tự chọn kiểu cảnh theo hình dạng dữ liệu của bài, không ép mọi bài vào một hàng ô.
+
+  | Bố cục | Dùng cho | Ví dụ |
+  |---|---|---|
+  | `array` (Mô phỏng mảng) | mảng, chuỗi: two pointers, sliding window, binary search, DP một chiều | LeetCode 3, 11, 704 |
+  | `matrix` | lưới hai chiều: đảo, flood fill, BFS trên lưới, bảng DP, quay lui trên bàn cờ | LeetCode 200, 994, 1143, 79 |
+  | `tree` | cây nhị phân, BST, trie, heap, cây đệ quy lớn dần | LeetCode 102, 543, 235, 78 |
+  | `list` | danh sách liên kết: mũi tên đổi hướng, con trỏ nhanh và chậm | LeetCode 206, 141, 21, 19 |
+  | `graph` | đồ thị nút và cạnh: BFS/DFS, sắp xếp topo, Dijkstra, union-find | LeetCode 207, 743, 684 |
+  | `intervals` | các khoảng trên trục số: gộp, chèn, phòng họp, tham lam | LeetCode 56, 253, 435, 57 |
+
+  Mọi kiểu cảnh, kể cả `array`, có thể hiện thêm một **ngăn chứa** ở từng bước (stack, queue, heap, map, set) để người xem thấy phần tử vào và ra. Trong trình soạn, dữ liệu và trạng thái từng bước của các kiểu mới gõ dạng JSON; nút **Điền ví dụ mẫu** điền sẵn một bài thật để sửa theo. Mỗi kiểu cảnh là một tệp trong `scenes/`; xem `scenes/README.md` nếu muốn thêm kiểu mới. `examples/leetcode-200-number-of-islands.json` là một kịch bản mẫu dùng cảnh lưới.
+- Một bài thuật toán được viết thành **một clip**, không tự chia thành series.
 - **Playlist trên Fanpage:** API của Facebook không cho phần mềm thêm video hay Reels vào playlist, nên sau khi đăng, CodeLens nhắc tên playlist (là lĩnh vực của clip) để bạn thêm tay trong Meta Business Suite.
 - Clip thuật toán dài hơn 90 giây nên không đăng được qua API Reels của Meta: đăng thành video trên Fanpage, đăng Reels bằng app Facebook, hoặc chia thành hai phần.
 - **Từ khóa:** tiêu đề và phụ đề của mỗi cảnh chứa từ khóa trọng tâm (tên khái niệm, tool, lệnh, tham số) tô màu cam.
@@ -206,6 +219,7 @@ Nếu dùng Azure chính thức, giá của giọng đa ngôn ngữ có thể kh
 Giọng tiếng Việt đọc từ tiếng Anh theo kiểu tiếng Việt ("cache", "Kafka" nghe rất lạ). Tab **Lịch & logo → Giọng đọc → Cách đọc từ tiếng Anh** là một từ điển, mỗi dòng `từ = cách đọc` (ví dụ `cache = két`, `server = sơ vơ`). Trước khi gửi đi tạo giọng, CodeLens thay các từ này bằng cách đọc; phụ đề và lời thuyết minh trên màn hình vẫn giữ chữ gốc.
 
 - Có sẵn khoảng 30 từ phổ biến; sửa, thêm, rồi bấm **▶ Nghe câu này** để thử trước khi lưu.
+- **Tự thêm cách đọc:** mỗi khi tạo giọng đọc (render, nút ▶ Nghe, khớp thời lượng), CodeLens tìm các từ tiếng Anh trong lời đọc mà từ điển chưa có, nhờ AI phiên âm theo cách dev Việt hay đọc, rồi ghi vào cuối từ điển. Mỗi từ chỉ hỏi AI một lần; từ nào AI bảo không cần phiên âm cũng được nhớ lại. Từ không dấu có dạng một âm tiết tiếng Việt ("cho", "khi", và cả "map", "set") được bỏ qua, cần thì thêm tay. Tắt bằng ô **Tự thêm cách đọc cho từ tiếng Anh mới**. Giọng đa ngôn ngữ không dùng từ điển nên bước này được bỏ qua.
 - **AI gợi ý từ kịch bản đang mở** tìm các từ tiếng Anh chưa có trong từ điển và đề xuất cách đọc.
 - Sửa từ điển chỉ làm các câu có từ đó phải tạo lại giọng; các câu khác vẫn dùng bản đã lưu.
 

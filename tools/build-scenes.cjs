@@ -13,7 +13,8 @@ for (const n of names) {
   const src = fs.readFileSync(path.join(dir, n + ".js"), "utf8").trim();
   if (/<\/script/i.test(src)) throw new Error(`scenes/${n}.js contains "</script", which would end the page's script block`);
   new Function(src); // syntax check
-  body += `\n/* --- scenes/${n}.js --- */\n${src}\n`;
+  // each module in its own scope, so top-level names in two modules cannot collide
+  body += `\n/* --- scenes/${n}.js --- */\n(() => {\n${src}\n})();\n`;
 }
 const file = path.join(root, "public", "codelens.html");
 const html = fs.readFileSync(file, "utf8");

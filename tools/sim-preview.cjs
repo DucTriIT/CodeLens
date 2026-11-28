@@ -1,8 +1,9 @@
-// Checks and previews simulation scene modules without building them into the page.
-//   node tools/sim-preview.cjs scenes/matrix.js [more.js ...] --out <dir>
+// Checks and previews simulation scene modules.
+//   node tools/sim-preview.cjs scenes/matrix.js [more.js ...] --out <dir>    a module, without building it into the page
+//   node tools/sim-preview.cjs --out <dir>                                   the modules already built into the page
 // For every module it validates the definition, normalises each sample twice (must be stable), feeds norm() junk
-// (must not throw), draws every step of every sample, checks the figure stays inside its area, and writes one PNG per
-// step plus a contact sheet per sample. Exits 1 if any check fails.
+// (must not throw), draws every step of every sample, checks the figure stays inside its area, and writes one JPEG
+// per step (the full frame near the end of the step). Exits 1 if any check fails.
 const { chromium } = require("playwright");
 const { spawn } = require("child_process");
 const fs = require("fs"), path = require("path"), os = require("os"), net = require("net");
@@ -10,7 +11,6 @@ const root = path.join(__dirname, "..");
 const args = process.argv.slice(2); const oi = args.indexOf("--out");
 const out = path.resolve(oi >= 0 ? args[oi + 1] : path.join(os.tmpdir(), "sim-preview"));
 const files = args.filter((a, i) => a !== "--out" && (oi < 0 || i !== oi + 1));
-if (!files.length) { console.error("usage: node tools/sim-preview.cjs scenes/<kind>.js [...] --out <dir>"); process.exit(2); }
 const freePort = () => new Promise(r => { const s = net.createServer(); s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => r(p)); }); });
 (async () => {
   fs.mkdirSync(out, { recursive: true });

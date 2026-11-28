@@ -419,6 +419,1674 @@ a.btn { text-decoration: none; color: inherit; }
 
 <script>
 /* SIM-SCENES:BEGIN (generated from scenes/*.js by tools/build-scenes.cjs: edit the sources, then run it again) */
+/* --- scenes/matrix.js --- */
+(() => {
+// Simulation scene "matrix": a 2D grid for islands and flood fill, BFS on a grid, matrix traversal, 2D DP tables
+// and board backtracking. Scene data: rows (+ optional rowLabels, colLabels, empty). Step state: at, hi, dim, region,
+// path, ptr (a snapshot of that step) and vals (cell values the code overwrites; these CARRY FORWARD to later steps).
+(window.__codelensSimDefs = window.__codelensSimDefs || []).push(["matrix", (() => {
+  const MAX_R = 9, MAX_C = 9, MAX_LIST = 40;
+  const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  const num = (v) => typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? +v : NaN;
+  const val = (v) => [...String(v == null || typeof v === "object" ? "" : v).trim()].slice(0, 3).join("");
+  // One row: an array of cells, or a string. "11000" is one cell per character; "1 12 3" or "1,12,3" is split.
+  const splitRow = (v) => {
+    if (Array.isArray(v)) return v.map(val);
+    if (typeof v !== "string" && typeof v !== "number") return null;
+    const s = String(v).trim();
+    return (/[\s,]/.test(s) ? s.split(/[\s,]+/) : [...s]).map(val);
+  };
+  function normRows(v) {
+    if (typeof v === "number") v = [v];
+    if (typeof v === "string") v = /[\n;|]/.test(v) ? v.split(/[\n;|]+/) : v.trim().split(/[\s,]+/);
+    if (!Array.isArray(v)) return [];
+    const rows = v.slice(0, 60).map(splitRow).filter(r => r && r.length).slice(0, MAX_R).map(r => r.slice(0, MAX_C));
+    const w = Math.max(0, ...rows.map(r => r.length));
+    return rows.map(r => r.concat(Array(w - r.length).fill("")));
+  }
+  const normLabels = (v, n) => {
+    const a = Array.isArray(v) ? v.map(val) : typeof v === "string" ? (/[\s,]/.test(v.trim()) ? v.trim().split(/[\s,]+/) : [...v]).map(val) : [];
+    const l = a.slice(0, n); return l.some(Boolean) ? l : null;
+  };
+  // A list of cells. An item is [r, c], "r,c", {r, c}, or a rectangle [r0, c0, r1, c1] (kept compact, expanded when drawn).
+  function cellList(v, R, C, rects) {
+    let a = typeof v === "string" ? v.split(/[\s;|]+/).filter(Boolean) : isObj(v) ? [v] : v;
+    if (!Array.isArray(a)) return [];
+    if ((a.length === 2 || a.length === 4) && a.every(x => Number.isFinite(num(x)))) a = [a];
+    const out = [], seen = new Set();
+    for (const raw of a.slice(0, 200)) {
+      let it = typeof raw === "string" ? raw.split(/[,:x]/) : isObj(raw) ? [raw.r ?? raw.row, raw.c ?? raw.col] : raw;
+      if (!Array.isArray(it) || (it.length !== 2 && it.length !== 4)) continue;
+      it = it.map(x => Math.round(num(x)));
+      if (!it.every(Number.isFinite)) continue;
+      if (it.length === 4) {
+        if (!rects) continue;
+        const r0 = Math.max(0, Math.min(it[0], it[2])), r1 = Math.min(R - 1, Math.max(it[0], it[2]));
+        const c0 = Math.max(0, Math.min(it[1], it[3])), c1 = Math.min(C - 1, Math.max(it[1], it[3]));
+        if (r0 > r1 || c0 > c1) continue;
+        it = r0 === r1 && c0 === c1 ? [r0, c0] : [r0, c0, r1, c1];
+      } else if (it[0] < 0 || it[0] >= R || it[1] < 0 || it[1] >= C) continue;
+      const key = it.join(",");
+      if (rects ? seen.has(key) : out.length && out[out.length - 1].join(",") === key) continue;
+      seen.add(key); out.push(it);
+      if (out.length >= MAX_LIST) break;
+    }
+    return out;
+  }
+  function norm(sc) {
+    sc = isObj(sc) ? sc : {};
+    const rows = normRows(sc.rows ?? sc.grid ?? sc.matrix ?? sc.board ?? sc.table);
+    const out = { rows }; const R = rows.length, C = R ? rows[0].length : 0;
+    const rl = normLabels(sc.rowLabels ?? sc.rowLabel ?? sc.rowNames, R), cl = normLabels(sc.colLabels ?? sc.colLabel ?? sc.colNames, C);
+    if (rl) out.rowLabels = rl;
+    if (cl) out.colLabels = cl;
+    const e = sc.empty ?? sc.blank ?? sc.water;
+    out.empty = e == null || isObj(e) || typeof e === "boolean" ? ["0", "."]
+      : [...new Set((Array.isArray(e) ? e : String(e).split(/[\s,]+/)).map(val).filter(Boolean))].slice(0, 6);
+    return out;
+  }
+  function normStep(st, data, h) {
+    st = isObj(st) ? st : {};
+    const rows = (data && Array.isArray(data.rows) && data.rows) || []; const R = rows.length, C = R ? rows[0].length : 0;
+    const out = {};
+    const at = cellList(st.at ?? st.cur ?? st.cursor ?? st.pos, R, C, false)[0];
+    if (at) out.at = at;
+    const lists = { hi: st.hi ?? st.highlight ?? st.look, dim: st.dim ?? st.visited ?? st.seen ?? st.done, region: st.region ?? st.group ?? st.island ?? st.area };
+    for (const k of Object.keys(lists)) { const l = cellList(lists[k], R, C, true); if (l.length) out[k] = l; }
+    const path = cellList(st.path ?? st.route ?? st.trace, R, C, false);
+    if (path.length) out.path = path;
+    const ps = st.ptr ?? st.pointers, ptr = {};
+    (Array.isArray(ps) ? ps.map(o => isObj(o) ? [o.name ?? o.label, o.at ?? o.cell ?? o.pos ?? [o.r ?? o.row, o.c ?? o.col]] : Array.isArray(o) ? o : [])
+      : isObj(ps) ? Object.entries(ps) : []).forEach(([k, v]) => {
+      const name = h.str(k, 6), cell = cellList(v, R, C, false)[0];
+      if (name && cell && (ptr[name] || Object.keys(ptr).length < 4)) ptr[name] = cell;
+    });
+    if (Object.keys(ptr).length) out.ptr = ptr;
+    // vals: {"r,c": value}; also {"r": [a whole row]} and [[r, c, value], ...]
+    const vs = st.vals ?? st.set ?? st.values ?? st.write, vals = {};
+    const put = (r, c, v) => { r = Math.round(num(r)); c = Math.round(num(c)); if (r >= 0 && r < R && c >= 0 && c < C) vals[`${r},${c}`] = val(v); };
+    if (Array.isArray(vs)) vs.slice(0, 81).forEach(o => { if (Array.isArray(o)) Array.isArray(o[0]) ? put(o[0][0], o[0][1], o[1]) : put(o[0], o[1], o[2]); });
+    else if (isObj(vs)) Object.entries(vs).forEach(([k, v]) => {
+      const m = /^\s*\[?\s*(\d+)\s*[,;:x\s]\s*(\d+)\s*\]?\s*$/.exec(k);
+      if (m) put(m[1], m[2], v);
+      else if (/^\s*\d+\s*$/.test(k)) (Array.isArray(v) ? v : splitRow(v) || []).forEach((x, c) => { if (x != null) put(k, c, x); });
+    });
+    if (Object.keys(vals).length) out.vals = vals;
+    return out;
+  }
+
+  function draw(c, sc, f, h) {
+    const rows = Array.isArray(sc && sc.rows) ? sc.rows : []; const R = Math.min(rows.length, MAX_R);
+    const C = R ? Math.min(MAX_C, Math.max(...rows.map(r => (Array.isArray(r) ? r.length : 0)))) : 0;
+    if (!R || !C || !f || !f.area) return;
+    const { COL, FONT, MONO, clamp, lerp } = h; const A = f.area;
+    const st = f.st || {}, steps = Array.isArray(f.steps) && f.steps.length ? f.steps : [st];
+    const k = clamp(f.k | 0, 0, steps.length - 1), pr = k > 0 && f.pr ? f.pr : st;
+    const u = k > 0 ? clamp(+f.u || 0, 0, 1) : 1;
+    // cell values now and one step ago: the scene's rows plus every "vals" up to that step
+    const grid = Array.from({ length: R }, (_, r) => Array.from({ length: C }, (_, q) => String((rows[r] || [])[q] ?? "")));
+    const prev = grid.map(r => r.slice());
+    steps.slice(0, k + 1).forEach((s, j) => Object.entries((s && s.vals) || {}).forEach(([key, v]) => {
+      const [r, q] = key.split(",").map(Number);
+      if (grid[r] && q >= 0 && q < C) { grid[r][q] = String(v); if (j < k) prev[r][q] = String(v); }
+    }));
+    const emptyVals = new Set([...(Array.isArray(sc.empty) ? sc.empty : ["0", "."]), ""]);
+    const ids = (l) => { const s = new Set(); (Array.isArray(l) ? l : []).forEach(it => {
+      if (!Array.isArray(it)) return; const [r0, c0, r1 = r0, c1 = c0] = it;
+      for (let r = Math.max(0, r0); r <= r1 && r < R; r++) for (let q = Math.max(0, c0); q <= c1 && q < C; q++) s.add(r * 16 + q);
+    }); return s; };
+    const same = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
+    const hiN = ids(st.hi), hiP = ids(pr.hi), dimN = ids(st.dim), dimP = ids(pr.dim), regN = ids(st.region), regP = ids(pr.region);
+    const cellOf = (v) => Array.isArray(v) && v[0] >= 0 && v[0] < R && v[1] >= 0 && v[1] < C ? v : null;
+    const atN = cellOf(st.at), atP = cellOf(pr.at);
+
+    // ---- layout: square cells as large as the area allows, labels above and to the left ----
+    const RL = Array.isArray(sc.rowLabels) ? sc.rowLabels : null, CLb = Array.isArray(sc.colLabels) ? sc.colLabels : null;
+    const rowLab = (r) => RL ? String(RL[r] ?? "") : String(r), colLab = (q) => CLb ? String(CLb[q] ?? "") : String(q);
+    const anyPtr = steps.some(s => s && s.ptr), gap = Math.max(R, C) > 6 ? 6 : 10;
+    const labLen = Math.max(1, ...Array.from({ length: R }, (_, r) => rowLab(r).length));
+    const padT = anyPtr ? 18 : 0, padB = anyPtr ? 28 : 4;
+    let lf = 30, lw = 0, lh = 0, cs = 0;
+    for (let pass = 0; pass < 3; pass++) {
+      lw = Math.round(labLen * lf * 0.62 + 22); lh = Math.round(lf * 1.5);
+      cs = Math.max(16, Math.floor(Math.min((A.w - 2 * lw - gap * (C - 1)) / C, (A.h - lh - padT - padB - gap * (R - 1)) / R, 236)));
+      lf = clamp(Math.round(cs * 0.26), 24, 40);
+    }
+    const pitch = cs + gap, gw = C * cs + (C - 1) * gap, gh = R * cs + (R - 1) * gap;
+    const gx = A.x + (A.w - gw) / 2, gy = A.y + (A.h - (lh + padT + gh + padB)) / 2 + lh + padT;
+    const X = (q) => gx + q * pitch, Y = (r) => gy + r * pitch, cx = (q) => X(q) + cs / 2, cy = (r) => Y(r) + cs / 2;
+    const rad = Math.min(16, cs * 0.16);
+    const box = (x, y, w, hh, r) => { c.beginPath(); c.roundRect(x, y, w, hh, r); };
+
+    // labels: the cursor's row and column are picked out in orange
+    c.textBaseline = "middle";
+    const labFont = (custom) => `${custom ? 700 : 500} ${custom ? lf : Math.min(lf, 30)}px ${MONO}`;
+    const labCol = (on, custom) => on ? COL.orange : custom ? "rgba(242,246,252,0.82)" : COL.muted;
+    c.font = labFont(!!CLb); c.textAlign = "center";
+    for (let q = 0; q < C; q++) { c.fillStyle = labCol(atN && atN[1] === q, !!CLb); c.fillText(colLab(q), cx(q), gy - padT - lh / 2 + 2, cs); }
+    c.font = labFont(!!RL); c.textAlign = "right";
+    for (let r = 0; r < R; r++) { c.fillStyle = labCol(atN && atN[0] === r, !!RL); c.fillText(rowLab(r), gx - 16, cy(r) + 2, lw - 14); }
+
+    // cells: an empty cell (water, wall, blank) is hollow and muted; a visited or ruled-out cell is faded
+    const dimA = (id) => { const a = dimP.has(id) ? 0.32 : 1, b = dimN.has(id) ? 0.32 : 1; return lerp(a, b, u); };
+    for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
+      const e = lerp(emptyVals.has(prev[r][q]) ? 1 : 0, emptyVals.has(grid[r][q]) ? 1 : 0, u);
+      c.save(); c.globalAlpha *= dimA(r * 16 + q);
+      box(X(q), Y(r), cs, cs, rad);
+      c.save(); c.globalAlpha *= lerp(1, 0.22, e); c.fillStyle = "#1B2D52"; c.fill(); c.restore();
+      c.strokeStyle = `rgba(77,184,255,${lerp(0.6, 0.16, e)})`; c.lineWidth = 3; c.stroke();
+      c.restore();
+    }
+
+    // region: one blue area whose outline follows the cell borders (rounded on every corner)
+    const regionPath = (set) => {
+      const from = new Map(); const add = (a, b) => { if (!from.has(a)) from.set(a, []); from.get(a).push({ b, used: false }); };
+      set.forEach(id => { // boundary edges, clockwise around each cell; a lattice point is r * 16 + c
+        if (!set.has(id - 16)) add(id, id + 1);
+        if (!set.has(id + 1)) add(id + 1, id + 17);
+        if (!set.has(id + 16)) add(id + 17, id + 16);
+        if (!set.has(id - 1)) add(id + 16, id);
+      });
+      c.beginPath();
+      from.forEach((list, a0) => list.forEach(e0 => {
+        if (e0.used) return; const pts = []; let a = a0, e = e0;
+        while (e && !e.used) { // follow the boundary; where two cells touch only at a corner, turn right to stay on one cell
+          e.used = true; pts.push(a); const d = e.b - a, right = d === 1 ? 16 : d === 16 ? -1 : d === -1 ? -16 : 1;
+          a = e.b; const nx = from.get(a) || []; e = nx.find(x => x.b - a === right) || nx.find(x => !x.used);
+        }
+        const n = pts.length; const P = pts.map(v => [X(v & 15) - gap / 2, Y(v >> 4) - gap / 2]).filter((p, i, arr) => {
+          const p0 = arr[(i + n - 1) % n], p1 = arr[(i + 1) % n]; return (p[0] - p0[0]) * (p1[1] - p[1]) !== (p[1] - p0[1]) * (p1[0] - p[0]);
+        });
+        const m = P.length; if (m < 4) return;
+        c.moveTo((P[0][0] + P[1][0]) / 2, (P[0][1] + P[1][1]) / 2);
+        for (let i = 1; i <= m; i++) { const p = P[i % m], p1 = P[(i + 1) % m]; c.arcTo(p[0], p[1], p1[0], p1[1], rad + 3); }
+        c.closePath();
+      }));
+    };
+    const drawRegion = (set, fillA, lineA) => {
+      if (!set.size || (fillA <= 0 && lineA <= 0)) return;
+      regionPath(set);
+      c.save(); c.globalAlpha *= fillA; c.fillStyle = "rgba(77,184,255,0.2)"; c.fill(); c.restore();
+      c.save(); c.globalAlpha *= lineA; c.strokeStyle = COL.blue; c.lineWidth = 5; c.lineJoin = "round"; c.stroke(); c.restore();
+    };
+    if (same(regN, regP)) drawRegion(regN, 1, 1);
+    else { drawRegion(regP, 1 - u, Math.min(1, 2 - 2 * u)); drawRegion(regN, u, Math.min(1, 2 * u)); }
+
+    // path: green cells joined, in order, by short arrows across the gaps (so the values stay readable).
+    // A path that grows or shrinks at its end fades only the cells that changed; any other change cross-fades.
+    const pathN = (Array.isArray(st.path) ? st.path : []).filter(cellOf), pathP = (Array.isArray(pr.path) ? pr.path : []).filter(cellOf);
+    const isPrefix = (a, b) => a.length <= b.length && a.every((p, i) => p[0] === b[i][0] && p[1] === b[i][1]);
+    const paths = isPrefix(pathP, pathN) ? [[pathN, (i) => i < pathP.length ? 1 : u]]
+      : isPrefix(pathN, pathP) ? [[pathP, (i) => i < pathN.length ? 1 : 1 - u]] : [[pathP, () => 1 - u], [pathN, () => u]];
+    paths.forEach(([P, aOf]) => P.forEach((p, i) => {
+      if (aOf(i) <= 0) return;
+      c.save(); c.globalAlpha *= aOf(i); box(X(p[1]), Y(p[0]), cs, cs, rad);
+      c.fillStyle = "rgba(52,211,153,0.2)"; c.fill(); c.strokeStyle = COL.green; c.lineWidth = 5; c.stroke(); c.restore();
+    }));
+    const pathArrows = () => paths.forEach(([P, aOf]) => P.forEach((p, i) => {
+      if (!i || aOf(i) <= 0) return;
+      const ax = cx(P[i - 1][1]), ay = cy(P[i - 1][0]), dx = cx(p[1]) - ax, dy = cy(p[0]) - ay, L = Math.hypot(dx, dy); if (!L) return;
+      const t = 0.35 * pitch / Math.max(Math.abs(dx / L), Math.abs(dy / L)), s = clamp(cs * 0.13, 10, 22);
+      c.save(); c.globalAlpha *= aOf(i); c.translate(ax, ay); c.rotate(Math.atan2(dy, dx)); c.fillStyle = COL.green;
+      const tip = L - t + s * 0.5, w = Math.max(3, s * 0.36);
+      c.beginPath(); c.moveTo(t, -w); c.lineTo(tip - s * 1.5, -w); c.lineTo(tip - s * 1.5, -s); c.lineTo(tip, 0);
+      c.lineTo(tip - s * 1.5, s); c.lineTo(tip - s * 1.5, w); c.lineTo(t, w); c.closePath(); c.fill(); c.restore();
+    }));
+
+    // cells being examined: orange frame and tint
+    hiN.forEach(id => {
+      c.save(); c.globalAlpha *= (hiP.has(id) ? 1 : u) * dimA(id);
+      box(X(id & 15) + 1, Y(id >> 4) + 1, cs - 2, cs - 2, rad); c.fillStyle = "rgba(255,138,31,0.26)"; c.fill();
+      c.strokeStyle = COL.orange; c.lineWidth = 5; c.stroke(); c.restore();
+    });
+
+    // cursor: a solid orange cell that slides from the previous step's cell
+    const cur = atN || atP;
+    if (cur) {
+      const a = atN && atP ? atP : cur, alpha = atN && atP ? 1 : atN ? u : 1 - u;
+      if (alpha > 0) {
+        c.save(); c.globalAlpha *= alpha;
+        box(lerp(X(a[1]), X(cur[1]), u) - 3, lerp(Y(a[0]), Y(cur[0]), u) - 3, cs + 6, cs + 6, rad + 2); c.fillStyle = COL.orange; c.fill();
+        c.restore();
+      }
+    }
+
+    // values: a value written in this step swaps in halfway through the transition and stays orange for the step
+    c.textAlign = "center"; c.textBaseline = "middle";
+    const fontFor = (s) => `700 ${Math.max(24, Math.round(cs * (s.length <= 1 ? 0.5 : s.length === 2 ? 0.42 : 0.31)))}px ${MONO}`;
+    for (let r = 0; r < R; r++) for (let q = 0; q < C; q++) {
+      const changed = grid[r][q] !== prev[r][q], showNew = !changed || u >= 0.5, v = showNew ? grid[r][q] : prev[r][q];
+      if (!v) continue;
+      const here = (p) => !!p && p[0] === r && p[1] === q;
+      const onCur = (here(atN) && (u >= 0.5 || here(atP))) || (here(atP) && u < 0.5); // the cursor is (mostly) over this cell
+      const fresh = changed && showNew, muted = emptyVals.has(v);
+      c.save();
+      c.globalAlpha *= (onCur ? 1 : dimA(r * 16 + q)) * (changed ? Math.abs(u - 0.5) * 2 : 1) * (muted && !onCur && !fresh ? 0.6 : 1);
+      c.fillStyle = onCur ? COL.ink : fresh ? COL.orange : muted ? COL.muted : COL.white;
+      c.font = fontFor(v); c.fillText(v, cx(q), cy(r) + 2, cs - 10);
+      c.restore();
+    }
+
+    pathArrows();
+
+    // named pointers: a coloured frame and a name tag on a corner of the cell; they slide between steps
+    const order = [...new Set(steps.flatMap(s => Object.keys((s && s.ptr) || {})))], cols = h.ptrCols(), slotAt = {};
+    const ts = clamp(Math.round(cs * 0.24), 26, 44), th = ts + 8;
+    const ptrs = Object.keys(st.ptr || {}).map(nm => {
+      const b = cellOf(st.ptr[nm]); if (!b) return null; const was = cellOf((pr.ptr || {})[nm]), a = was || b;
+      const slot = slotAt[b.join()] = (slotAt[b.join()] || 0) + 1;
+      return { nm, slot, x: lerp(X(a[1]), X(b[1]), u), y: lerp(Y(a[0]), Y(b[0]), u), alpha: was ? 1 : u, col: cols[Math.max(0, order.indexOf(nm)) % cols.length] };
+    }).filter(Boolean);
+    ptrs.forEach(p => {
+      const inset = (p.slot - 1) * 8; c.save(); c.globalAlpha *= p.alpha;
+      box(p.x + inset, p.y + inset, cs - 2 * inset, cs - 2 * inset, rad); c.strokeStyle = COL.ink; c.lineWidth = 10; c.stroke();
+      c.strokeStyle = p.col; c.lineWidth = 6; c.stroke(); c.restore();
+    });
+    ptrs.forEach(p => { // tags go to the corners in turn: top-left, bottom-right, bottom-left, top-right
+      c.save(); c.globalAlpha *= p.alpha; c.font = `800 ${ts}px ${FONT}`;
+      const tw = Math.max(th, c.measureText(p.nm).width + 20), right = p.slot % 2 === 0, low = p.slot === 2 || p.slot === 3;
+      const tx = right ? p.x + cs + 6 - tw : p.x - 6, ty = (low ? p.y + cs : p.y) - th / 2;
+      box(tx, ty, tw, th, 10); c.fillStyle = p.col; c.fill(); c.strokeStyle = COL.ink; c.lineWidth = 3; c.stroke();
+      c.fillStyle = COL.ink; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(p.nm, tx + tw / 2, ty + th / 2 + 1);
+      c.restore();
+    });
+  }
+
+  const S = (name, items) => ({ kind: "stack", name, items });
+  const Q = (name, items) => ({ kind: "queue", name, items });
+  return {
+    label: "Lưới 2 chiều (ma trận, bảng DP)",
+    when: "lưới hoặc bảng hai chiều: đếm đảo, loang DFS/BFS trên lưới (flood fill), đường đi ngắn nhất trên lưới, duyệt ma trận, bảng quy hoạch động hai chiều (LCS, edit distance, unique paths), quay lui trên bàn cờ (N-Queens, word search).",
+    prompt: `MÔ PHỎNG thuật toán trên lưới hai chiều. "rows": lưới, mỗi hàng là một chuỗi mà mỗi ký tự là một ô (["11000","11000"]) hoặc một mảng (["0","12",""], ô chưa có giá trị là ""); tối đa ${MAX_R}×${MAX_C}, nên 3–6 hàng và cột, ô tối đa 3 ký tự. "empty": các giá trị là ô trống (nước, tường), vẽ mờ; mặc định ["0","."], bảng DP đặt []. "rowLabels", "colLabels": nhãn hàng và cột (bảng DP: ký tự của hai chuỗi, ví dụ ["","a","c","e"]); bỏ qua thì hiện chỉ số. Một ô viết [hàng, cột], đếm từ 0; vùng chữ nhật viết [hàng đầu, cột đầu, hàng cuối, cột cuối]. Mỗi bước: "at": ô code đang đứng; "hi": [ô đang được kiểm tra, ví dụ ô hàng xóm]; "dim": [ô đã xét xong hoặc bị loại]; "region": [ô của vùng đang loang: hòn đảo đang duyệt, vùng đã lan tới]; "path": [ô nối thành đường theo thứ tự: đường BFS, truy vết DP, các ô đang chọn khi quay lui]; "ptr": {"i": [0,1]} khi code có nhiều con trỏ; "vals": {"1,2": "0"} ghi giá trị mới vào ô hàng 1 cột 2. Các trường này chỉ tả riêng bước đó, TRỪ "vals": giá trị đã ghi được GIỮ cho mọi bước sau, nên mỗi bước chỉ ghi những ô code vừa gán (nhấn chìm đất thành "0", điền ô DP), không lặp lại ô cũ. Loang DFS/BFS: mỗi bước lan thêm MỘT ô hoặc lấy MỘT ô khỏi queue, "box" chứa tọa độ dạng "1,2". Bảng DP: "rows" chỉ có hàng và cột cơ sở, mỗi bước điền một ô hoặc một đoạn hàng, cuối cùng vẽ "path" truy vết. Ví dụ bước: {"say": "…", "at": [1,0], "region": [[0,0],[1,0]], "vals": {"1,0": "0"}, "box": {"kind": "stack", "name": "dfs", "items": ["0,0","1,0"]}}.`,
+    review: `Tự chạy lại code trên đúng lưới "rows" và đối chiếu từng bước: ô "at", các ô "hi", "region", "path" và tọa độ trong "box" phải theo đúng thứ tự duyệt và thứ tự các hướng của code. "vals" cộng dồn: giá trị một ô ở một bước là "rows" cộng mọi "vals" từ bước đầu tới bước đó, và phải bằng đúng giá trị code đã ghi.`,
+    dataHint: `{"rows": ["11000","11000","00100"]} hoặc {"rows": [["0","0"],["0",""]], "rowLabels": ["","a"], "colLabels": ["","b"], "empty": []}. Mỗi hàng là một chuỗi (mỗi ký tự một ô) hoặc một mảng; tối đa ${MAX_R}×${MAX_C}, ô tối đa 3 ký tự. "empty" là các giá trị vẽ mờ như ô trống (mặc định "0" và ".").`,
+    stepHint: `{"at": [0,1], "hi": [[1,1]], "dim": [[0,0]], "region": [[0,0],[0,1]], "path": [[0,0],[0,1]], "ptr": {"i": [0,1]}, "vals": {"0,1": "0"}}. Ô là [hàng, cột] đếm từ 0; vùng chữ nhật là [hàng đầu, cột đầu, hàng cuối, cột cuối]. Chú ý: "vals" (ghi giá trị mới vào ô "hàng,cột") được GIỮ cho mọi bước sau, chỉ ghi ô vừa đổi; các trường khác chỉ có hiệu lực trong bước đó.`,
+    fields: ["rows", "rowLabels", "colLabels", "empty"],
+    norm, normStep, draw,
+    samples: [
+      { // LeetCode 200, recursive DFS trying down, up, right, left; the box is the call stack
+        heading: "ĐẾM *ĐẢO* BẰNG DFS", subtitle: "LeetCode 200: gặp ô đất thì loang DFS nhấn chìm cả hòn đảo rồi mới quét tiếp",
+        narration: "Mình chạy thử trên một lưới bốn hàng năm cột.",
+        rows: ["11000", "11000", "00100", "00011"],
+        steps: [
+          { say: "Mình quét từ góc trên trái. Ô hàng 0 cột 0 là số 1, tức là đất chưa thăm, nên count lên 1 và mình gọi DFS, nhấn chìm ô này thành 0.", at: [0, 0], region: [[0, 0]], vals: { "0,0": "0" }, box: S("dfs", ["0,0"]), vars: { count: "1" } },
+          { say: "DFS thử đi xuống trước. Ô hàng 1 cột 0 cũng là đất nên mình nhấn chìm nó và có thêm một lời gọi nằm trên stack.", at: [1, 0], region: [[0, 0], [1, 0]], vals: { "1,0": "0" }, box: S("dfs", ["0,0", "1,0"]), vars: { count: "1" } },
+          { say: "Từ đây, ô bên dưới là nước, ô bên trên đã chìm, còn ô bên phải ở hàng 1 cột 1 là đất. DFS loang sang phải và nhấn chìm ô đó.", at: [1, 1], region: [[0, 0], [1, 0], [1, 1]], vals: { "1,1": "0" }, box: S("dfs", ["0,0", "1,0", "1,1"]), vars: { count: "1" } },
+          { say: "Bên dưới là nước nên DFS thử đi lên và gặp ô đất cuối cùng ở hàng 0 cột 1. Nhấn chìm nốt, cả bốn ô của hòn đảo đã thành 0.", at: [0, 1], region: [[0, 0, 1, 1]], vals: { "0,1": "0" }, box: S("dfs", ["0,0", "1,0", "1,1", "0,1"]), vars: { count: "1" } },
+          { say: "Quanh ô này không còn đất, các lời gọi DFS lần lượt trả về và stack rỗng. Vòng quét trở lại ô xuất phát, hòn đảo này không thể bị đếm lần nữa.", at: [0, 0], region: [[0, 0, 1, 1]], box: S("dfs", []), vars: { count: "1" } },
+          { say: "Vòng quét đi tiếp. Những ô vừa chìm giờ đều là 0 nên bị bỏ qua, cho tới ô hàng 2 cột 2 là đất mới. Count lên 2 và mình lại gọi DFS.", at: [2, 2], region: [[2, 2]], vals: { "2,2": "0" }, box: S("dfs", ["2,2"]), vars: { count: "2" } },
+          { say: "Bốn ô hàng xóm của nó đều là nước nên DFS trả về ngay. Hòn đảo thứ hai chỉ có đúng một ô.", at: [2, 2], hi: [[3, 2], [1, 2], [2, 3], [2, 1]], region: [[2, 2]], box: S("dfs", []), vars: { count: "2" } },
+          { say: "Quét tiếp tới ô hàng 3 cột 3 thì lại gặp đất. Count lên 3, mình nhấn chìm ô này và bắt đầu lượt DFS thứ ba.", at: [3, 3], region: [[3, 3]], vals: { "3,3": "0" }, box: S("dfs", ["3,3"]), vars: { count: "3" } },
+          { say: "Bên dưới là mép lưới, bên trên là nước, còn bên phải là đất. DFS loang sang ô hàng 3 cột 4 và nhấn chìm nó.", at: [3, 4], region: [[3, 3, 3, 4]], vals: { "3,4": "0" }, box: S("dfs", ["3,3", "3,4"]), vars: { count: "3" } },
+          { say: "Stack lại rỗng và vòng quét đi hết lưới mà không gặp thêm ô đất nào. Hàm trả về count bằng 3, tức là lưới có ba hòn đảo.", at: [3, 4], box: S("dfs", []), vars: { count: "3" } },
+        ],
+      },
+      { // LeetCode 1143 with text1 = "ace" (rows) and text2 = "abcde" (columns); no box, no vars
+        heading: "BẢNG *DP* CỦA LCS", subtitle: "LeetCode 1143: chuỗi con chung dài nhất của \"ace\" và \"abcde\"",
+        narration: "Mình điền bảng quy hoạch động từng hàng một.",
+        rows: [["0", "0", "0", "0", "0", "0"], ["0", "", "", "", "", ""], ["0", "", "", "", "", ""], ["0", "", "", "", "", ""]],
+        rowLabels: ["", "a", "c", "e"], colLabels: ["", "a", "b", "c", "d", "e"], empty: [],
+        steps: [
+          { say: "Mỗi hàng là một ký tự của chuỗi ace, mỗi cột là một ký tự của chuỗi abcde. Hàng đầu và cột đầu ứng với chuỗi rỗng nên toàn số 0.", hi: [[0, 0, 0, 5], [1, 0, 3, 0]] },
+          { say: "Ô đầu tiên so chữ a với chữ a. Hai ký tự giống nhau nên mình lấy ô chéo phía trên bên trái là 0 rồi cộng 1, được 1.", at: [1, 1], hi: [[0, 0]], vals: { "1,1": "1" } },
+          { say: "Sang phải, chữ a khác chữ b. Khi khác nhau mình lấy số lớn hơn giữa ô phía trên là 0 và ô bên trái là 1, nên ô này bằng 1.", at: [1, 2], hi: [[0, 2], [1, 1]], vals: { "1,2": "1" } },
+          { say: "Ba ô còn lại của hàng chữ a cũng không khớp ký tự nào, nên chúng lần lượt chép số 1 từ ô bên trái sang.", at: [1, 5], vals: { "1,3": "1", "1,4": "1", "1,5": "1" } },
+          { say: "Xuống hàng chữ c, hai ô đầu chép số 1 từ phía trên. Tới cột chữ c thì khớp, nên ô này lấy ô chéo là 1 rồi cộng 1, thành 2.", at: [2, 3], hi: [[1, 2]], vals: { "2,1": "1", "2,2": "1", "2,3": "2" } },
+          { say: "Chữ c không khớp với chữ d và chữ e, nên hai ô cuối hàng giữ nguyên số 2 lấy từ ô bên trái.", at: [2, 5], vals: { "2,4": "2", "2,5": "2" } },
+          { say: "Ở hàng chữ e, bốn ô đầu đều không khớp. Mỗi ô lấy số lớn hơn giữa ô phía trên và ô bên trái, lần lượt được 1, 1, 2, 2.", at: [3, 4], vals: { "3,1": "1", "3,2": "1", "3,3": "2", "3,4": "2" } },
+          { say: "Ô cuối cùng so chữ e với chữ e và khớp. Mình lấy ô chéo là 2 cộng 1 được 3, đó chính là độ dài chuỗi con chung dài nhất.", at: [3, 5], hi: [[2, 4]], vals: { "3,5": "3" } },
+          { say: "Muốn biết đó là chuỗi nào, mình đi ngược từ góc dưới phải. Chữ e khớp nên đi chéo lên, rồi tại ô không khớp mình đi sang trái về phía số lớn hơn.", path: [[3, 5], [2, 4], [2, 3]] },
+          { say: "Chữ c khớp nên lại đi chéo, lùi sang trái một ô, rồi chữ a khớp và đi chéo lần cuối. Ba bước chéo cho mình ba ký tự a, c, e.", path: [[3, 5], [2, 4], [2, 3], [1, 2], [1, 1], [0, 0]] },
+        ],
+      },
+      { // LeetCode 994, BFS by levels trying down, up, right, left; one dequeue per step
+        heading: "BFS *LAN* CAM THỐI", subtitle: "LeetCode 994: mỗi phút cam thối làm hỏng cam tươi kề bên, BFS đếm số phút",
+        narration: "Số 2 là cam thối, số 1 là cam tươi, số 0 là ô trống.",
+        rows: ["211", "110", "011"],
+        steps: [
+          { say: "Ban đầu chỉ có một quả cam thối ở góc trên trái, mình cho nó vào queue. Lưới có 6 quả cam tươi và đồng hồ đang ở phút 0.", region: [[0, 0]], box: Q("q", ["0,0"]), vars: { minutes: "0", fresh: "6" } },
+          { say: "Lấy ô hàng 0 cột 0 ra khỏi queue. Cam tươi bên dưới và bên phải bị lây, đổi thành 2 và vào queue. Hết lớp đầu tiên nên minutes lên 1.", at: [0, 0], hi: [[1, 0], [0, 1]], region: [[0, 0], [1, 0], [0, 1]], vals: { "1,0": "2", "0,1": "2" }, box: Q("q", ["1,0", "0,1"]), vars: { minutes: "1", fresh: "4" } },
+          { say: "Lớp thứ hai có hai ô. Ô hàng 1 cột 0 chỉ còn một hàng xóm tươi ở bên phải, quả đó bị thối và được thêm vào cuối queue.", at: [1, 0], hi: [[1, 1]], region: [[0, 0, 1, 1]], vals: { "1,1": "2" }, box: Q("q", ["0,1", "1,1"]), vars: { minutes: "1", fresh: "3" } },
+          { say: "Ô hàng 0 cột 1 lây sang quả bên phải ở cột 2. Lớp thứ hai đã xử lý xong nên minutes tăng lên 2, lưới chỉ còn 2 quả tươi.", at: [0, 1], hi: [[0, 2]], region: [[0, 0, 1, 1], [0, 2]], vals: { "0,2": "2" }, box: Q("q", ["1,1", "0,2"]), vars: { minutes: "2", fresh: "2" } },
+          { say: "Sang lớp thứ ba, ô ở giữa lưới làm thối quả ngay bên dưới nó. Bên phải nó là ô trống nên không có gì để lây.", at: [1, 1], hi: [[2, 1]], region: [[0, 0, 1, 1], [0, 2], [2, 1]], vals: { "2,1": "2" }, box: Q("q", ["0,2", "2,1"]), vars: { minutes: "2", fresh: "1" } },
+          { say: "Ô hàng 0 cột 2 không còn hàng xóm tươi nào, vì bên dưới nó là ô trống. Lớp thứ ba kết thúc và minutes lên 3.", at: [0, 2], hi: [[1, 2]], region: [[0, 0, 1, 1], [0, 2], [2, 1]], box: Q("q", ["2,1"]), vars: { minutes: "3", fresh: "1" } },
+          { say: "Lớp thứ tư chỉ có ô hàng 2 cột 1. Nó làm thối quả cuối cùng ở góc dưới phải, fresh về 0 và minutes lên 4.", at: [2, 1], hi: [[2, 2]], region: [[0, 0, 1, 1], [0, 2], [2, 1, 2, 2]], vals: { "2,2": "2" }, box: Q("q", ["2,2"]), vars: { minutes: "4", fresh: "0" } },
+          { say: "Không còn cam tươi nên vòng lặp dừng, dù trong queue vẫn còn một ô. Đáp án là 4 phút.", region: [[0, 0, 1, 1], [0, 2], [2, 1, 2, 2]], box: Q("q", ["2,2"]), vars: { minutes: "4", fresh: "0" } },
+        ],
+      },
+      { // LeetCode 79 with word = "SEE", DFS trying up, down, left, right; k = letters matched so far
+        heading: "*QUAY LUI* TÌM TỪ", subtitle: "LeetCode 79: tìm từ SEE trên bảng chữ, đi vào ngõ cụt thì lùi lại và thử hướng khác",
+        narration: "Mình tìm từ SEE trên bảng chữ ba hàng bốn cột.",
+        rows: ["ABCE", "SFCS", "ADEE"],
+        steps: [
+          { say: "Từ cần tìm là SEE nên ô bắt đầu phải là chữ S. Ô góc trên trái là chữ A, không khớp, và cả hàng đầu cũng không có chữ S nào.", at: [0, 0], vars: { k: "0", "word[k]": "S" } },
+          { say: "Ô hàng 1 cột 0 là chữ S nên mình thử đi từ đây. Chữ tiếp theo phải là E, nhưng ba ô kề nó là A, A và F, không ô nào khớp.", at: [1, 0], hi: [[0, 0], [2, 0], [1, 1]], path: [[1, 0]], vars: { k: "1", "word[k]": "E" } },
+          { say: "Nhánh đó thất bại nên mình bỏ nó và quét tiếp. Ô hàng 1 cột 3 cũng là chữ S, mình bắt đầu một đường đi mới từ đây.", at: [1, 3], dim: [[1, 0]], path: [[1, 3]], vars: { k: "1", "word[k]": "E" } },
+          { say: "Thử đi lên trước. Ô hàng 0 cột 3 là chữ E, khớp với chữ thứ hai. Đường đi dài thêm một ô và mình cần đúng một chữ E nữa.", at: [0, 3], dim: [[1, 0]], path: [[1, 3], [0, 3]], vars: { k: "2", "word[k]": "E" } },
+          { say: "Từ ô E này, bên trên và bên phải là mép bảng, bên trái là chữ C, còn bên dưới là ô đã nằm trên đường đi. Không hướng nào đi được.", at: [0, 3], hi: [[0, 2]], dim: [[1, 0]], path: [[1, 3], [0, 3]], vars: { k: "2", "word[k]": "E" } },
+          { say: "Vậy là ngõ cụt. Mình quay lui, tức là bỏ ô E đó khỏi đường đi và trở về ô chữ S để thử hướng khác.", at: [1, 3], dim: [[1, 0], [0, 3]], path: [[1, 3]], vars: { k: "1", "word[k]": "E" } },
+          { say: "Lần này mình đi xuống. Ô hàng 2 cột 3 cũng là chữ E và khớp, nên đường đi lại có hai ô.", at: [2, 3], dim: [[1, 0], [0, 3]], path: [[1, 3], [2, 3]], vars: { k: "2", "word[k]": "E" } },
+          { say: "Bên trên là ô đang dùng, bên dưới là mép bảng, còn bên trái là chữ E. Đã khớp đủ ba chữ S, E, E nên hàm trả về true.", at: [2, 2], dim: [[1, 0], [0, 3]], path: [[1, 3], [2, 3], [2, 2]], vars: { k: "3", found: "true" } },
+        ],
+      },
+    ],
+  };
+})()]);
+})();
+
+/* --- scenes/tree.js --- */
+(() => {
+// Simulation scene "tree": binary trees (LeetCode level-order form), n-ary trees, tries, heaps and recursion trees.
+// Scene data: nodes (labels), optional parent (parent index of every node; absent = level-order binary), optional edge
+// (a short label on the edge to each node's parent). Every step marks nodes by their index in "nodes".
+(function () {
+  const MAX_BIN = 15, MAX_GEN = 16, MAX_LEVELS = 5, LBL = 7;
+  const NIL = /^(null|none|nil|)$/i;
+  // An array from an array, a JSON string or "a,b,c".
+  const list = (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v !== "string" || !v.trim()) return [];
+    const s = v.trim();
+    if (s[0] === "[") { try { const j = JSON.parse(s); if (Array.isArray(j)) return j; } catch (e) { /* fall through */ } }
+    return s.replace(/^\[|\]$/g, "").split(",").map(x => x.trim());
+  };
+  const arr = (s, k) => (s && Array.isArray(s[k]) ? s[k] : []);
+  const obj = (s, k) => (s && s[k] && typeof s[k] === "object" ? s[k] : {});
+  const shownIn = (s, i) => !(s && Number.isFinite(s.show)) || i < s.show;
+
+  // Tree structure and abstract layout. par[i] is the parent index, -1 for the root, -2 for a slot that is not drawn.
+  // x is in leaf-slot units: leaves sit one unit apart and a parent is centred over its children. In a binary tree
+  // a missing sibling still takes a slot, so a single child keeps its left or right slant.
+  function build(sc) {
+    const nodes = arr(sc, "nodes"), n = nodes.length;
+    const binary = !arr(sc, "parent").length;
+    let par = new Array(n).fill(-2), side = new Array(n).fill(0);
+    if (!binary) {
+      for (let i = 0; i < n; i++) { const p = sc.parent[i]; par[i] = i === 0 ? -1 : Number.isInteger(p) && p >= 0 && p < i ? p : 0; }
+    } else if (n && nodes[0] != null) {
+      // LeetCode form: children are listed only for nodes that exist.
+      par[0] = -1; const q = [0]; let i = 1;
+      while (q.length && i < n) { const p = q.shift(); for (const sd of [-1, 1]) { if (i < n && nodes[i] != null) { par[i] = p; side[i] = sd; q.push(i); } i++; } }
+      const lost = (pp) => pp.filter((p, j) => p === -2 && nodes[j] != null).length;
+      if (lost(par)) {
+        // Heap form (children of slot i at 2i+1 and 2i+2): used when it keeps more of the nodes.
+        const hp = new Array(n).fill(-2), hs = new Array(n).fill(0); hp[0] = -1;
+        for (let j = 1; j < n; j++) if (nodes[j] != null && hp[(j - 1) >> 1] !== -2) { hp[j] = (j - 1) >> 1; hs[j] = j % 2 ? -1 : 1; }
+        if (lost(hp) < lost(par)) { par = hp; side = hs; }
+      }
+    }
+    const depth = new Array(n).fill(0), kids = nodes.map(() => []);
+    for (let i = 1; i < n; i++) {
+      const p = par[i]; if (p < 0) continue;
+      if (par[p] === -2 || depth[p] + 1 >= MAX_LEVELS) { par[i] = -2; continue; }
+      depth[i] = depth[p] + 1; kids[p].push(i);
+    }
+    const x = new Array(n).fill(0); let next = 0;
+    const put = (i) => {
+      const k = kids[i]; if (!k.length) { x[i] = next++; return; }
+      const one = binary && k.length === 1 ? side[k[0]] : 0;
+      if (one > 0) next++;
+      k.forEach(put);
+      if (one < 0) next++;
+      x[i] = one ? x[k[0]] - one * 0.5 : (x[k[0]] + x[k[k.length - 1]]) / 2;
+    };
+    const drawn = []; for (let i = 0; i < n; i++) if (par[i] !== -2) drawn.push(i);
+    if (drawn.length) put(0);
+    const xs = drawn.map(i => x[i]), xmin = Math.min(...xs, 0);
+    return { nodes, n, par, depth, kids, drawn, x: x.map(v => v - xmin), cols: drawn.length ? Math.max(...xs) - xmin : 0, levels: drawn.length ? Math.max(...drawn.map(i => depth[i])) + 1 : 0 };
+  }
+
+  function norm(sc, h) {
+    sc = sc && typeof sc === "object" ? sc : {};
+    let raw = list(sc.nodes ?? sc.tree ?? sc.values), par = list(sc.parent ?? sc.parents);
+    // nodes written as objects: {label, parent}
+    const objs = raw.map(o => (o && typeof o === "object" && !Array.isArray(o) ? o : null));
+    if (!par.length && objs.some(o => o && (o.parent ?? o.p) != null)) par = objs.map(o => (o ? o.parent ?? o.p ?? -1 : -1));
+    raw = raw.map((v, i) => (objs[i] ? objs[i].label ?? objs[i].val ?? objs[i].value ?? objs[i].text ?? "" : v));
+    const general = par.length > 0;
+    let nodes = raw.slice(0, general ? MAX_GEN : MAX_BIN).map(v => (general ? (v == null ? "" : h.str(v, LBL)) : v == null || NIL.test(String(v).trim()) ? null : h.str(v, LBL)));
+    if (!general) { while (nodes.length && nodes[nodes.length - 1] == null) nodes.pop(); if (nodes[0] == null) nodes = []; }
+    const out = { nodes };
+    if (general) out.parent = nodes.map((_, i) => { const p = Math.round(+par[i]); return i > 0 && Number.isFinite(p) && p >= 0 && p < i ? p : i ? 0 : -1; });
+    const e = list(sc.edge ?? sc.edges ?? sc.edgeLabels);
+    if (e.length) { const edge = nodes.map((_, i) => (i && e[i] != null && typeof e[i] !== "object" ? h.str(e[i], 4) : "")); if (edge.some(Boolean)) out.edge = edge; }
+    return out;
+  }
+
+  // Only the fields that are set are kept, so a step's JSON stays short in the editor.
+  function normStep(st, data, h) {
+    st = st && typeof st === "object" ? st : {};
+    const n = arr(data, "nodes").length, o = {};
+    const idx = (v) => { if (v == null || v === "" || typeof v === "object" || typeof v === "boolean") return -1; const x = Math.round(+v); return Number.isFinite(x) && x >= 0 && x < n ? x : -1; };
+    const ids = (v) => [...new Set((Array.isArray(v) ? v : v == null ? [] : String(v).split(/[\s,]+/)).map(idx).filter(x => x >= 0))];
+    const texts = (v, len) => { const t = {}; if (v && typeof v === "object") Object.entries(v).forEach(([k, x]) => { const i = idx(k), s = x == null ? "" : h.str(x, len); if (i >= 0 && s) t[i] = s; }); return t; };
+    const ats = ids(st.at ?? st.cur ?? st.node);
+    if (ats.length) o.at = ats[0];
+    for (const [k, alt] of [["path", "stack"], ["hi", "highlight"], ["done", "ok"], ["dim", "pruned"], ["bad", "reject"]]) {
+      const l = ids(st[k] ?? st[alt]).concat(k === "hi" ? ats.slice(1) : []); if (l.length) o[k] = [...new Set(l)];
+    }
+    const src = st.ptr || st.pointers, ptr = {};
+    if (src && typeof src === "object") (Array.isArray(src) ? src.map(p => [p && (p.name || p.label), p && (p.at ?? p.index)]) : Object.entries(src)).slice(0, 4).forEach(([k, v]) => { const nm = h.str(k, 5), i = idx(v); if (nm && i >= 0) ptr[nm] = i; });
+    if (Object.keys(ptr).length) o.ptr = ptr;
+    const vals = texts(st.vals ?? st.values ?? st.val, 6), lab = texts(st.lab ?? st.labels, LBL);
+    if (Object.keys(vals).length) o.vals = vals;
+    if (Object.keys(lab).length) o.lab = lab;
+    const sh = st.show ?? st.shown, shn = typeof sh === "number" || (typeof sh === "string" && sh.trim()) ? Math.round(+sh) : NaN;
+    if (Number.isFinite(shn) && shn >= 1 && shn < n) o.show = shn;
+    return o;
+  }
+
+  function draw(c, sc, f, h) {
+    const { COL, FONT, MONO, lerp, clamp } = h;
+    const T = build(sc || {}); if (!T.drawn.length || !f || !f.area) return;
+    const A = f.area, st = f.st || {}, pr = f.pr || st, u = f.u == null ? 1 : clamp(+f.u || 0, 0, 1);
+    const steps = Array.isArray(f.steps) && f.steps.length ? f.steps : [st];
+    const anyVals = steps.some(s => Object.keys(obj(s, "vals")).length), anyPtr = steps.some(s => Object.keys(obj(s, "ptr")).length);
+    // geometry: column width from the leaf slots, radius and level gap from the area's height
+    // a pointer on a leaf hangs under it, so the deepest level then needs room below
+    const Lv = T.levels, isLeaf = (i) => T.drawn.includes(i) && !T.kids[i].length;
+    const lowPtr = steps.some(s => Object.values(obj(s, "ptr")).some(i => isLeaf(i) && T.depth[i] === Lv - 1));
+    const padX = 14 + (anyPtr ? 30 : 0), padT = 14, padB = 14 + (anyVals ? 26 : 0) + (lowPtr ? 76 : 0);
+    const availW = A.w - 2 * padX, availH = A.h - padT - padB;
+    const colW = Math.min(300, availW / (T.cols + 1));
+    const r = Math.max(20, Math.min(colW * 0.4, 62, Lv > 1 ? availH * 0.32 / (Lv - 1 + 0.64) : availH / 2));
+    const gap = Lv > 1 ? Math.min(290, (availH - 2 * r) / (Lv - 1)) : 0;
+    const x0 = A.x + A.w / 2 - T.cols * colW / 2, y0 = A.y + padT + (availH - gap * (Lv - 1) - 2 * r) / 2 + r;
+    const mono = (sz, wt = 700) => `${wt} ${Math.round(sz)}px ${MONO}`;
+    const has = (s, k, i) => arr(s, k).includes(i);
+    const amt = (fn, i) => lerp(fn(pr, i) ? 1 : 0, fn(st, i) ? 1 : 0, u);
+    const labelOf = (s, i) => { const l = obj(s, "lab")[i]; return String(l != null ? l : T.nodes[i] == null ? "" : T.nodes[i]); };
+    // every drawn node: position, pill width (a circle when the label is short) and font size
+    const base = clamp(r * 0.8, 24, 46), maxW = Math.max(2 * r, colW - 12), N = {};
+    for (const i of T.drawn) {
+      const text = labelOf(st, i), old = labelOf(pr, i);
+      c.font = mono(base); const tw = c.measureText(text).width;
+      const w = clamp(tw + r * 0.7, 2 * r, maxW); let fs = base; while (fs > 24 && tw * fs / base > w - 14) fs -= 2;
+      N[i] = { x: x0 + T.x[i] * colW, y: y0 + T.depth[i] * gap, w, fs, text: old !== text && u <= 0.5 ? old : text, flip: old !== text ? Math.abs(2 * u - 1) : 1 };
+    }
+    const shape = (nd, grow = 0) => { c.beginPath(); c.roundRect(nd.x - nd.w / 2 - grow, nd.y - r - grow, nd.w + 2 * grow, 2 * (r + grow), r + grow); };
+    // distance from a node's centre to its outline along a unit direction
+    const rim = (nd, ux, uy) => { const a = nd.w / 2 - r; if (a <= 0.5) return r; const t = Math.abs(uy) > 1e-6 ? r / Math.abs(uy) : 1e9; return Math.abs(ux) * t <= a ? t : a * Math.abs(ux) + Math.sqrt(Math.max(0, r * r - a * a * uy * uy)); };
+    const dimA = (i) => lerp(has(pr, "dim", i) ? 0.32 : 1, has(st, "dim", i) ? 0.32 : 1, u);
+    const onPath = (s, i) => has(s, "path", i) && has(s, "path", T.par[i]);
+    const EDGE = "rgba(77,184,255,0.45)", efs = clamp(r * 0.62, 24, 30);
+    // the highlighted path is orange while it is being walked and green once every node on it is accepted
+    const pathCol = arr(st, "path").length && arr(st, "path").every(i => has(st, "done", i)) ? COL.green : COL.orange;
+
+    // edges, behind the nodes; an edge to a node that does not exist yet is a faint dashed line
+    for (const i of T.drawn) {
+      const p = T.par[i]; if (p < 0) continue;
+      const a = N[p], b = N[i], len = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / len, uy = (b.y - a.y) / len;
+      const ra = rim(a, ux, uy), rb = rim(b, ux, uy);
+      const x1 = a.x + ux * ra, y1 = a.y + uy * ra, x2 = b.x - ux * rb, y2 = b.y - uy * rb;
+      const ap = amt(shownIn, i), line = (xe, ye) => { c.beginPath(); c.moveTo(x1, y1); c.lineTo(xe, ye); c.stroke(); };
+      c.lineCap = "round";
+      if (ap < 1) { c.save(); c.globalAlpha *= (1 - ap) * 0.22; c.setLineDash([10, 12]); c.strokeStyle = COL.blue; c.lineWidth = 3; line(x2, y2); c.restore(); }
+      if (ap <= 0) continue;
+      c.save(); c.globalAlpha *= ap * dimA(i);
+      const xe = lerp(x1, x2, ap), ye = lerp(y1, y2, ap);
+      c.strokeStyle = EDGE; c.lineWidth = 4; line(xe, ye);
+      const pa = amt(onPath, i);
+      if (pa > 0) { c.save(); c.globalAlpha *= pa; c.strokeStyle = pathCol; c.lineWidth = 8; line(xe, ye); c.restore(); }
+      const el = arr(sc, "edge")[i];
+      if (el) {
+        c.font = `700 ${Math.round(efs)}px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle";
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, tw = c.measureText(el).width + 14;
+        c.fillStyle = COL.bg; c.beginPath(); c.roundRect(mx - tw / 2, my - efs / 2 - 4, tw, efs + 8, 8); c.fill();
+        c.fillStyle = pa > 0.5 ? pathCol : COL.white; c.fillText(el, mx, my + 1);
+      }
+      c.restore();
+    }
+
+    // nodes: the look fades from the previous step's state to this step's
+    const kind = (s, i) => (s.at === i ? "at" : has(s, "bad", i) ? "bad" : has(s, "done", i) ? "done" : has(s, "hi", i) ? "hi" : has(s, "path", i) ? "path" : "");
+    const LOOK = { "": [null, EDGE, 3], at: [COL.orange, COL.orange, 3], bad: ["rgba(255,92,108,0.28)", COL.red, 5], done: ["rgba(52,211,153,0.26)", COL.green, 5], hi: ["rgba(77,184,255,0.16)", COL.blue, 5], path: [null, COL.orange, 5] };
+    const look = (nd, k, a) => { if (a <= 0) return; const [fill, stroke, lw] = LOOK[k]; c.save(); c.globalAlpha *= a; shape(nd); if (fill) { c.fillStyle = fill; c.fill(); } c.strokeStyle = stroke; c.lineWidth = lw; c.stroke(); c.restore(); };
+    for (const i of T.drawn) {
+      const nd = N[i], ap = amt(shownIn, i);
+      if (ap < 1) { c.save(); c.globalAlpha *= (1 - ap) * 0.22; c.setLineDash([10, 12]); c.strokeStyle = COL.blue; c.lineWidth = 3; shape(nd); c.stroke(); c.restore(); }
+      if (ap <= 0) continue;
+      c.save(); c.globalAlpha *= ap * dimA(i);
+      if (ap < 1) { c.translate(nd.x, nd.y); c.scale(0.6 + 0.4 * ap, 0.6 + 0.4 * ap); c.translate(-nd.x, -nd.y); }
+      shape(nd); c.fillStyle = COL.disk; c.fill();
+      const k1 = kind(pr, i), k2 = kind(st, i);
+      if (k1 !== k2) look(nd, k1, 1 - u);
+      look(nd, k2, k1 === k2 ? 1 : u);
+      const ink = k1 === k2 ? k2 === "at" : (u > 0.5 ? k2 : k1) === "at";
+      c.globalAlpha *= nd.flip; c.font = mono(nd.fs); c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillStyle = ink ? COL.ink : COL.white; c.fillText(nd.text, nd.x, nd.y + 2, nd.w - 10);
+      c.restore();
+    }
+
+    // cursor ring: slides from the previous "at" to this one
+    const ca = shownIn(pr, pr.at) ? N[pr.at] : null, cb = shownIn(st, st.at) ? N[st.at] : null;
+    if (ca || cb) {
+      const a = ca || cb, b = cb || ca, al = ca && cb ? 1 : cb ? u : 1 - u;
+      if (al > 0) { c.save(); c.globalAlpha *= al; shape({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), w: lerp(a.w, b.w, u) }, 9); c.strokeStyle = COL.orange; c.lineWidth = 5; c.stroke(); c.restore(); }
+    }
+
+    // values beside nodes: a tag on the bottom rim; one that is new or changed in this step is filled
+    const v1 = obj(pr, "vals"), v2 = obj(st, "vals"), bh = clamp(r * 0.72, 32, 44);
+    for (const key of Object.keys(v2)) {
+      const nd = N[key]; if (!nd || !shownIn(st, +key)) continue;
+      const txt = String(v2[key]), fresh = pr !== st && v1[key] !== v2[key];
+      c.save(); if (pr !== st && v1[key] === undefined) c.globalAlpha *= u;
+      c.font = mono(Math.max(24, bh * 0.74)); const bw = Math.max(bh + 8, c.measureText(txt).width + 20), by = nd.y + r + 4;
+      c.beginPath(); c.roundRect(nd.x - bw / 2, by - bh / 2, bw, bh, bh / 2); c.fillStyle = COL.bg; c.fill();
+      if (fresh) { c.save(); c.globalAlpha *= u; c.fillStyle = COL.yellow; c.fill(); c.restore(); }
+      c.strokeStyle = COL.yellow; c.lineWidth = 2.5; c.stroke();
+      c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = fresh && u > 0.5 ? COL.ink : COL.yellow; c.fillText(txt, nd.x, by + 2);
+      c.restore();
+    }
+
+    // named pointers: a triangle and the name, under a leaf, on an inner node's outer shoulder, or beside the root;
+    // they slide between steps
+    const pfs = Math.round(Lv > 1 ? clamp((gap - 2 * r) * 0.6, 26, 38) : 38), tri = pfs * 0.68;
+    c.font = `800 ${pfs}px ${FONT}`;
+    const place = (s) => {
+      const out = {}, groups = {};
+      for (const [nm, i] of Object.entries(obj(s, "ptr"))) if (N[i] && shownIn(s, i)) (groups[i] = groups[i] || []).push(nm);
+      for (const key of Object.keys(groups)) {
+        const nd = N[key], names = groups[key], ws = names.map(nm => c.measureText(nm).width), W = ws.reduce((a, b) => a + b, 0) + 12 * (names.length - 1);
+        const p = T.par[key] >= 0 ? N[T.par[key]] : null;
+        let sd = p && p.x < nd.x - 1 ? 1 : -1, dx, dy, tx, ty, lx, ly;
+        if (isLeaf(+key)) {
+          // under a leaf, like a pointer under an array cell (below the value tag when there is one)
+          dx = 0; dy = 1; tx = nd.x; ty = nd.y + r + (obj(s, "vals")[key] !== undefined ? bh / 2 + 10 : 12); lx = nd.x; ly = ty + tri + 4 + pfs / 2;
+        } else if (!p) {
+          if (nd.x - nd.w / 2 - 20 - tri - W < A.x) sd = 1;
+          dx = sd; dy = 0; tx = nd.x + sd * (nd.w / 2 + 12); ty = nd.y; lx = tx + sd * (tri + 8 + W / 2); ly = ty;
+        } else {
+          if (Math.abs(p.x - nd.x) <= 1 && nd.x - nd.w / 2 - W < A.x) sd = 1;
+          dx = sd * 0.64; dy = -0.77; tx = nd.x + sd * (nd.w / 2 - r) + dx * (r + 12); ty = nd.y + dy * (r + 12);
+          lx = tx + dx * tri + sd * (W / 2 - 6); ly = ty + dy * tri - pfs * 0.55; // the names sit above the triangle's base, growing outwards
+        }
+        lx = clamp(lx, A.x + W / 2 + 2, A.x + A.w - W / 2 - 2);
+        let off = lx - W / 2;
+        names.forEach((nm, j) => { out[nm] = { tx, ty, dx, dy, lx: off + ws[j] / 2, ly }; off += ws[j] + 12; });
+      }
+      return out;
+    };
+    const P1 = place(pr), P2 = place(st), cols = h.ptrCols(), order = [...new Set(steps.flatMap(s => Object.keys(obj(s, "ptr"))))];
+    for (const nm of Object.keys(P2)) {
+      const b = P2[nm], a = P1[nm] || b, m = (k) => lerp(a[k], b[k], u);
+      let dx = m("dx"), dy = m("dy"); const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+      const tx = m("tx"), ty = m("ty"), bx = tx + dx * tri, by = ty + dy * tri, hw = tri * 0.6;
+      c.save(); if (!P1[nm]) c.globalAlpha *= u;
+      c.fillStyle = cols[Math.max(0, order.indexOf(nm)) % cols.length];
+      c.beginPath(); c.moveTo(tx, ty); c.lineTo(bx - dy * hw, by + dx * hw); c.lineTo(bx + dy * hw, by - dx * hw); c.closePath(); c.fill();
+      c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(nm, m("lx"), m("ly") + 1);
+      c.restore();
+    }
+  }
+
+  const Q = (items) => ({ kind: "queue", name: "q", items });
+  (window.__codelensSimDefs = window.__codelensSimDefs || []).push(["tree", {
+    label: "Cây (tree)",
+    when: "cây nhị phân, BST, heap, trie (duyệt DFS, BFS theo tầng, chiều sâu, đường đi, tổ tiên chung) và CÂY ĐỆ QUY của backtracking hay memo (subsets, permutations, Fibonacci).",
+    prompt: 'vẽ một cây, mỗi bước đánh dấu nút theo CHỈ SỐ. "nodes": cây nhị phân viết level-order như LeetCode, null là thiếu con, ví dụ [3,9,20,null,null,15,7] (tối đa 15 phần tử, 4 tầng). Cây nhiều nhánh, trie và cây đệ quy thì thêm "parent": chỉ số nút cha của từng nút, gốc là -1, cha luôn đứng trước con, ví dụ "nodes": ["[]","[1]","[1,2]","[2]"], "parent": [-1,0,1,0] (tối đa 15 nút, 4 tầng, 8 lá, nhãn tối đa 6 ký tự; liệt kê nút theo đúng thứ tự được gọi). Tùy chọn "edge": nhãn ngắn trên cạnh nối mỗi nút với cha, ví dụ ["","a","b"] cho trie hoặc ["","+1","+2"]. Mọi trạng thái dùng chỉ số của nút trong "nodes" (từ 0, null cũng chiếm một chỉ số), KHÔNG dùng giá trị của nút. Mỗi bước {"say", "at": nút đang thăm, "path": [các nút từ gốc tới nút đang thăm, cạnh nối chúng được tô sáng], "hi": [nút đang chờ trong queue hoặc đang được so sánh], "done": [nút đã xử lý xong hoặc thuộc đáp án], "dim": [nhánh bị loại], "bad": [nút vi phạm], "ptr": {"p": 3, "cur": 1} con trỏ có tên, "vals": {"3": "1"} giá trị ghi cạnh nút (kết quả hàm đệ quy trả về, memo), "lab": {"0": "5"} nhãn mới của nút khi giá trị đổi (heap), "show": số nút đầu tiên đã mọc ra (cây đệ quy lớn dần theo từng lời gọi; bỏ trống là hiện cả cây)}. Mỗi bước là ảnh chụp đầy đủ: nút nào còn đánh dấu thì phải ghi lại, trường nào rỗng thì bỏ. BFS thì kèm "box" queue; DFS đệ quy thì ghi giá trị trả về vào "vals". Ví dụ một bước: {"say": "…", "at": 4, "path": [0,1,4], "done": [3], "vals": {"3": "1"}, "vars": {"best": "2"}}.',
+    review: 'Mọi chỉ số trong at, path, hi, done, dim, ptr, vals phải trỏ đúng nút theo vị trí trong "nodes" (null cũng chiếm một chỉ số) chứ không phải theo giá trị, và thứ tự thăm nút phải đúng với thuật toán (DFS, BFS hay đệ quy). Với cây đệ quy, "parent" phải đúng quan hệ gọi hàm và "show" phải tăng dần theo đúng thứ tự gọi.',
+    dataHint: 'cây nhị phân level-order, null là thiếu con: {"nodes": [3, 9, 20, null, null, 15, 7]}. Cây đệ quy, trie, cây nhiều nhánh: {"nodes": ["[]", "[1]", "[2]"], "parent": [-1, 0, 0], "edge": ["", "+1", "+2"]}',
+    stepHint: '{"at": 2, "path": [0, 2], "hi": [5, 6], "done": [0], "dim": [1], "bad": [], "ptr": {"p": 5}, "vals": {"1": "2"}, "lab": {"0": "9"}, "show": 5}; mọi số là chỉ số nút trong "nodes", trường nào không dùng thì bỏ',
+    fields: ["nodes", "parent", "edge"],
+    norm, normStep, draw,
+    samples: [
+      { // LeetCode 102: level-order traversal with a queue
+        heading: "DUYỆT *THEO TẦNG*", subtitle: "Queue giữ đúng các nút của một tầng, lấy hết tầng này mới sang tầng sau",
+        narration: "Mình chạy BFS trên cây ví dụ của LeetCode 102 và theo dõi queue ở từng bước.",
+        nodes: [3, 9, 20, null, null, 15, 7],
+        steps: [
+          { say: "Mình bỏ nút gốc 3 vào queue trước. Queue luôn chứa đúng những nút đang chờ được thăm, còn res thì chưa có tầng nào.", hi: [0], box: Q(["3"]), vars: { res: "[]" } },
+          { say: "Tầng đầu chỉ có một nút. Mình lấy 3 ra khỏi queue, ghi vào level, rồi đẩy hai con của nó là 9 và 20 vào cuối queue.", at: 0, hi: [1, 2], box: Q(["9", "20"]), vars: { res: "[]", level: "[3]" } },
+          { say: "Hết tầng nên level được chép vào res. Queue đang có hai nút, tức tầng mới có hai nút. Mình lấy 9 ra, nó là lá nên không đẩy thêm gì.", at: 1, done: [0], hi: [2], box: Q(["20"]), vars: { res: "[[3]]", level: "[9]" } },
+          { say: "Lấy tiếp 20 ra và ghi vào level. Nút này có hai con là 15 và 7, mình đẩy cả hai vào queue để dành cho tầng sau.", at: 2, done: [0, 1], hi: [5, 6], box: Q(["15", "7"]), vars: { res: "[[3]]", level: "[9,20]" } },
+          { say: "Tầng hai xong, res nhận thêm 9 và 20. Sang tầng ba, mình lấy 15 ra khỏi queue, nó không có con nào cả.", at: 5, done: [0, 1, 2], hi: [6], box: Q(["7"]), vars: { res: "[[3],[9,20]]", level: "[15]" } },
+          { say: "Lấy nốt 7 ra, level bây giờ có 15 và 7. Queue đã rỗng, nghĩa là bên dưới không còn tầng nào nữa.", at: 6, done: [0, 1, 2, 5], box: Q([]), vars: { res: "[[3],[9,20]]", level: "[15,7]" } },
+          { say: "Chép tầng cuối vào res rồi dừng vì queue rỗng. Kết quả là ba tầng từ trên xuống, mỗi nút được thăm đúng một lần.", done: [0, 1, 2, 5, 6], box: Q([]), vars: { res: "[[3],[9,20],[15,7]]", level: "[15,7]" } },
+        ] },
+      { // LeetCode 543: diameter of a binary tree, post-order DFS with the returned heights beside the nodes
+        heading: "*ĐƯỜNG KÍNH* CỦA CÂY", subtitle: "Mỗi nút trả về chiều cao, còn đường kính là tổng hai nhánh lớn nhất",
+        narration: "Mình duyệt DFS trên cây ví dụ của LeetCode 543 và ghi chiều cao mỗi nút trả về ngay cạnh nút đó.",
+        nodes: [1, 2, 3, 4, 5],
+        steps: [
+          { say: "Hàm depth trả về chiều cao của một nhánh. Mình gọi nó ở gốc 1, nhưng gốc phải chờ hai con trả lời trước nên mình đi xuống bên trái.", at: 0, path: [0], vars: { best: "0" } },
+          { say: "Tới nút 2, nó cũng chưa tính được gì vì còn hai con bên dưới. Mình đi tiếp xuống con trái của nó là nút 4.", at: 1, path: [0, 1], vars: { best: "0" } },
+          { say: "Nút 4 là lá, hai phía đều rỗng nên l và r bằng 0. Đường đi qua nó dài 0, còn chiều cao trả về cho cha là 1.", at: 3, path: [0, 1, 3], vals: { 3: "1" }, vars: { best: "0", l: "0", r: "0" } },
+          { say: "Quay lên rồi sang con phải là nút 5. Nó cũng là lá nên cho kết quả giống hệt: best vẫn là 0 và nó trả về 1.", at: 4, path: [0, 1, 4], vals: { 3: "1", 4: "1" }, vars: { best: "0", l: "0", r: "0" } },
+          { say: "Giờ nút 2 đã có đủ hai câu trả lời, l bằng 1 và r bằng 1. Đường dài nhất uốn qua nó là 1 cộng 1 bằng 2 nên best lên 2, và nó trả về 2.", at: 1, path: [0, 1], hi: [3, 4], vals: { 1: "2", 3: "1", 4: "1" }, vars: { best: "2", l: "1", r: "1" } },
+          { say: "Sang nhánh phải của gốc là nút 3. Đây là lá nên l và r bằng 0, best giữ nguyên là 2 và nút 3 trả về chiều cao 1.", at: 2, path: [0, 2], vals: { 1: "2", 2: "1", 3: "1", 4: "1" }, vars: { best: "2", l: "0", r: "0" } },
+          { say: "Về lại gốc với l bằng 2 và r bằng 1. Đường uốn qua gốc dài 2 cộng 1 bằng 3, lớn hơn best cũ nên best thành 3.", at: 0, path: [0], hi: [1, 2], vals: { 0: "3", 1: "2", 2: "1", 3: "1", 4: "1" }, vars: { best: "3", l: "2", r: "1" } },
+          { say: "Đáp án là 3, chính là đường đi từ nút 4 lên 2, qua gốc 1 rồi xuống 3. Cả cây chỉ được duyệt một lần nên rất nhanh.", done: [0, 1, 2, 3], path: [0, 1, 2, 3], vals: { 0: "3", 1: "2", 2: "1", 3: "1", 4: "1" }, vars: { best: "3" } },
+        ] },
+      { // LeetCode 78: subsets as a recursion tree that grows call by call (no box, no vars)
+        heading: "CÂY ĐỆ QUY *SUBSETS*", subtitle: "Mỗi nút của cây đệ quy là một tập con, đủ 8 nút là đủ 8 tập con",
+        narration: "Với bài Subsets, mình vẽ từng lời gọi đệ quy thành một nút để bạn thấy backtracking đi và quay lui thế nào.",
+        nodes: ["[]", "[1]", "[1,2]", "[1,2,3]", "[1,3]", "[2]", "[2,3]", "[3]"], parent: [-1, 0, 1, 2, 1, 0, 5, 0],
+        edge: ["", "+1", "+2", "+3", "+3", "+2", "+3", "+3"],
+        steps: [
+          { say: "Với nums gồm 1, 2, 3, lời gọi đầu tiên có cur rỗng. Vừa vào hàm là mình chép cur vào kết quả, nên tập rỗng là tập con đầu tiên.", show: 1, at: 0, path: [0] },
+          { say: "Vòng lặp chọn số 1 bỏ vào cur rồi gọi đệ quy. Cây mọc thêm một nút, và tập chỉ có số 1 được ghi nhận ngay.", show: 2, at: 1, path: [0, 1], done: [0] },
+          { say: "Từ đây mình chỉ được chọn các số đứng sau số 1 để không lặp lại tập cũ. Thêm 2 vào, ta có tập gồm 1 và 2.", show: 3, at: 2, path: [0, 1, 2], done: [0, 1] },
+          { say: "Thêm tiếp 3 thì được tập đủ ba số. Sau số 3 không còn số nào để chọn nên vòng lặp không chạy, nhánh này dừng ở đây.", show: 4, at: 3, path: [0, 1, 2, 3], done: [0, 1, 2] },
+          { say: "Mình quay lui: gỡ 3 ra, rồi gỡ 2 ra, cur chỉ còn số 1. Vòng lặp ở nút đó chọn tiếp số 3, sinh ra tập gồm 1 và 3.", show: 5, at: 4, path: [0, 1, 4], done: [0, 1, 2, 3] },
+          { say: "Nhánh bắt đầu bằng số 1 đã hết. Quay về gốc, gỡ 1 ra và chọn số 2, từ giờ các tập con sẽ không chứa số 1 nữa.", show: 6, at: 5, path: [0, 5], done: [0, 1, 2, 3, 4] },
+          { say: "Sau số 2 chỉ còn số 3 để thêm vào, nên nhánh này chỉ mọc thêm đúng một nút là tập gồm 2 và 3.", show: 7, at: 6, path: [0, 5, 6], done: [0, 1, 2, 3, 4, 5] },
+          { say: "Quay về gốc lần cuối và chọn số 3. Sau nó không còn số nào nên nút này là lá, không gọi đệ quy thêm nữa.", at: 7, path: [0, 7], done: [0, 1, 2, 3, 4, 5, 6] },
+          { say: "Cây có tám nút, mỗi nút là một tập con, đúng bằng 2 mũ 3. Thứ tự các nút mọc ra cũng chính là thứ tự trong kết quả.", done: [0, 1, 2, 3, 4, 5, 6, 7] },
+        ] },
+      { // LeetCode 235: lowest common ancestor in a BST, named pointers and ruled-out subtrees (no box, no vars)
+        heading: "*TỔ TIÊN CHUNG* TRONG BST", subtitle: "Nút đầu tiên nằm giữa p và q chính là tổ tiên chung gần nhất",
+        narration: "Bài tìm tổ tiên chung gần nhất trong BST chỉ cần đi một đường từ gốc xuống, mình chạy thử với p là 3 và q là 5.",
+        nodes: [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5],
+        steps: [
+          { say: "Cần tìm tổ tiên chung gần nhất của p là 3 và q là 5. Mình đặt cur ở gốc 6 và tận dụng thứ tự của BST thay vì duyệt cả cây.", at: 0, path: [0], ptr: { cur: 0, p: 9, q: 10 } },
+          { say: "Cả 3 và 5 đều nhỏ hơn 6 nên hai nút chắc chắn nằm bên trái. Mình bỏ hẳn nhánh phải và cho cur xuống nút 2.", at: 1, path: [0, 1], dim: [2, 5, 6], ptr: { cur: 1, p: 9, q: 10 } },
+          { say: "Lần này cả 3 và 5 đều lớn hơn 2, vậy p và q cùng nằm bên phải của nó. Bỏ nút 0, cur đi xuống nút 4.", at: 4, path: [0, 1, 4], dim: [2, 3, 5, 6], ptr: { cur: 4, p: 9, q: 10 } },
+          { say: "Tại nút 4 thì p nhỏ hơn còn q lớn hơn, hai nút rẽ về hai phía. Đây là điểm tách nên 4 chính là đáp án, chỉ sau ba bước đi.", done: [4], path: [0, 1, 4], dim: [2, 3, 5, 6], ptr: { cur: 4, p: 9, q: 10 } },
+        ] },
+    ],
+  }]);
+})();
+})();
+
+/* --- scenes/list.js --- */
+(() => {
+// Linked-list figure for algorithm clips: nodes as boxes joined by arrows, so the viewer sees the "next" arrows change.
+// Scene data: nodes (main list), cycle (index the tail links back to), second (a second list for merge problems).
+// Step state: ptr (named pointers), next (arrows that differ from the original list at this step), hi, dim, cut.
+// Addressing: a node of the main list is its index (0, 1, 2…); a node of the second list is "b0", "b1"…
+// A pointer may also stand on a null: -1 is before the head, the list length is after the tail ("b-1", "b3" for list b).
+(window.__codelensSimDefs = window.__codelensSimDefs || []).push(["list", (() => {
+  const lens = (d) => [(d.nodes || []).length, (d.second || []).length];
+  // Parses a node reference into [list, index], or null when invalid. With ends=true the two nulls are allowed too.
+  function ref(v, d, ends) {
+    let l = 0, i = v;
+    if (typeof v === "string") {
+      const m = /^\s*([ab]?)\s*(-?\d+|null|none|nil)?\s*$/i.exec(v);
+      if (!m || (!m[1] && m[2] === undefined)) return null;
+      l = m[1].toLowerCase() === "b" ? 1 : 0; i = m[2] === undefined || !/\d/.test(m[2]) ? null : +m[2];
+    } else if (v === undefined || (v !== null && typeof v !== "number")) return null;
+    const n = lens(d)[l]; if (!n) return null;
+    i = i === null ? n : Math.round(i);
+    if (!Number.isFinite(i) || (ends ? i < -1 || i > n : i < 0 || i >= n)) return null;
+    return [l, i];
+  }
+  const fmt = (r) => r[0] ? "b" + r[1] : r[1];
+  const ids = (v, d) => [...new Set((Array.isArray(v) ? v : String(v == null ? "" : v).split(/[\s,]+/)).map(x => ref(x, d)).filter(Boolean).map(fmt))];
+
+  function norm(sc, h) {
+    sc = sc && typeof sc === "object" ? sc : {};
+    const vals = (v, max) => (Array.isArray(v) ? v : String(v == null ? "" : v).split(/\s*(?:,|->|→)\s*|\s+/))
+      .map(x => h.str(x && typeof x === "object" ? (x.val ?? x.value ?? "") : x, 4)).filter(x => x !== "").slice(0, max);
+    const second = vals(sc.second ?? sc.list2 ?? sc.nodes2, 6);
+    const nodes = vals(sc.nodes ?? sc.list ?? sc.values, second.length ? 6 : 8);
+    const out = { nodes }; const cv = sc.cycle ?? sc.pos;
+    const cy = typeof cv === "number" || (typeof cv === "string" && cv.trim()) ? h.int(cv, 0, nodes.length - 1, -1) : -1;
+    if (cy >= 0) out.cycle = cy;
+    if (second.length && nodes.length) out.second = second;
+    return out;
+  }
+  function normStep(st, d, h) {
+    st = st && typeof st === "object" ? st : {}; d = d || {};
+    const ptr = {}; const ps = st.ptr || st.pointers || {};
+    (Array.isArray(ps) ? ps.map(o => [o && (o.name || o.label), o && (o.at ?? o.index ?? o.node)]) : Object.entries(typeof ps === "object" ? ps : {})).forEach(([k, v]) => {
+      const name = h.str(k, 6), r = ref(v, d, true); if (name && r && Object.keys(ptr).length < 4) ptr[name] = fmt(r);
+    });
+    const next = {}; const ns = st.next || st.arrows || {}; const N = lens(d);
+    (Array.isArray(ns) ? ns : Object.entries(typeof ns === "object" ? ns : {})).forEach(e => {
+      if (!Array.isArray(e)) return; const s = ref(e[0], d), t = ref(e[1], d, true);
+      if (s && t) next[fmt(s)] = t[1] < 0 || t[1] >= N[t[0]] ? -1 : fmt(t);
+    });
+    return { ptr, next, hi: ids(st.hi, d), dim: ids(st.dim, d), cut: ids(st.cut ?? st.removed, d) };
+  }
+
+  function draw(c, sc, f, h) {
+    const { COL, FONT, MONO, clamp, lerp } = h;
+    const d = { nodes: Array.isArray(sc.nodes) ? sc.nodes : [], second: Array.isArray(sc.second) ? sc.second : [] };
+    const N = lens(d), A = f.area; if (!N[0] || !A) return;
+    const two = N[1] > 0, cyc = Number.isInteger(sc.cycle) && sc.cycle >= 0 && sc.cycle < N[0] ? sc.cycle : -1;
+    const O = (v) => v && typeof v === "object" ? v : {}, Ls = (v) => Array.isArray(v) ? v.map(String) : [];
+    const S = (s) => { s = O(s); return { ptr: O(s.ptr), next: O(s.next), hi: Ls(s.hi), dim: Ls(s.dim), cut: Ls(s.cut) }; };
+    const st = S(f.st), pr = S(f.pr || f.st), all = (Array.isArray(f.steps) && f.steps.length ? f.steps : [f.st]).map(S);
+    const u = f.u == null ? 1 : clamp(+f.u || 0, 0, 1);
+    const key = (r) => String(fmt(r));
+    const every = []; for (let l = 0; l < 2; l++) for (let i = 0; i < N[l]; i++) every.push([l, i]);
+    // where a node's arrow goes: "" is null, otherwise the key of the target node
+    const dflt = (r) => r[1] + 1 < N[r[0]] ? key([r[0], r[1] + 1]) : (!r[0] && cyc >= 0 ? String(cyc) : "");
+    const eff = (s, r) => { const v = s.next[key(r)]; if (v === undefined) return dflt(r); const t = v === -1 ? null : ref(v, d); return t ? key(t) : ""; };
+    const ptrAt = (s) => Object.entries(s.ptr).map(([nm, v]) => [nm, ref(v, d, true)]).filter(x => x[1]);
+    // which null labels the scene needs, over all steps, so the layout never jumps
+    const nullL = [false, false], nullR = [false, false];
+    all.forEach(s => {
+      ptrAt(s).forEach(([, r]) => { if (r[1] < 0) nullL[r[0]] = true; if (r[1] >= N[r[0]]) nullR[r[0]] = true; });
+      for (let l = 0; l < 2; l++) if (N[l]) { if (eff(s, [l, N[l] - 1]) === "") nullR[l] = true; if (N[l] > 1 && eff(s, [l, 0]) === "") nullL[l] = true; }
+    });
+    const anyL = nullL[0] || nullL[1];
+
+    // A layout: one row, two rows for two lists, or one list wrapped onto two rows. Picks the largest node that fits.
+    const plan = (wrap) => {
+      const split = wrap ? Math.ceil(N[0] / 2) : N[0] + 1, rows = two || wrap ? 2 : 1;
+      const rowOf = (r) => r[0] || r[1] >= split ? 1 : 0, colOf = (r) => !r[0] && r[1] >= split ? r[1] - split : r[1];
+      const cnt = two ? N : wrap ? [split, N[0] - split] : [N[0]];
+      const arcD = [0, 0], stack = [0, 0];
+      all.forEach(s => {
+        every.forEach(r => {
+          const t = eff(s, r); if (!t) return; const q = ref(t, d), row = rowOf(r);
+          if (rowOf(q) === row && colOf(q) !== colOf(r) + 1) arcD[row] = Math.max(arcD[row], Math.abs(colOf(q) - colOf(r)) || 1);
+        });
+        const at = {}; ptrAt(s).forEach(([, r]) => { const k = key(r); at[k] = (at[k] || 0) + 1; stack[rowOf(r)] = Math.max(stack[rowOf(r)], at[k]); });
+      });
+      const geo = (cw, v) => {   // v stretches the figure vertically when the area is taller than the row needs
+        const ch = Math.round(cw * 0.86 * Math.min(v, 1.35)), gap = Math.max(40, Math.round(cw * 0.48)), pitch = cw + gap;
+        const nf = clamp(Math.round(cw * 0.28), 24, 36), nullW = Math.round(nf * 2.4) + 6;
+        const idxF = clamp(Math.round(cw * 0.22 * v), 24, 34), idxH = idxF + 12;
+        const pf = clamp(Math.round(Math.min(cw * 0.34 * v, pitch * 0.3)), 30, 52), th = Math.round(pf * 0.6), plh = pf + 6;
+        const pz = (k) => k ? 6 + th + 2 + k * plh : 0;
+        const ah = (dd) => Math.min(cw * 1.1, cw * (0.42 + 0.16 * (dd - 1))) * v, arcH = arcD.map(x => x ? Math.round(ah(x)) + 10 : 0);
+        const m = Math.max(20, gap * 0.5), lane = Math.max(34, Math.round(cw * 0.3 * v));
+        const left = Math.max(wrap ? m + 6 : 0, anyL ? nullW + gap : 0);
+        let W = 0;
+        for (let r = 0; r < rows; r++) W = Math.max(W, left + cnt[r] * pitch - gap + (wrap && !r ? m + 6 : 0) + ((two ? nullR[r] : nullR[0] && r === rows - 1) ? gap + nullW : 0));
+        const top = []; let y = 0, laneY = 0;
+        if (two) { y = pz(stack[0]) + idxH; top[0] = y; y += ch + Math.max(Math.round(cw * 0.95 * v), arcH[0] + arcH[1] + 16); top[1] = y; y += ch + idxH + pz(stack[1]); }
+        else for (let r = 0; r < rows; r++) { if (r) { laneY = y + lane / 2; y += lane; } y += arcH[r]; top[r] = y; y += ch + idxH + pz(stack[r]); }
+        return { cw, ch, gap, pitch, nf, nullW, idxF, idxH, pf, th, plh, ah, m, left, W, H: y, top, laneY, wrap, split, rowOf, colOf,
+          lw: clamp(cw * 0.045, 4, 7), hs: clamp(cw * 0.17, 14, 26) };
+      };
+      let g = null; for (let cw = 176; cw >= 44; cw -= 2) { g = geo(cw, 1); if (g.W <= A.w && g.H <= A.h) break; }
+      for (let v = 1.6; v > 1.01; v -= 0.05) { const t = geo(g.cw, v); if (t.H <= A.h * 0.8) return t; }
+      return g;
+    };
+    let G = plan(false);
+    if (!two && N[0] >= 5 && G.cw < 84) { const g2 = plan(true); if (g2.cw > G.cw * 1.15) G = g2; }
+    const { cw, ch, gap, idxH, th, plh } = G;
+    const ox = A.x + (A.w - G.W) / 2, oy = A.y + (A.h - G.H) / 2;
+    const side = (row) => two && !row ? -1 : 1;   // index and pointers: above the upper of two lists, otherwise below
+    const box = (r) => {
+      const row = G.rowOf(r), col = G.colOf(r), x = ox + G.left + col * G.pitch, y = oy + G.top[row];
+      const cx = r[1] < 0 ? ox + G.left - gap - G.nullW / 2 : r[1] >= N[r[0]] ? x + G.nullW / 2 : x + cw / 2;
+      return { row, col, x, y, cx, cy: y + ch / 2 };
+    };
+
+    // ---- arrows: every arrow is a polyline, so it can be drawn growing ----
+    const bez = (x0, y0, x1, y1, x2, y2, x3, y3) => Array.from({ length: 21 }, (_, i) => {
+      const t = i / 20, a = 1 - t; return [a * a * a * x0 + 3 * a * a * t * x1 + 3 * a * t * t * x2 + t * t * t * x3, a * a * a * y0 + 3 * a * a * t * y1 + 3 * a * t * t * y2 + t * t * t * y3];
+    });
+    const rounded = (pts, rad) => {
+      const out = [pts[0]];
+      for (let i = 1; i < pts.length - 1; i++) {
+        const [px, py] = pts[i], a0 = pts[i - 1], b0 = pts[i + 1], la = Math.hypot(a0[0] - px, a0[1] - py), lb = Math.hypot(b0[0] - px, b0[1] - py);
+        if (!la || !lb) { out.push(pts[i]); continue; }
+        const ra = Math.min(rad, la / 2, lb / 2), a = [px + (a0[0] - px) / la * ra, py + (a0[1] - py) / la * ra], b = [px + (b0[0] - px) / lb * ra, py + (b0[1] - py) / lb * ra];
+        for (let j = 0; j <= 4; j++) { const t = j / 4, w = 1 - t; out.push([w * w * a[0] + 2 * w * t * px + t * t * b[0], w * w * a[1] + 2 * w * t * py + t * t * b[1]]); }
+      }
+      out.push(pts[pts.length - 1]); return out;
+    };
+    const pathOf = (r, t) => {
+      const a = box(r), P = 5;
+      if (!t) {
+        if (r[1] === N[r[0]] - 1) return { p: [[a.x + cw + P, a.cy], [a.x + cw + gap - 6, a.cy]] };   // tail to the null on the right
+        if (r[1] === 0) return { p: [[a.x - P, a.cy], [a.x - gap + 6, a.cy]] };                        // head to the null on the left
+        return { p: [[a.x + cw + P, a.cy], [a.x + cw + gap * 0.62, a.cy]], bar: true };                // a middle node cut off: stub with a bar
+      }
+      const q = ref(t, d), b = box(q);
+      if (a.row === b.row) {
+        if (b.col === a.col + 1) return { p: [[a.x + cw + P, a.cy], [b.x - P, a.cy]] };
+        // backwards, skipping or cycle link: an arc outside the row; it leaves near the middle of the node's edge and lands
+        // near the corner facing its source, so an arrow in and an arrow out of one node never share a point
+        const sd = two && !a.row ? 1 : -1, dir = Math.sign(b.col - a.col) || -1, y0 = sd < 0 ? a.y - P : a.y + ch + P;
+        const yc = y0 + sd * 1.33 * G.ah(Math.abs(b.col - a.col) || 1), sx = a.cx + dir * cw * 0.1, ex = b.cx - dir * cw * 0.28;
+        return { p: bez(sx, y0, sx, yc, ex, yc, ex, y0) };
+      }
+      if (G.wrap && Math.abs(q[1] - r[1]) === 1 && Math.min(q[1], r[1]) === G.split - 1) {
+        // the link across the wrap runs right, down through the lane between the rows, then into the next row
+        const s = a.row ? b : a, e = a.row ? a : b, xr = s.x + cw + G.m, xl = e.x - G.m, ly = oy + G.laneY;
+        const p = rounded([[s.x + cw + P, s.cy], [xr, s.cy], [xr, ly], [xl, ly], [xl, e.cy], [e.x - P, e.cy]], 16);
+        return { p: a.row ? p.reverse() : p };
+      }
+      const dx = b.cx - a.cx, dy = b.cy - a.cy, k = Math.min((cw / 2 + P) / Math.abs(dx || 1e-6), (ch / 2 + P) / Math.abs(dy || 1e-6));
+      return { p: [[a.cx + dx * k, a.cy + dy * k], [b.cx - dx * k, b.cy - dy * k]] };
+    };
+    const trunc = (p, len) => {
+      const out = [p[0]]; let dir = [1, 0];
+      for (let i = 1; i < p.length && len > 0; i++) {
+        const dx = p[i][0] - p[i - 1][0], dy = p[i][1] - p[i - 1][1], L = Math.hypot(dx, dy); if (!L) continue;
+        const k = Math.min(1, len / L); out.push([p[i - 1][0] + dx * k, p[i - 1][1] + dy * k]); dir = [dx / L, dy / L]; len -= L;
+      }
+      return { out, dir };
+    };
+    const drawArrow = (a, frac, col, alpha) => {
+      const len = a.p.reduce((s, q, i) => i ? s + Math.hypot(q[0] - a.p[i - 1][0], q[1] - a.p[i - 1][1]) : 0, 0) * frac;
+      if (len < 3 || alpha <= 0.01) return;
+      const hs = Math.min(G.hs, len), full = trunc(a.p, len), line = trunc(a.p, len - (a.bar ? 0 : hs * 0.8)), tip = full.out[full.out.length - 1], [ux, uy] = full.dir;
+      c.save(); c.globalAlpha *= alpha; c.strokeStyle = c.fillStyle = col; c.lineWidth = G.lw; c.lineCap = "round"; c.lineJoin = "round";
+      c.beginPath(); line.out.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.stroke();
+      c.beginPath();
+      if (a.bar) { c.moveTo(tip[0] - uy * hs * 0.8, tip[1] + ux * hs * 0.8); c.lineTo(tip[0] + uy * hs * 0.8, tip[1] - ux * hs * 0.8); c.stroke(); }
+      else { c.moveTo(tip[0], tip[1]); c.lineTo(tip[0] - ux * hs - uy * hs * 0.55, tip[1] - uy * hs + ux * hs * 0.55); c.lineTo(tip[0] - ux * hs + uy * hs * 0.55, tip[1] - uy * hs - ux * hs * 0.55); c.closePath(); c.fill(); }
+      c.restore();
+    };
+
+    // ---- null labels: bright while an arrow or a pointer is on them ----
+    c.textAlign = "center"; c.textBaseline = "middle";
+    const onNull = (s, l, i) => ptrAt(s).some(([, r]) => r[0] === l && r[1] === i);
+    for (let l = 0; l < 2; l++) {
+      if (!N[l] || (l && !two)) continue;
+      const spots = [[nullL[l], -1, N[l] > 1 && eff(st, [l, 0]) === ""], [nullR[l], N[l], eff(st, [l, N[l] - 1]) === ""]];
+      spots.forEach(([need, i, live]) => {
+        if (!need) return; const b = box([l, i]);
+        c.save(); c.globalAlpha *= live || onNull(st, l, i) ? 1 : 0.4; c.font = `600 ${G.nf}px ${MONO}`; c.fillStyle = COL.muted; c.fillText("null", b.cx, b.cy + 1, G.nullW); c.restore();
+      });
+    }
+    // ---- nodes ----
+    const fadeOf = (s, k) => s.cut.includes(k) ? 0.5 : s.dim.includes(k) ? 0.32 : 1;
+    const maxLen = Math.max(1, ...d.nodes.concat(d.second).map(v => String(v).length));
+    const vf = Math.round(clamp(Math.min(ch * 0.46, (cw - 16) / (0.62 * maxLen)), 24, 78));
+    every.forEach(r => {
+      const k = key(r), b = box(r), al = lerp(fadeOf(pr, k), fadeOf(st, k), u);
+      const hi = lerp(+pr.hi.includes(k), +st.hi.includes(k), u), cut = lerp(+pr.cut.includes(k), +st.cut.includes(k), u);
+      c.save(); c.globalAlpha *= al;
+      c.beginPath(); c.roundRect(b.x, b.y, cw, ch, cw * 0.16); c.fillStyle = COL.disk; c.fill();
+      if (hi > 0) { c.save(); c.globalAlpha *= hi; c.fillStyle = COL.orange; c.fill(); c.restore(); }
+      c.strokeStyle = hi > 0.5 ? COL.orange : "rgba(77,184,255,0.45)"; c.lineWidth = 3; c.stroke();
+      c.font = `700 ${vf}px ${MONO}`; c.fillStyle = hi > 0.5 ? COL.ink : COL.white; c.fillText(String((r[0] ? d.second : d.nodes)[r[1]]), b.cx, b.cy + 2, cw - 12);
+      c.font = `500 ${G.idxF}px ${MONO}`; c.fillStyle = COL.muted; c.fillText(k, b.cx, side(b.row) > 0 ? b.y + ch + idxH / 2 + 3 : b.y - idxH / 2 - 1);
+      c.restore();
+      if (cut > 0) {   // a removed node: red dashed outline and a strike
+        c.save(); c.globalAlpha *= cut; c.strokeStyle = COL.red; c.lineWidth = 4; c.lineCap = "round";
+        c.setLineDash([14, 10]); c.beginPath(); c.roundRect(b.x, b.y, cw, ch, cw * 0.16); c.stroke(); c.setLineDash([]);
+        c.beginPath(); c.moveTo(b.x + cw * 0.14, b.y + ch * 0.86); c.lineTo(b.x + cw * 0.86, b.y + ch * 0.14); c.stroke(); c.restore();
+      }
+    });
+    // ---- arrows: blue = as in the original list, green = changed earlier, orange = changed in this step (grows with u) ----
+    every.forEach(r => {
+      const k = key(r), now = eff(st, r), old = eff(pr, r), al = lerp(fadeOf(pr, k), fadeOf(st, k), u);
+      const calm = (t) => t === dflt(r) ? COL.blue : COL.green;
+      if (now !== old && u < 1) drawArrow(pathOf(r, old), 1, calm(old), al * (1 - u));
+      drawArrow(pathOf(r, now), now !== old ? u : 1, now !== old ? COL.orange : calm(now), al);
+    });
+    // ---- pointers: slide from their previous node; several on one node stack ----
+    const cols = h.ptrCols(), order = [...new Set(all.flatMap(s => Object.keys(s.ptr)))];
+    const spot = (s) => {
+      const out = {}, at = {};
+      ptrAt(s).forEach(([nm, r]) => { const k = key(r), b = box(r), sd = side(b.row); at[k] = at[k] || 0; out[nm] = { x: b.cx, y: sd > 0 ? b.y + ch + idxH : b.y - idxH, slot: at[k]++, sd }; });
+      return out;
+    };
+    const now = spot(st), was = spot(pr);
+    Object.keys(now).reverse().forEach(nm => {   // reversed, so the triangle keeps the colour of the name nearest to it
+      const b = now[nm], a = was[nm] || b, x = lerp(a.x, b.x, u), y = lerp(a.y, b.y, u), slot = lerp(a.slot, b.slot, u), sd = b.sd;
+      c.save(); if (!was[nm]) c.globalAlpha *= u; c.fillStyle = cols[Math.max(0, order.indexOf(nm)) % cols.length];
+      c.beginPath(); c.moveTo(x, y + sd * 6); c.lineTo(x - th * 0.7, y + sd * (6 + th)); c.lineTo(x + th * 0.7, y + sd * (6 + th)); c.closePath(); c.fill();
+      c.font = `800 ${G.pf}px ${FONT}`; const tw = c.measureText(nm).width;
+      c.fillText(nm, clamp(x, A.x + tw / 2 + 2, A.x + A.w - tw / 2 - 2), y + sd * (6 + th + 2 + plh * (slot + 0.5)));
+      c.restore();
+    });
+  }
+
+  return {
+    label: "Danh sách liên kết",
+    when: "danh sách liên kết: đảo danh sách, con trỏ nhanh và chậm (nút giữa, phát hiện vòng), xóa nút thứ n từ cuối, trộn hai danh sách đã sắp xếp, sắp xếp lại các nút. Hình vẽ cho thấy từng mũi tên next đổi hướng.",
+    prompt: 'MÔ PHỎNG thuật toán trên danh sách liên kết, người xem phải thấy MŨI TÊN next đổi hướng. "nodes": giá trị các nút theo thứ tự, tối đa 8 nút, mỗi nút tối đa 4 ký tự (ví dụ ["1","2","3","4","5"]); code dùng nút giả thì thêm nút "D" ở đầu. "cycle": chỉ số nút mà nút cuối trỏ về (chỉ khi có vòng). "second": danh sách thứ hai cho bài trộn hai danh sách (khi đó mỗi danh sách tối đa 6 nút); nút của "nodes" ghi bằng chỉ số 0, 1, 2…, nút của "second" ghi "b0", "b1"… Mỗi bước: {"say", "ptr": {"prev": -1, "curr": 0} (tên ngắn: prev, curr, next, slow, fast, tail; giá trị là nút con trỏ đang đứng; null TRƯỚC nút đầu ghi -1, null SAU nút cuối ghi bằng số nút, với "second" là "b-1" và ví dụ "b3"), "next": {"1": 0, "0": -1} (CHỈ những mũi tên next đang KHÁC danh sách gốc ở bước này, dạng nút nguồn: nút đích, -1 là null. Đây là ảnh chụp: bước sau phải ghi lại MỌI mũi tên đã đổi ở các bước trước; mũi tên mới đổi ở bước này tự được tô cam), "hi": [nút đang xét], "dim": [nút đã xong hoặc bị loại], "cut": [nút đã bị gỡ khỏi danh sách]}. Ví dụ khi đảo 1, 2, 3 và đã lật hai mũi tên: {"ptr": {"prev": 1, "curr": 2}, "next": {"0": -1, "1": 0}, "hi": [2]}. Bài trộn: nối kết quả bằng "next" đi qua lại giữa hai danh sách, ví dụ {"ptr": {"p1": 1, "p2": "b1", "tail": "b0"}, "next": {"0": "b0"}}. Mỗi bước chỉ đổi MỘT mũi tên, ứng với đúng một lệnh gán .next trong code.',
+    review: 'Tự chạy code trên đúng danh sách của cảnh: ở mỗi bước, "next" phải liệt kê đủ và đúng mọi nút có .next khác danh sách gốc tại thời điểm đó (không làm rơi mũi tên đã đổi ở bước trước), và mỗi con trỏ trong "ptr" phải đứng đúng nút hoặc đúng null mà biến đó đang giữ.',
+    dataHint: 'Ví dụ: {"nodes": ["1","2","3","4","5"]}. Có vòng thì thêm "cycle": 1 (nút cuối trỏ về nút 1). Bài hai danh sách thì thêm "second": ["1","3","4"]; nút của nó được gọi là "b0", "b1", "b2".',
+    stepHint: 'Ví dụ: {"ptr": {"prev": 0, "curr": 1}, "next": {"0": -1, "1": 0}, "hi": [1], "dim": [], "cut": []}. "next" ghi mọi mũi tên đang khác danh sách gốc (-1 là null). Con trỏ ở null: -1 là trước nút đầu, bằng số nút là sau nút cuối.',
+    fields: ["nodes", "cycle", "second"],
+    norm, normStep, draw,
+    samples: [
+      { heading: "LẬT TỪNG *MŨI TÊN*", subtitle: "LeetCode 206: đảo danh sách 1, 2, 3, 4, 5 bằng ba con trỏ prev, curr, next",
+        narration: "Mình đảo danh sách bằng cách lật từng mũi tên một.", nodes: ["1", "2", "3", "4", "5"], steps: [
+          { say: "Ban đầu prev là null, còn curr đứng ở nút đầu tiên. Mọi mũi tên vẫn đang chỉ sang phải, và mình sẽ lật chúng lần lượt từng cái một.", ptr: { prev: -1, curr: 0 } },
+          { say: "Mình cất nút kế tiếp vào next để không mất dấu, rồi cho mũi tên của nút 1 quay về prev, lúc này đang là null.", ptr: { prev: -1, curr: 0, next: 1 }, next: { 0: -1 }, hi: [0] },
+          { say: "Cả prev và curr tiến một bước. Mũi tên của nút 2 được lật lại để chỉ về nút 1, còn next giữ sẵn nút 3 cho vòng lặp sau.", ptr: { prev: 0, curr: 1, next: 2 }, next: { 0: -1, 1: 0 }, hi: [1] },
+          { say: "Lặp lại đúng các thao tác đó: cất nút 4 vào next, rồi lật mũi tên của nút 3 để nó chỉ ngược về nút 2.", ptr: { prev: 1, curr: 2, next: 3 }, next: { 0: -1, 1: 0, 2: 1 }, hi: [2] },
+          { say: "Tới nút 4, mũi tên của nó quay về nút 3. Bạn để ý phần bên trái đã đảo xong, còn mũi tên bên phải vẫn giữ nguyên.", ptr: { prev: 2, curr: 3, next: 4 }, next: { 0: -1, 1: 0, 2: 1, 3: 2 }, hi: [3] },
+          { say: "Nút 5 là nút cuối nên next lúc này là null. Mình lật nốt mũi tên của nó về nút 4, vậy là mọi mũi tên đã đổi chiều.", ptr: { prev: 3, curr: 4, next: 5 }, next: { 0: -1, 1: 0, 2: 1, 3: 2, 4: 3 }, hi: [4] },
+          { say: "curr đi tới null nên vòng lặp dừng. prev đang đứng ở nút 5, đó chính là đầu của danh sách đã đảo, nên mình trả về prev.", ptr: { prev: 4, curr: 5 }, next: { 0: -1, 1: 0, 2: 1, 3: 2, 4: 3 }, hi: [4] },
+        ] },
+      { heading: "RÙA VÀ THỎ *GẶP NHAU*", subtitle: "LeetCode 141: slow đi một bước, fast đi hai bước, có vòng thì sẽ gặp nhau",
+        narration: "Hai con trỏ chạy với hai tốc độ khác nhau để tìm vòng.", nodes: ["3", "2", "0", "-4"], cycle: 1, steps: [
+          { say: "Nút cuối cùng trỏ ngược về nút thứ hai nên danh sách này có vòng. Mình cho slow và fast cùng xuất phát ở nút đầu tiên.", ptr: { slow: 0, fast: 0 } },
+          { say: "Mỗi lượt slow đi một bước còn fast đi hai bước. Sau lượt đầu, slow ở nút thứ hai và fast ở nút thứ ba, hai con trỏ chưa gặp nhau.", ptr: { slow: 1, fast: 2 } },
+          { say: "Lượt hai, slow sang nút thứ ba. fast đi tới nút cuối rồi theo mũi tên vòng quay lại nút thứ hai, nên giờ nó đang đuổi phía sau slow.", ptr: { slow: 2, fast: 1 } },
+          { say: "Lượt ba, slow tới nút cuối và fast đi thêm hai bước cũng tới đúng nút đó. Hai con trỏ gặp nhau nên chắc chắn có vòng, mình trả về true.", ptr: { slow: 3, fast: 3 }, hi: [3] },
+        ] },
+      { heading: "TRỘN HAI *DANH SÁCH*", subtitle: "LeetCode 21: luôn so hai nút đầu và nối nút nhỏ hơn vào sau tail",
+        narration: "Mình trộn hai danh sách đã sắp xếp bằng cách nối lại mũi tên.", nodes: ["1", "2", "4"], second: ["1", "3", "4"], steps: [
+          { say: "Hai danh sách đều đã sắp xếp tăng dần. p1 và p2 đứng ở đầu mỗi danh sách, mình sẽ luôn so hai nút này và lấy nút nhỏ hơn.", ptr: { p1: 0, p2: "b0" } },
+          { say: "Hai nút đầu cùng là 1, mình lấy nút của danh sách trên. tail đánh dấu nút cuối của kết quả, còn p1 tiến sang nút 2.", ptr: { p1: 1, p2: "b0", tail: 0 }, hi: [0] },
+          { say: "So 2 với 1 thì 1 nhỏ hơn, nên mũi tên của tail được nối xuống nút 1 ở danh sách dưới. tail dời theo, còn p2 tiến sang nút 3.", ptr: { p1: 1, p2: "b1", tail: "b0" }, next: { 0: "b0" }, hi: ["b0"] },
+          { say: "So 2 với 3 thì 2 nhỏ hơn, mình nối tail ngược lên nút 2 của danh sách trên. Kết quả lúc này là 1, 1, 2 và p1 sang nút 4.", ptr: { p1: 2, p2: "b1", tail: 1 }, next: { 0: "b0", b0: 1 }, hi: [1] },
+          { say: "So 4 với 3 thì 3 nhỏ hơn, tail nối xuống nút 3 rồi dời theo. p2 tiến sang nút 4, cũng là nút cuối của danh sách dưới.", ptr: { p1: 2, p2: "b2", tail: "b1" }, next: { 0: "b0", b0: 1, 1: "b1" }, hi: ["b1"] },
+          { say: "Hai nút cùng là 4, mình ưu tiên danh sách trên nên tail nối lên nút 4 phía trên. p1 đi tới null, tức là danh sách trên đã hết.", ptr: { p1: 3, p2: "b2", tail: 2 }, next: { 0: "b0", b0: 1, 1: "b1", b1: 2 }, hi: [2] },
+          { say: "Một bên đã hết nên không cần so nữa, mình nối tail thẳng vào phần còn lại của danh sách dưới. Đi theo các mũi tên sẽ ra 1, 1, 2, 3, 4, 4.", ptr: { p1: 3, p2: "b2", tail: 2 }, next: { 0: "b0", b0: 1, 1: "b1", b1: 2, 2: "b2" }, hi: ["b2"] },
+        ] },
+      { heading: "*NHẢY QUA* NÚT CẦN XÓA", subtitle: "LeetCode 19: xóa nút thứ hai từ cuối bằng hai con trỏ cách nhau n nút",
+        narration: "Mình giữ hai con trỏ cách nhau đúng n nút.", nodes: ["D", "1", "2", "3", "4", "5"], steps: [
+          { say: "Mình thêm nút giả D đứng trước đầu danh sách, để khi phải xóa nút đầu cũng không cần xử lý riêng. slow và fast cùng bắt đầu ở D.", ptr: { slow: 0, fast: 0 }, vars: { n: "2", "cách nhau": "0" } },
+          { say: "Cần xóa nút thứ hai tính từ cuối, nên mình cho fast đi trước đúng hai bước. Từ giờ fast luôn cách slow hai nút.", ptr: { slow: 0, fast: 2 }, vars: { n: "2", "cách nhau": "2" } },
+          { say: "Sau đó hai con trỏ cùng tiến từng bước một. Khoảng cách hai nút được giữ nguyên, slow ở nút 1 và fast ở nút 3.", ptr: { slow: 1, fast: 3 }, vars: { n: "2", "cách nhau": "2" } },
+          { say: "Cả hai tiến thêm một bước nữa, slow sang nút 2 còn fast sang nút 4. Sau fast vẫn còn một nút nên mình chưa dừng lại.", ptr: { slow: 2, fast: 4 }, vars: { n: "2", "cách nhau": "2" } },
+          { say: "fast chạm nút cuối thì dừng. Lúc này slow đứng ở nút 3, ngay trước nút 4, chính là nút thứ hai tính từ cuối cần xóa.", ptr: { slow: 3, fast: 5 }, hi: [4], vars: { n: "2", "cách nhau": "2" } },
+          { say: "Mình cho mũi tên của slow nhảy qua nút 4 để trỏ thẳng tới nút 5. Nút 4 rời khỏi danh sách, kết quả còn lại là 1, 2, 3, 5.", ptr: { slow: 3, fast: 5 }, next: { 3: 5 }, cut: [4], vars: { n: "2", "cách nhau": "2" } },
+        ] },
+      { heading: "TÌM *ĐẦU VÒNG*", subtitle: "LeetCode 142: nút đầu tiên bị gặp lại lần hai chính là nơi vòng bắt đầu",
+        narration: "Mình ghi lại các nút đã đi qua để biết vòng bắt đầu ở đâu.", nodes: ["1", "2", "3", "4", "5"], cycle: 2, steps: [
+          { say: "Nút cuối trỏ ngược về nút 3 nên danh sách có vòng. Mình dùng một set tên seen để ghi lại những nút đã đi qua, curr bắt đầu ở nút 1.", ptr: { curr: 0 }, box: { kind: "set", name: "seen", items: [] }, vars: { "curr.val": "1", "trong seen": "không" } },
+          { say: "Nút 1 chưa có trong seen nên mình thêm nó vào, rồi cho curr đi tiếp theo mũi tên sang nút 2.", ptr: { curr: 1 }, box: { kind: "set", name: "seen", items: ["1"] }, vars: { "curr.val": "2", "trong seen": "không" } },
+          { say: "Nút 2 cũng chưa gặp lần nào, mình thêm vào seen và đi tiếp. curr đang ở nút 3, bạn nhớ nút này vì lát nữa mình sẽ quay lại.", ptr: { curr: 2 }, box: { kind: "set", name: "seen", items: ["1", "2"] }, vars: { "curr.val": "3", "trong seen": "không" } },
+          { say: "Nút 3 được thêm vào seen và curr sang nút 4. Cho tới giờ mỗi nút mới chỉ được ghé qua đúng một lần.", ptr: { curr: 3 }, box: { kind: "set", name: "seen", items: ["1", "2", "3"] }, vars: { "curr.val": "4", "trong seen": "không" } },
+          { say: "Nút 4 vào seen, curr sang nút 5 là nút cuối. Mũi tên của nút 5 không chỉ ra null mà vòng ngược lại phía trước.", ptr: { curr: 4 }, box: { kind: "set", name: "seen", items: ["1", "2", "3", "4"] }, vars: { "curr.val": "5", "trong seen": "không" } },
+          { say: "Thêm nút 5 rồi đi theo mũi tên vòng, curr quay về nút 3. Nút 3 đã nằm trong seen, nên đây chính là nút bắt đầu vòng và mình trả về nó.", ptr: { curr: 2 }, hi: [2], box: { kind: "set", name: "seen", items: ["1", "2", "3", "4", "5"] }, vars: { "curr.val": "3", "trong seen": "có" } },
+        ] },
+    ],
+  };
+})()]);
+})();
+
+/* --- scenes/graph.js --- */
+(() => {
+// Simulation scene "graph": nodes and edges for BFS/DFS, topological sort, shortest paths and union-find.
+// The scene holds labels and edges only; this module chooses every position (layers for a DAG, a ring otherwise).
+(window.__codelensSimDefs = window.__codelensSimDefs || []).push(["graph", (() => {
+  const MAXN = 10, MAXE = 24, TAGLEN = 7, EDGE_COL = "#6C83AB", TAU = Math.PI * 2;
+  const cache = new Map(); // layouts, keyed by graph + area + which nodes carry tags
+  const arr = (v) => Array.isArray(v) ? v : v == null || v === "" ? [] : typeof v === "string" ? v.split(/[\s,;]+/).filter(Boolean) : [v];
+  const scalar = (x) => x != null && typeof x !== "object" && typeof x !== "boolean";
+  const ARROW = /\s*(?:-+>?|>|→)\s*/;
+  const strPairs = (s) => (s.match(/[\w.]+\s*(?:-+>?|>|→)\s*[\w.]+/g) || []).map(p => p.split(ARROW));
+  const bez = (g, t) => { const s = 1 - t; return [s * s * g.p0[0] + 2 * s * t * g.c[0] + t * t * g.p2[0], s * s * g.p0[1] + 2 * s * t * g.c[1] + t * t * g.p2[1]]; };
+  const hits = (rc, pts, pad) => pts.reduce((s, p) => s + (p[0] > rc[0] - pad && p[0] < rc[0] + rc[2] + pad && p[1] > rc[1] - pad && p[1] < rc[1] + rc[3] + pad ? 1 : 0), 0);
+  const overlap = (a, b, pad) => a[0] < b[0] + b[2] + pad && b[0] < a[0] + a[2] + pad && a[1] < b[1] + b[3] + pad && b[1] < a[1] + a[3] + pad;
+  const rcDist = (rc, p) => Math.hypot(Math.max(rc[0] - p[0], 0, p[0] - rc[0] - rc[2]), Math.max(rc[1] - p[1], 0, p[1] - rc[1] - rc[3]));
+
+  function norm(sc, h) {
+    sc = sc && typeof sc === "object" ? sc : {};
+    const directed = [true, "true", 1, "1", "yes"].includes(sc.directed ?? sc.isDirected);
+    // raw edges: [a, b, w] arrays, {from, to, w} objects, or a string such as "0-1, 1-2"
+    let raw = sc.edges;
+    if (typeof raw === "string") { try { raw = JSON.parse(raw); } catch (e) { raw = strPairs(raw); } }
+    raw = (Array.isArray(raw) ? raw : []).map(e => Array.isArray(e) ? e : e && typeof e === "object" ? [e.from ?? e.u ?? e.a ?? e.source, e.to ?? e.v ?? e.b ?? e.target, e.w ?? e.weight ?? e.cost] : null)
+      .filter(e => e && scalar(e[0]) && scalar(e[1])).slice(0, 80);
+    const ends = raw.flatMap(e => [e[0], e[1]]);
+    // nodes: labels, or a count n meaning 0..n-1; without it, count the nodes from the edges
+    let nv = sc.nodes ?? sc.vertices ?? sc.n, labels, counted = false;
+    if (typeof nv === "string" && /^\s*\d+\s*$/.test(nv)) nv = +nv;
+    if (nv == null || (!Array.isArray(nv) && typeof nv !== "string" && typeof nv !== "number")) { nv = Math.max(-1, ...ends.map(x => Math.round(+x)).filter(x => x >= 0 && x < MAXN)) + 1; }
+    if (typeof nv === "number") { counted = true; labels = Array.from({ length: h.clamp(Math.round(nv) || 0, 0, MAXN) }, (_, i) => String(i)); }
+    else labels = arr(nv).slice(0, MAXN).map((x, i) => h.str(x, 4) || String(i));
+    const n = labels.length;
+    const isIdx = (x) => String(x).trim() !== "" && Number.isInteger(+x) && +x >= 0 && +x < n;
+    const lab = (x) => labels.indexOf(String(x).trim());
+    // rescue: endpoints written as labels (typically 1-based node numbers) instead of indexes
+    let byLabel = false;
+    if (ends.length && !ends.every(isIdx)) {
+      if (ends.every(x => lab(x) >= 0)) byLabel = true;
+      else if (counted && ends.every(x => Number.isInteger(+x) && +x >= 1 && +x <= n)) { labels = labels.map((_, i) => String(i + 1)); byLabel = true; }
+    }
+    const at = (x) => byLabel ? lab(x) : isIdx(x) ? +x : lab(x);
+    const seen = new Set(), edges = [];
+    raw.forEach(e => {
+      const a = at(e[0]), b = at(e[1]); if (a < 0 || b < 0 || a === b || edges.length >= MAXE) return;
+      const key = directed || a < b ? a + ">" + b : b + ">" + a; if (seen.has(key)) return; seen.add(key);
+      const w = e[2], num = typeof w === "number" || (typeof w === "string" && w.trim() !== "") ? +w : NaN;
+      const wv = Number.isFinite(num) ? h.clamp(Math.round(num * 100) / 100, -9999, 99999) : typeof w === "string" ? h.str(w, 4) : "";
+      edges.push(wv === "" ? [a, b] : [a, b, wv]);
+    });
+    const sv = String(sc.shape || "").toLowerCase();
+    const shape = /^(lay|dag|tầng|tang)/.test(sv) ? "layers" : /^(cir|ring|round|vòng)/.test(sv) ? "circle" : /^(grid|lưới)/.test(sv) ? "grid" : undefined;
+    return { nodes: labels, edges, directed, shape, _byLabel: byLabel };
+  }
+
+  function normStep(st, data, h) {
+    st = st && typeof st === "object" ? st : {}; data = data || {};
+    const labels = Array.isArray(data.nodes) ? data.nodes : [], n = labels.length, E = Array.isArray(data.edges) ? data.edges : [];
+    const ix = (x) => { if (!scalar(x)) return -1; const s = String(x).trim(), li = labels.indexOf(s); return data._byLabel ? li : s !== "" && Number.isInteger(+s) && +s >= 0 && +s < n ? +s : li; };
+    const list = (v) => [...new Set(arr(v).map(ix).filter(i => i >= 0))];
+    const hasEdge = (a, b) => E.some(e => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a));
+    const pairs = (v) => {
+      if (typeof v === "string") v = strPairs(v);
+      v = Array.isArray(v) ? v : [];
+      if (v.length === 2 && v.every(scalar)) v = [v]; // a single pair written flat
+      const seen = new Set(), out = [];
+      v.forEach(p => {
+        if (p && !Array.isArray(p) && typeof p === "object") p = [p.from ?? p.u ?? p.a, p.to ?? p.v ?? p.b];
+        if (!Array.isArray(p) || p.length < 2) return;
+        const a = ix(p[0]), b = ix(p[1]), key = data.directed || a < b ? a + ">" + b : b + ">" + a; if (a < 0 || b < 0 || a === b || !hasEdge(a, b) || seen.has(key)) return;
+        seen.add(key); out.push([a, b]);
+      });
+      return out;
+    };
+    const map = (v, fn) => {
+      const o = {}, isA = Array.isArray(v), ent = isA ? v.map((x, i) => [i < n ? i : -1, x]) : v && typeof v === "object" ? Object.entries(v).map(([k, x]) => [ix(k), x]) : [];
+      ent.map(([k, x]) => [k, fn(x)]).filter(([k, x]) => k >= 0 && x != null && x !== "").sort((p, q) => p[0] - q[0]).forEach(([k, x]) => { o[k] = x; });
+      return o;
+    };
+    const a0 = st.at ?? st.cur ?? st.current ?? st.node, al = list(Array.isArray(a0) ? a0 : [a0]);
+    const out = {}; if (al.length) out.at = al[0];
+    const lists = { hi: [...new Set([...list(st.hi ?? st.highlight), ...al.slice(1)])], dim: list(st.dim ?? st.visited ?? st.seen), done: list(st.done ?? st.final ?? st.ok),
+      edge: pairs(st.edge ?? st.edges ?? st.active), used: pairs(st.used ?? st.tree ?? st.path), bad: pairs(st.bad ?? st.reject ?? st.cut) };
+    Object.keys(lists).forEach(k => { if (lists[k].length) out[k] = lists[k]; });
+    const tags = map(st.tags ?? st.tag ?? st.labels, x => scalar(x) ? h.str(x, TAGLEN) : "");
+    const group = map(st.group ?? st.groups ?? st.comp ?? st.colors ?? st.color, x => scalar(x) && x !== "" ? h.int(x, 0, 99, null) : null);
+    if (Object.keys(tags).length) out.tags = tags;
+    if (Object.keys(group).length) out.group = group;
+    return out;
+  }
+
+  // Positions, node radius, edge curves, weight pills and tag slots for one scene in one area.
+  function layout(c, sc, f, h) {
+    const labels = sc.nodes, n = labels.length, A = f.area, steps = Array.isArray(f.steps) ? f.steps : [];
+    const tagLen = labels.map((_, i) => Math.max(0, ...steps.map(s => s && s.tags && s.tags[i] != null ? String(s.tags[i]).length : 0)));
+    const key = JSON.stringify([n, sc.edges, sc.directed, sc.shape, A.x, A.y, A.w, A.h, tagLen]);
+    if (cache.has(key)) return cache.get(key);
+    const ok = (x) => Number.isInteger(x) && x >= 0 && x < n;
+    const E = (Array.isArray(sc.edges) ? sc.edges : []).filter(e => Array.isArray(e) && ok(e[0]) && ok(e[1]) && e[0] !== e[1]).map(e => ({ a: e[0], b: e[1], w: e[2] }));
+    const dagDepth = () => { // longest-path depth; null when the graph has a cycle
+      const ind = Array(n).fill(0), d = Array(n).fill(0), q = []; E.forEach(e => ind[e.b]++); ind.forEach((v, i) => { if (!v) q.push(i); }); let seen = 0;
+      while (q.length) { const u = q.shift(); seen++; E.forEach(e => { if (e.a === u) { d[e.b] = Math.max(d[e.b], d[u] + 1); if (!--ind[e.b]) q.push(e.b); } }); }
+      return seen === n ? d : null;
+    };
+    const bfsDepth = () => {
+      const d = Array(n).fill(-1);
+      for (let s = 0; s < n; s++) if (d[s] < 0) { d[s] = 0; const q = [s]; while (q.length) { const u = q.shift(); E.forEach(e => { const v = e.a === u ? e.b : e.b === u ? e.a : -1; if (v >= 0 && d[v] < 0) { d[v] = d[u] + 1; q.push(v); } }); } }
+      return d;
+    };
+    const dag = sc.directed && E.length ? dagDepth() : null;
+    const dagL = dag ? Math.max(...dag) + 1 : 0, dagM = dag ? Math.max(...dag.map(d => dag.filter(x => x === d).length)) : 0; // layers, and the widest one
+    // a DAG reads best in layers, unless that makes one long row of nodes with no room for the edges
+    const shape = ["circle", "layers", "grid"].includes(sc.shape) ? sc.shape : dag && dagL <= 5 && (dagM > 1 || dagL <= 3) ? "layers" : "circle";
+    const depth = shape === "layers" ? (dag || bfsDepth()) : null;
+    // ring order with the fewest edge crossings, then the shortest chords, then the least reordering
+    const ring = (() => {
+      const slot = labels.map((_, i) => i); if (shape !== "circle" || n < 4 || !E.length) return slot;
+      const cost = (s) => {
+        let x = 0;
+        for (let i = 0; i < E.length; i++) {
+          const p = s[E[i].a], q = s[E[i].b], lo = Math.min(p, q), hi = Math.max(p, q); x += Math.min(hi - lo, n - hi + lo) * 10;
+          for (let j = i + 1; j < E.length; j++) { const u = s[E[j].a], v = s[E[j].b]; if (u !== p && u !== q && v !== p && v !== q && (u > lo && u < hi) !== (v > lo && v < hi)) x += 1000; }
+        }
+        for (let i = 0; i < n; i++) if (s[i] !== i) x++;
+        return x;
+      };
+      let best = slot.slice(), bc = cost(slot);
+      const swap = (s, i, j) => { const t = s[i]; s[i] = s[j]; s[j] = t; };
+      if (n <= 8) { const perm = (k) => { if (k === n) { const cc = cost(slot); if (cc < bc) { bc = cc; best = slot.slice(); } return; } for (let j = k; j < n; j++) { swap(slot, k, j); perm(k + 1); swap(slot, k, j); } }; perm(1); }
+      else for (let pass = 0, moved = true; moved && pass < 20; pass++) { moved = false; for (let i = 1; i < n; i++) for (let j = i + 1; j < n; j++) { swap(best, i, j); const cc = cost(best); if (cc < bc) { bc = cc; moved = true; } else swap(best, i, j); } }
+      return best;
+    })();
+    // order inside each layer: a few barycentre sweeps
+    const rows = []; const posIn = Array(n).fill(0);
+    if (depth) {
+      depth.forEach((d, i) => (rows[d] = rows[d] || []).push(i));
+      const setPos = (r) => r.forEach((i, j) => { posIn[i] = j - (r.length - 1) / 2; });
+      rows.forEach(setPos);
+      for (let sweep = 0; sweep < 4; sweep++) {
+        const down = sweep % 2 === 0;
+        (down ? rows : rows.slice().reverse()).forEach(r => {
+          const bc = {};
+          r.forEach(i => { const nb = E.filter(e => e.a === i || e.b === i).map(e => e.a === i ? e.b : e.a).filter(v => down ? depth[v] < depth[i] : depth[v] > depth[i]); bc[i] = nb.length ? nb.reduce((s, v) => s + posIn[v], 0) / nb.length : posIn[i]; });
+          r.sort((p, q) => bc[p] - bc[q] || p - q); setPos(r);
+        });
+      }
+    }
+    const place = (iw, ih) => {
+      if (n === 1) return [[iw / 2, ih / 2]];
+      if (shape === "layers") {
+        const Lc = rows.length, M = Math.max(...rows.map(r => r.length));
+        const horiz = Math.min(iw / Lc, ih / M) >= Math.min(ih / Lc, iw / M), main = horiz ? iw : ih, cross = horiz ? ih : iw;
+        const gm = Lc > 1 ? Math.min(main / (Lc - 1), 420) : 0, gc = M > 1 ? Math.min(cross / (M - 1), 340) : 0;
+        return labels.map((_, i) => { const m = main / 2 + (depth[i] - (Lc - 1) / 2) * gm, cr = cross / 2 + posIn[i] * gc; return horiz ? [m, cr] : [cr, m]; });
+      }
+      if (shape === "grid") {
+        let cols = 1, bs = -1; for (let k = 1; k <= n; k++) { const s = Math.min(iw / k, ih / Math.ceil(n / k)); if (s > bs) { bs = s; cols = k; } }
+        const rw = Math.ceil(n / cols), gx = cols > 1 ? Math.min(iw / (cols - 1), 380) : 0, gy = rw > 1 ? Math.min(ih / (rw - 1), 380) : 0;
+        return labels.map((_, i) => [iw / 2 + (i % cols - (cols - 1) / 2) * gx, ih / 2 + (Math.floor(i / cols) - (rw - 1) / 2) * gy]);
+      }
+      // ellipse, nodes evenly spaced along its arc, starting at the top and going clockwise
+      const M = 720, a = iw / 2, b = ih / 2, pts = [], cum = [0];
+      for (let j = 0; j <= M; j++) { const th = -Math.PI / 2 + j / M * TAU; pts.push([a + a * Math.cos(th), b + b * Math.sin(th)]); if (j) cum.push(cum[j - 1] + Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1])); }
+      const off = n % 2 ? 0 : -0.5;
+      return ring.map(s => { const fr = (((s + off) / n) % 1 + 1) % 1, j = cum.findIndex(v => v >= fr * cum[M]); return pts[Math.max(0, j)]; });
+    };
+    const twin = new Set(E.map(e => e.a + ">" + e.b));
+    let r = 60, mg = [0, 0, 0, 0], P = [], G = [], slots = {}; // mg: extra left, top, right, bottom room taken by tags
+    for (let it = 0; it < 4; it++) {
+      const last = it === 3, pad = r + 14;
+      const iw = Math.max(40, A.w - 2 * pad - mg[0] - mg[2]), ih = Math.max(40, A.h - 2 * pad - mg[1] - mg[3]), ix0 = A.x + pad + mg[0], iy0 = A.y + pad + mg[1];
+      P = place(iw, ih).map(p => [ix0 + p[0], iy0 + p[1]]);
+      let dmin = Infinity; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) dmin = Math.min(dmin, Math.hypot(P[i][0] - P[j][0], P[i][1] - P[j][1]));
+      if (n > 1 && dmin > 520) { const cx = ix0 + iw / 2, cy = iy0 + ih / 2, k = 520 / dmin; P = P.map(p => [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]); dmin = 520; } // a sparse graph is not stretched
+      // radius: a third of the closest pair, and small enough to leave every edge room for its arrow and weight
+      const emin = Math.min(Infinity, ...E.map(e => Math.hypot(P[e.a][0] - P[e.b][0], P[e.a][1] - P[e.b][1]))), need = (sc.directed ? 78 : 50) + (E.some(e => e.w != null) ? 44 : 0);
+      const r2 = n < 2 ? 70 : h.clamp(Math.min(dmin * 0.3, (emin - need) / 2), 28, 70); r = last ? Math.min(r, r2) : r2;
+      const cen = [P.reduce((s, p) => s + p[0], 0) / n, P.reduce((s, p) => s + p[1], 0) / n];
+      // edges: straight, or bowed when a node is in the way or when the opposite directed edge exists
+      G = E.map(e => {
+        const p0 = P[e.a], p2 = P[e.b], dx = p2[0] - p0[0], dy = p2[1] - p0[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, mid = [(p0[0] + p2[0]) / 2, (p0[1] + p2[1]) / 2];
+        const mk = (off) => ({ p0, p2, c: [mid[0] + nx * off, mid[1] + ny * off] });
+        const clear = (g) => { // distance from the curve to the nearest other node; far below zero when it leaves the area
+          let m = 1e6, pen = 0;
+          for (let j = 1; j < 16; j++) { const q = bez(g, j / 16); if (q[0] < A.x + 8 || q[0] > A.x + A.w - 8 || q[1] < A.y + 8 || q[1] > A.y + A.h - 8) pen = 1e4; P.forEach((p, k) => { if (k !== e.a && k !== e.b) m = Math.min(m, Math.hypot(q[0] - p[0], q[1] - p[1])); }); }
+          return m - pen;
+        };
+        let g = mk(0);
+        if (sc.directed && twin.has(e.b + ">" + e.a)) g = mk(Math.max(34, d * 0.16));
+        else if (clear(g) < r + 18) {
+          const b = 2 * (r + 34) * ((mid[0] - cen[0]) * nx + (mid[1] - cen[1]) * ny < 0 ? -1 : 1), cand = [b, -b, 1.6 * b, -1.6 * b].map(mk).map(x => [clear(x), x]);
+          g = (cand.find(x => x[0] >= r + 18) || cand.sort((p, q) => q[0] - p[0])[0])[1];
+        }
+        const solve = (from, cenP, rad) => { let lo = from, hi = 0.5; for (let j = 0; j < 14; j++) { const m = (lo + hi) / 2, q = bez(g, m); if (Math.hypot(q[0] - cenP[0], q[1] - cenP[1]) < rad) lo = m; else hi = m; } return hi; };
+        g.t0 = solve(0, p0, r + 4); g.t1 = solve(1, p2, r + (sc.directed ? 7 : 4)); g.tb = sc.directed ? solve(1, p2, r + 31) : g.t1; // tb: where the arrowhead starts
+        g.ok = d > 2 * r + (sc.directed ? 46 : 16) && g.t0 < g.tb;
+        g.pts = Array.from({ length: 25 }, (_, j) => bez(g, g.t0 + (g.tb - g.t0) * j / 24)); g.tip = bez(g, g.t1); g.pill = null;
+        return g;
+      });
+      // weight pills near the middle of each edge, moved along it when the middle is crowded
+      const pills = []; c.font = `700 28px ${h.MONO}`;
+      G.forEach((g, i) => {
+        if (E[i].w == null || !g.ok) return;
+        const txt = h.str(E[i].w, 5), pw = c.measureText(txt).width + 22, ph = 40; let best = null;
+        [0.5, 0.4, 0.6, 0.31, 0.69].forEach(t => {
+          const q = bez(g, g.t0 + (g.tb - g.t0) * t), rc = [q[0] - pw / 2, q[1] - ph / 2, pw, ph]; let s = Math.abs(t - 0.5) * 30;
+          G.forEach((o, j) => { if (j !== i && o.ok) s += 10 * hits(rc, o.pts, 6); }); pills.forEach(pl => { if (overlap(rc, pl.rc, 6)) s += 200; }); P.forEach(p => { if (rcDist(rc, p) < r + 6) s += 200; });
+          if (!best || s < best.s) best = { s, rc, txt };
+        });
+        g.pill = best; pills.push(best);
+      });
+      // tag slots: beside the node, preferably away from the centre and off the edges; they push the figure inwards
+      slots = {}; const over = [0, 0, 0, 0]; c.font = `700 30px ${h.MONO}`; const cw = c.measureText("0").width;
+      labels.forEach((_, i) => {
+        if (!tagLen[i]) return;
+        const tw = tagLen[i] * cw + 24, th = 44; let ox = P[i][0] - cen[0], oy = P[i][1] - cen[1]; const ol = Math.hypot(ox, oy);
+        if (ol < 12) { ox = 0; oy = -1; } else { ox /= ol; oy /= ol; }
+        let best = null;
+        for (let a = 0; a < 12; a++) {
+          const dx = Math.cos(a * TAU / 12), dy = Math.sin(a * TAU / 12); let s0 = r, rc;
+          do { s0 += 4; rc = [P[i][0] + dx * s0 - tw / 2, P[i][1] + dy * s0 - th / 2, tw, th]; } while (rcDist(rc, P[i]) < r + 17);
+          let s = 34 * Math.abs(dx) - 30 * (dx * ox + dy * oy); // above or below unless something is in the way
+          G.forEach(g => { if (g.ok) s += 14 * hits(rc, g.pts, 5) + (hits(rc, [g.tip], 12) ? 40 : 0); });
+          P.forEach((p, k) => { if (k !== i && rcDist(rc, p) < r + 10) s += 400; }); pills.forEach(pl => { if (overlap(rc, pl.rc, 4)) s += 300; }); Object.values(slots).forEach(o => { if (overlap(rc, o, 6)) s += 400; });
+          const ov = [A.x + 4 - rc[0], A.y + 4 - rc[1], rc[0] + tw - (A.x + A.w - 4), rc[1] + th - (A.y + A.h - 4)].map(v => Math.max(0, v));
+          s += last ? (ov[0] + ov[1] + ov[2] + ov[3]) * 20 : (ov[0] + ov[2]) + (ov[1] + ov[3]) * 0.4;
+          if (!best || s < best.s) best = { s, rc, ov };
+        }
+        best.ov.forEach((v, j) => { over[j] = Math.max(over[j], v); });
+        if (last) { best.rc[0] = h.clamp(best.rc[0], A.x + 4, Math.max(A.x + 4, A.x + A.w - 4 - tw)); best.rc[1] = h.clamp(best.rc[1], A.y + 4, Math.max(A.y + 4, A.y + A.h - 4 - th)); }
+        slots[i] = best.rc;
+      });
+      mg = mg.map((v, j) => v + over[j]);
+    }
+    const L = { P, r, E, G, slots };
+    if (cache.size > 40) cache.clear();
+    cache.set(key, L);
+    return L;
+  }
+
+  function draw(c, sc, f, h) {
+    const labels = sc && Array.isArray(sc.nodes) ? sc.nodes : []; if (!labels.length || !f || !f.area) return;
+    const { COL, MONO, lerp } = h, st = f.st || {}, pr = f.pr || st, first = pr === st, u = first || f.u == null ? 1 : h.clamp(+f.u || 0, 0, 1);
+    const L = layout(c, sc, f, h), { P, r, E, G } = L, GC = [COL.blue, COL.violet, COL.yellow, "#FF8FD0", COL.white, COL.cyan, COL.teal];
+    // what a step marks: node sets, and the state of every edge ("used" < "edge" < "bad")
+    const view = (s) => {
+      const has = (k, i) => Array.isArray(s[k]) && s[k].includes(i), es = new Map(), rev = new Map();
+      ["used", "edge", "bad"].forEach(k => (Array.isArray(s[k]) ? s[k] : []).forEach(p => {
+        if (!Array.isArray(p)) return; let j = E.findIndex(e => e.a === p[0] && e.b === p[1]), rv = false;
+        if (j < 0) { j = E.findIndex(e => e.a === p[1] && e.b === p[0]); rv = true; }
+        if (j >= 0) { es.set(j, k); rev.set(j, rv); }
+      }));
+      const dimE = (j) => !es.get(j) && has("dim", E[j].a) && has("dim", E[j].b);
+      return { s, has, es, rev, dimE, tags: s.tags || {}, group: s.group || {} };
+    };
+    const Vs = view(st), Vp = first ? Vs : view(pr);
+    const ECOL = { edge: COL.orange, used: COL.green, bad: COL.red };
+    const drawEdge = (j, k, dimmed, al) => {
+      const g = G[j]; if (!g.ok || al <= 0.01) return;
+      c.save(); c.globalAlpha *= al * (dimmed ? 0.35 : 1); c.strokeStyle = c.fillStyle = ECOL[k] || EDGE_COL; c.lineWidth = k === "edge" ? 10 : k ? 8 : 5; c.lineCap = "round"; c.lineJoin = "round";
+      if (k === "bad") c.setLineDash([22, 18]);
+      c.beginPath(); g.pts.forEach((p, q) => q ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); c.setLineDash([]);
+      if (sc.directed) { // arrowhead with its tip just outside the target's rim
+        const b = g.pts[24], t = g.tip, dx = t[0] - b[0], dy = t[1] - b[1], d = Math.hypot(dx, dy) || 1, hw = k ? 16 : 12;
+        c.beginPath(); c.moveTo(t[0], t[1]); c.lineTo(b[0] - dy / d * hw, b[1] + dx / d * hw); c.lineTo(b[0] + dy / d * hw, b[1] - dx / d * hw); c.closePath(); c.fill();
+      }
+      c.restore();
+    };
+    // plain edges first, then the answer so far, rejected ones, and the edges being followed on top
+    ["", "used", "bad", "edge"].forEach(k => E.forEach((_, j) => {
+      const a = Vp.es.get(j) || "", b = Vs.es.get(j) || "", da = Vp.dimE(j), db = Vs.dimE(j), same = a === b && da === db;
+      if (b === k) drawEdge(j, b, db, same ? 1 : u);
+      if (a === k && !same) drawEdge(j, a, da, 1 - u);
+    }));
+    G.forEach((g, j) => { // weights
+      if (!g.pill || !g.ok) return; const rc = g.pill.rc, k = Vs.es.get(j), col = ECOL[k] || null;
+      c.beginPath(); c.roundRect(rc[0], rc[1], rc[2], rc[3], 14); c.fillStyle = COL.bg; c.fill();
+      c.save(); if (Vs.dimE(j)) c.globalAlpha *= 0.45; c.strokeStyle = col || EDGE_COL; c.lineWidth = col ? 4 : 2.5; c.stroke();
+      c.font = `700 28px ${MONO}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = col || COL.white; c.fillText(g.pill.txt, rc[0] + rc[2] / 2, rc[1] + rc[3] / 2 + 1, rc[2] - 8); c.restore();
+    });
+    // nodes
+    const styleOf = (V, i) => {
+      const at = V.s.at === i, done = V.has("done", i), hi = V.has("hi", i), dim = V.has("dim", i) && !at && !done && !hi, g = V.group[i], gc = g != null ? GC[Math.abs(g) % GC.length] : null;
+      return { fill: at ? COL.orange : done ? COL.green : COL.disk, tint: at || done ? null : gc || (hi ? COL.orange : null), ta: gc === COL.white ? 0.26 : gc ? 0.4 : 0.2,
+        stroke: hi ? COL.orange : gc || (at ? COL.orange : done ? COL.green : "rgba(77,184,255,0.45)"), lw: hi ? 8 : gc ? 6 : 3, alpha: dim ? 0.32 : 1, ink: at || done };
+    };
+    const drawNode = (i, S, al) => {
+      if (al <= 0.01) return; const x = P[i][0], y = P[i][1], t = String(labels[i]);
+      c.save(); c.globalAlpha *= al * S.alpha; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fillStyle = S.fill; c.fill();
+      if (S.tint) { c.save(); c.globalAlpha *= S.ta; c.fillStyle = S.tint; c.fill(); c.restore(); }
+      c.strokeStyle = S.stroke; c.lineWidth = S.lw; c.stroke();
+      c.font = `700 ${Math.round(Math.min(r * 0.92, (2 * r - 14) / (0.62 * Math.max(1, t.length))))}px ${MONO}`; c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillStyle = S.ink ? COL.ink : COL.white; c.fillText(t, x, y + 2, 2 * r - 10); c.restore();
+    };
+    labels.forEach((_, i) => {
+      const a = styleOf(Vp, i), b = styleOf(Vs, i);
+      if (u >= 1 || JSON.stringify(a) === JSON.stringify(b)) drawNode(i, b, 1);
+      else if (b.alpha < 1) { drawNode(i, a, 1 - u); drawNode(i, b, u); }
+      else { drawNode(i, a, 1); drawNode(i, b, u); }
+    });
+    // the cursor ring slides from the previous node being processed
+    if (st.at != null && P[st.at]) {
+      const b = P[st.at], a = pr.at != null && P[pr.at] ? P[pr.at] : b;
+      c.save(); if (pr.at == null) c.globalAlpha *= u;
+      c.beginPath(); c.arc(lerp(a[0], b[0], u), lerp(a[1], b[1], u), r + 10, 0, TAU); c.strokeStyle = COL.orange; c.lineWidth = 5; c.stroke(); c.restore();
+    }
+    // a dot travels along each edge that starts being followed in this step
+    G.forEach((g, j) => {
+      if (!g.ok || Vs.es.get(j) !== "edge") return;
+      const tt = Vp.es.get(j) === "edge" && Vp.rev.get(j) === Vs.rev.get(j) ? 1 : u, fade = sc.directed ? h.clamp((1 - tt) / 0.2, 0, 1) : 1; if (fade <= 0.01) return;
+      const q = bez(g, Vs.rev.get(j) ? lerp(g.t1, g.t0, tt) : lerp(g.t0, g.t1, tt));
+      c.save(); c.globalAlpha *= fade; c.beginPath(); c.arc(q[0], q[1], 12, 0, TAU); c.fillStyle = COL.white; c.fill(); c.strokeStyle = COL.orange; c.lineWidth = 5; c.stroke(); c.restore();
+    });
+    // tags: a value that changed in this step is orange
+    Object.keys(L.slots).forEach(i => {
+      const rc = L.slots[i], t = Vs.tags[i], was = Vp.tags[i]; if (t == null) return;
+      const changed = !first && was !== t, col = changed ? COL.orange : COL.white, S = styleOf(Vs, +i);
+      c.save(); c.globalAlpha *= (was == null && !first ? u : 1) * (S.alpha < 1 ? 0.55 : 1);
+      c.beginPath(); c.roundRect(rc[0], rc[1], rc[2], rc[3], 12); c.fillStyle = "rgba(8,16,34,0.9)"; c.fill(); c.strokeStyle = changed ? COL.orange : "rgba(140,165,205,0.5)"; c.lineWidth = 2.5; c.stroke();
+      c.font = `700 30px ${MONO}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = col; c.fillText(String(t), rc[0] + rc[2] / 2, rc[1] + rc[3] / 2 + 1, rc[2] - 10); c.restore();
+    });
+  }
+
+  const IN = (a) => Object.fromEntries(a.map((v, i) => [i, "in=" + v]));
+  const D = (a) => Object.fromEntries(a.map((v, i) => [i, "d=" + v]));
+  const heap = (...items) => ({ kind: "heap", name: "pq", items });
+  const queue = (...items) => ({ kind: "queue", name: "q", items });
+  return {
+    label: "Đồ thị (nút và cạnh)",
+    when: "đồ thị nút và cạnh: BFS, DFS, thành phần liên thông, phát hiện chu trình, topological sort (Course Schedule), đường đi ngắn nhất (Dijkstra, Bellman-Ford), union-find, tô hai màu (bipartite).",
+    prompt: 'MÔ PHỎNG thuật toán trên đồ thị. "nodes": nhãn các nút, tối đa 8 nút, mỗi nhãn tối đa 4 ký tự (ví dụ ["A","B","C"]), hoặc một số n nghĩa là các nút 0..n-1. "edges": [[a, b]] hoặc [[a, b, trọng số]], a và b là CHỈ SỐ nút tính từ 0 (nút có nhãn "1" trong ["1","2","3"] là chỉ số 0). "directed": true nếu cạnh có hướng từ a tới b. KHÔNG ghi tọa độ: hình tự xếp nút (đồ thị có hướng không chu trình xếp theo tầng, còn lại xếp vòng tròn). Mỗi bước, tất cả theo chỉ số nút: "at": nút đang xử lý (vừa lấy khỏi queue, stack, heap), "hi": [nút đang được xét tới hoặc vừa cập nhật], "dim": [nút đã thăm xong], "done": [nút đã chốt kết quả], "edge": [[a, b]] cạnh đang đi qua ở bước này, viết đúng chiều đi, "used": [[a, b]] cạnh thuộc lời giải tính tới lúc này (cây BFS/DFS, cây đường đi ngắn nhất, cạnh đã union), "bad": [[a, b]] cạnh bị loại (tạo chu trình, xung đột màu), "tags": {"chỉ số": "d=3"} giá trị ngắn tối đa 6 ký tự ghi cạnh nút (khoảng cách, indegree, cha), "group": {"chỉ số": số} để các nút cùng số có cùng màu (union-find, thành phần liên thông, tô hai màu). Mỗi bước là ảnh chụp ĐẦY ĐỦ: ghi lại mọi "tags", "used", "dim", "done", "group" còn hiệu lực, không cộng dồn từ bước trước. Ví dụ một bước Dijkstra: {"say": "…", "at": 2, "done": [0], "edge": [[2, 1]], "used": [[0, 2]], "hi": [1], "tags": {"0": "d=0", "1": "d=3", "2": "d=1", "3": "d=∞"}, "box": {"kind": "heap", "name": "pq", "items": ["(3,2)", "(4,2)"]}}.',
+    review: 'Tự chạy thuật toán trên đúng "nodes" và "edges": thứ tự lấy nút khỏi queue, stack hay heap, giá trị trong "tags" (khoảng cách, indegree) và "group" ở từng bước phải khớp với code. "edges" và mọi trường của bước phải dùng CHỈ SỐ nút tính từ 0 chứ không dùng nhãn, và mỗi cạnh trong "edge", "used", "bad" phải có trong "edges".',
+    dataHint: '{"nodes": ["A","B","C","D"], "edges": [[0,1],[0,2],[1,3]], "directed": true}. "nodes" có thể là một số n (các nút 0..n-1); cạnh có trọng số ghi [a, b, w]; a và b là chỉ số nút tính từ 0; có thể thêm "shape": "circle", "layers" hoặc "grid" để ép cách xếp.',
+    stepHint: '{"at": 1, "hi": [3], "dim": [0], "done": [], "edge": [[1,3]], "used": [[0,1]], "bad": [], "tags": {"3": "d=2"}, "group": {"0": 1, "1": 1}}',
+    fields: ["nodes", "edges", "directed", "shape"],
+    norm, normStep, draw,
+    samples: [
+      { // LeetCode 207, numCourses = 5, prerequisites = [[1,0],[2,0],[3,1],[3,2],[4,3]], Kahn's algorithm
+        heading: "XẾP MÔN BẰNG *KAHN*", subtitle: "LeetCode 207: mũi tên nối môn tiên quyết với môn học sau",
+        narration: "Mình chạy thuật toán Kahn trên năm môn học để xem có học hết được không.",
+        nodes: 5, edges: [[0, 1], [0, 2], [1, 3], [2, 3], [3, 4]], directed: true,
+        steps: [
+          { say: "Mỗi nút ghi số môn tiên quyết còn thiếu, gọi là bậc vào. Chỉ môn 0 có bậc vào bằng 0 nên mình đưa nó vào hàng đợi trước.", hi: [0], tags: IN([0, 1, 1, 2, 1]), box: queue("0"), vars: { count: "0" } },
+          { say: "Lấy môn 0 ra học. Hai môn 1 và 2 cần môn 0, nên bậc vào của chúng giảm về 0 và cả hai được thêm vào hàng đợi.", at: 0, edge: [[0, 1], [0, 2]], hi: [1, 2], tags: IN([0, 0, 0, 2, 1]), box: queue("1", "2"), vars: { count: "1" } },
+          { say: "Lấy môn 1. Môn 3 bớt được một môn tiên quyết, bậc vào còn 1. Nó vẫn phải chờ môn 2 nên chưa được vào hàng đợi.", at: 1, dim: [0], edge: [[1, 3]], hi: [3], tags: IN([0, 0, 0, 1, 1]), box: queue("2"), vars: { count: "2" } },
+          { say: "Lấy môn 2. Bậc vào của môn 3 giảm về 0, nghĩa là mọi môn tiên quyết của nó đã học xong, nên mình thêm 3 vào hàng đợi.", at: 2, dim: [0, 1], edge: [[2, 3]], hi: [3], tags: IN([0, 0, 0, 0, 1]), box: queue("3"), vars: { count: "3" } },
+          { say: "Lấy môn 3 và đi theo cạnh sang môn 4. Bậc vào của môn 4 giảm về 0 nên môn 4 được vào hàng đợi.", at: 3, dim: [0, 1, 2], edge: [[3, 4]], hi: [4], tags: IN([0, 0, 0, 0, 0]), box: queue("4"), vars: { count: "4" } },
+          { say: "Lấy môn 4, môn này không mở khóa thêm môn nào. Hàng đợi đã rỗng nên vòng lặp dừng lại ở đây.", at: 4, dim: [0, 1, 2, 3], tags: IN([0, 0, 0, 0, 0]), box: queue(), vars: { count: "5" } },
+          { say: "Mình đã học đủ 5 trên 5 môn, tức là đồ thị không có chu trình. Kết quả trả về là true.", done: [0, 1, 2, 3, 4], tags: IN([0, 0, 0, 0, 0]), box: queue(), vars: { count: "5" } },
+        ] },
+      { // LeetCode 743, times = [[1,2,4],[1,3,1],[3,2,2],[2,4,1],[4,5,3],[5,1,2]], n = 5, k = 1, answer 7
+        heading: "DIJKSTRA TÌM *ĐƯỜNG NGẮN NHẤT*", subtitle: "LeetCode 743: tín hiệu phát từ nút 1, bao lâu thì cả 5 nút đều nhận được?",
+        narration: "Mình chạy Dijkstra từ nút 1, heap luôn đưa ra nút có khoảng cách nhỏ nhất.",
+        nodes: ["1", "2", "3", "4", "5"], edges: [[0, 1, 4], [0, 2, 1], [2, 1, 2], [1, 3, 1], [3, 4, 3], [4, 0, 2]], directed: true,
+        steps: [
+          { say: "Tín hiệu phát từ nút 1 nên khoảng cách của nó là 0, các nút khác tạm coi là vô cực. Heap ban đầu chỉ có nút 1.", hi: [0], tags: D([0, "∞", "∞", "∞", "∞"]), box: heap("(0,1)") },
+          { say: "Lấy nút 1 khỏi heap và xét hai cạnh đi ra. Nút 2 nhận khoảng cách 4, nút 3 nhận khoảng cách 1, cả hai được đẩy vào heap.", at: 0, edge: [[0, 1], [0, 2]], hi: [1, 2], tags: D([0, 4, 1, "∞", "∞"]), box: heap("(1,3)", "(4,2)") },
+          { say: "Heap đưa ra nút 3 vì khoảng cách 1 là nhỏ nhất. Đi tiếp sang nút 2 chỉ tốn 1 cộng 2 bằng 3, tốt hơn 4, nên mình cập nhật nút 2.", at: 2, done: [0], edge: [[2, 1]], used: [[0, 2]], hi: [1], tags: D([0, 3, 1, "∞", "∞"]), box: heap("(3,2)", "(4,2)") },
+          { say: "Lấy nút 2 với khoảng cách 3. Cạnh sang nút 4 có trọng số 1 nên nút 4 nhận khoảng cách 4 và được đẩy vào heap.", at: 1, done: [0, 2], edge: [[1, 3]], used: [[0, 2], [2, 1]], hi: [3], tags: D([0, 3, 1, 4, "∞"]), box: heap("(4,2)", "(4,4)") },
+          { say: "Heap lại đưa ra nút 2 với khoảng cách cũ là 4. Con số này lớn hơn giá trị 3 đã chốt nên đây là bản ghi cũ, mình bỏ qua.", at: 1, done: [0, 1, 2], used: [[0, 2], [2, 1], [1, 3]], tags: D([0, 3, 1, 4, "∞"]), box: heap("(4,4)") },
+          { say: "Lấy nút 4 với khoảng cách 4. Cạnh sang nút 5 có trọng số 3 nên nút 5 nhận khoảng cách 7 và được đẩy vào heap.", at: 3, done: [0, 1, 2], edge: [[3, 4]], used: [[0, 2], [2, 1], [1, 3]], hi: [4], tags: D([0, 3, 1, 4, 7]), box: heap("(7,5)") },
+          { say: "Lấy nút 5. Nó chỉ có cạnh quay về nút 1, mà 7 cộng 2 bằng 9 không tốt hơn 0, nên không có gì thay đổi. Heap đã rỗng.", at: 4, done: [0, 1, 2, 3], edge: [[4, 0]], used: [[0, 2], [2, 1], [1, 3], [3, 4]], tags: D([0, 3, 1, 4, 7]), box: heap() },
+          { say: "Mọi nút đều đã có khoảng cách ngắn nhất. Nút xa nhất là nút 5 với khoảng cách 7, nên đáp án của bài là 7.", done: [0, 1, 2, 3, 4], used: [[0, 2], [2, 1], [1, 3], [3, 4]], tags: D([0, 3, 1, 4, 7]), box: heap() },
+        ] },
+      { // LeetCode 684, edges = [[1,2],[3,4],[4,5],[2,3],[1,4]], union with parent[find(a)] = find(b), answer [1,4]
+        heading: "TÌM *CẠNH THỪA* BẰNG UNION-FIND", subtitle: "LeetCode 684: cạnh nào nối hai nút đã cùng nhóm thì chính là cạnh thừa",
+        narration: "Mình duyệt từng cạnh và gộp nhóm bằng union-find, mỗi màu là một nhóm.",
+        nodes: ["1", "2", "3", "4", "5"], edges: [[0, 1], [2, 3], [3, 4], [1, 2], [0, 3]], directed: false,
+        steps: [
+          { say: "Lúc đầu mỗi nút là một nhóm riêng nên có năm màu khác nhau. Mình sẽ xét lần lượt từng cạnh theo đúng thứ tự đề bài cho.", group: [0, 1, 2, 3, 4] },
+          { say: "Cạnh nối 1 với 2: hai nút khác nhóm nên mình gộp lại. Từ giờ nút 1 mang màu của nút 2, hai nút thuộc cùng một nhóm.", edge: [[0, 1]], hi: [0, 1], group: [1, 1, 2, 3, 4] },
+          { say: "Cạnh nối 3 với 4: hai nút vẫn khác nhóm nên gộp tiếp. Bây giờ còn ba nhóm, ứng với ba màu trên hình.", edge: [[2, 3]], hi: [2, 3], used: [[0, 1]], group: [1, 1, 3, 3, 4] },
+          { say: "Cạnh nối 4 với 5: gốc của nhóm chứa nút 4 được gắn vào nút 5, nên cả ba nút 3, 4 và 5 về chung một màu.", edge: [[3, 4]], hi: [3, 4], used: [[0, 1], [2, 3]], group: [1, 1, 4, 4, 4] },
+          { say: "Cạnh nối 2 với 3 chạm vào hai nhóm khác nhau nên vẫn hợp lệ. Gộp xong, cả năm nút nằm chung một nhóm duy nhất.", edge: [[1, 2]], hi: [1, 2], used: [[0, 1], [2, 3], [3, 4]], group: [4, 4, 4, 4, 4] },
+          { say: "Cạnh nối 1 với 4: hai nút đã cùng nhóm, thêm cạnh này sẽ tạo chu trình. Đây chính là cạnh thừa, đáp án là cặp 1 và 4.", bad: [[0, 3]], hi: [0, 3], used: [[0, 1], [2, 3], [3, 4], [1, 2]], group: [4, 4, 4, 4, 4] },
+        ] },
+    ],
+  };
+})()]);
+})();
+
+/* --- scenes/intervals.js --- */
+(() => {
+// Simulation scene "intervals": intervals drawn as bars over a number line, one bar per row, so the viewer sees
+// where they overlap. Under the bars a green "Kết quả" row shows the answer built so far (merged or kept intervals).
+// Scene data: items [[start, end] | [start, end, "label"]], optional extra [start, end] (the interval to insert).
+// Step state: at, hi, dim (item indexes; the extra interval has index items.length), out [[start, end]],
+// clash [start, end], ptr {name: x}, extra [start, end] (the new interval after it grew; carries over).
+(function () {
+  const MAX_ITEMS = 8, MAX_PTR = 3;
+  const NUM = /^\s*-?\d+(\.\d+)?\s*$/;
+  // A number with at most one decimal, or null. Only real numbers and numeric strings count (+[] and +null do not).
+  const num = (v) => {
+    if (typeof v === "string" ? !NUM.test(v) : typeof v !== "number") return null;
+    const x = Math.round(+v * 10) / 10;
+    return Number.isFinite(x) ? Math.min(9999, Math.max(-999, x)) : null;
+  };
+  // One interval from [s, e], [s, e, label], {start, end}, "1-3" or "[1,3]". Returns [s, e] with s <= e, or null.
+  function pair(v) {
+    let a = null, b = null;
+    if (Array.isArray(v)) { if (v.length === 2 || v.length === 3) { a = num(v[0]); b = num(v[1]); } }
+    else if (v && typeof v === "object") { a = num(v.start ?? v.s ?? v.from ?? v.l); b = num(v.end ?? v.e ?? v.to ?? v.r); }
+    else if (typeof v === "string") {
+      const m = v.match(/(-?\d+(?:\.\d+)?)\s*(?:,|-|–|:|\.\.|to)\s*(-?\d+(?:\.\d+)?)/);
+      if (m) { a = num(m[1]); b = num(m[2]); }
+    }
+    if (a == null || b == null) return null;
+    return a <= b ? [a, b] : [b, a];
+  }
+  // A list of intervals from an array, a JSON string or "1-3, 2-6". withLabel keeps a short third element.
+  function list(v, withLabel, h) {
+    if (typeof v === "string") {
+      try { v = JSON.parse(v); } catch (e) { v = v.match(/-?\d+(?:\.\d+)?\s*(?:,|-|–|:|\.\.|to)\s*-?\d+(?:\.\d+)?/g) || []; }
+    }
+    if (!Array.isArray(v)) return [];
+    if (v.length >= 2 && v.length <= 3 && num(v[0]) != null && num(v[1]) != null) v = [v]; // a single bare [s, e]
+    const res = [];
+    for (const it of v) {
+      const p = pair(it); if (!p) continue;
+      if (withLabel) {
+        const raw = Array.isArray(it) ? it[2] : it && typeof it === "object" ? it.label ?? it.name : "";
+        const lb = typeof raw === "string" || typeof raw === "number" ? h.str(raw, 6) : "";
+        if (lb) p.push(lb);
+      }
+      res.push(p); if (res.length >= MAX_ITEMS) break;
+    }
+    return res;
+  }
+  const fmt = (p, label) => (label ? label + " " : "") + "[" + p[0] + "," + p[1] + "]";
+
+  const S = (say, o) => Object.assign({ say }, o);
+  const heap = (items) => ({ kind: "heap", name: "heap", items });
+
+  (window.__codelensSimDefs = window.__codelensSimDefs || []).push(["intervals", {
+    label: "Mô phỏng khoảng trên trục số (gộp khoảng, phòng họp)",
+    when: "các khoảng [đầu, cuối] trên trục số: gộp khoảng, chèn khoảng, lịch họp và số phòng họp, bỏ khoảng chồng lấn (greedy theo điểm cuối), giao của hai danh sách khoảng, bắn bóng bay.",
+    prompt: "MÔ PHỎNG các khoảng thành thanh ngang trên một trục số để người xem THẤY chỗ chồng lấn. \"items\": tối đa 8 khoảng [[đầu, cuối]] hoặc [[đầu, cuối, \"nhãn\"]] (số nguyên hoặc một chữ số thập phân; nhãn ngắn như \"A\", \"B\" khi có hai danh sách), viết ĐÚNG thứ tự code duyệt, tức ĐÃ SẮP XẾP theo tiêu chí của lời giải; có \"box\" thì tối đa 5 khoảng. \"extra\": [đầu, cuối] CHỈ dùng khi bài có một khoảng mới cần chèn; nó mang chỉ số bằng số khoảng trong \"items\". Mỗi bước có: \"at\": chỉ số khoảng đang xét hoặc null; \"hi\": [chỉ số các khoảng đang giữ hoặc đang so sánh]; \"dim\": [chỉ số các khoảng đã xử lý xong hoặc bị loại]; \"out\": [[đầu, cuối]] TOÀN BỘ kết quả tính đến bước này (các khoảng đã gộp, hoặc tập được giữ lại), vẽ thành hàng \"Kết quả\" và tự dài ra khi một khoảng được nới (bài chỉ đếm, như số phòng họp, thì bỏ \"out\"); \"clash\": [đầu, cuối] đoạn trục mà hai khoảng đang chồng nhau (tô đỏ), chỉ đặt ở bước phát hiện chồng lấn; \"ptr\": {\"end\": 6} tối đa 3 vạch dọc có tên tại một vị trí trên trục (mốc end, đường quét). Mỗi bước là trạng thái ĐẦY ĐỦ, không cộng dồn từ bước trước; riêng \"extra\" đặt trong một bước (giá trị mới của khoảng cần chèn sau khi nới) thì được giữ cho các bước sau. Tách bước phát hiện chồng lấn (có \"clash\") khỏi bước gộp hoặc loại. Ví dụ: \"items\": [[1,3],[2,6],[8,10]], \"steps\": [{\"say\": \"…\", \"at\": 1, \"dim\": [0], \"out\": [[1,3]], \"clash\": [2,3], \"ptr\": {\"end\": 3}}, {\"say\": \"…\", \"at\": 1, \"dim\": [0], \"out\": [[1,6]], \"ptr\": {\"end\": 6}}].",
+    review: "Thứ tự \"items\" phải đúng là thứ tự code duyệt (đã sắp xếp theo đúng tiêu chí của lời giải). Ở mỗi bước, \"out\" phải đúng là kết quả tính đến lúc đó, \"clash\" chỉ xuất hiện khi hai khoảng thật sự chồng nhau và đúng bằng đoạn giao, vị trí các vạch \"ptr\" và các giờ kết thúc trong \"box\" phải khớp với biến trong code.",
+    dataHint: "{\"items\": [[1,3],[2,6],[8,10],[15,18]]}; các khoảng viết theo thứ tự thuật toán duyệt, có thể thêm nhãn [1,3,\"A\"]. Bài chèn khoảng thêm \"extra\": [4,8].",
+    stepHint: "{\"at\": 1, \"hi\": [], \"dim\": [0], \"out\": [[1,3]], \"clash\": [2,3], \"ptr\": {\"end\": 3}}; \"out\" là hàng kết quả, \"clash\" là đoạn chồng lấn tô đỏ, khoảng \"extra\" mang chỉ số bằng số khoảng trong \"items\"",
+    fields: ["items", "extra"],
+
+    norm(sc, h) {
+      sc = sc && typeof sc === "object" ? sc : {};
+      const out = { items: list(sc.items ?? sc.intervals ?? sc.list, true, h) };
+      const ex = pair(sc.extra ?? sc.newInterval ?? sc.insert);
+      if (ex) out.extra = ex;
+      return out;
+    },
+
+    normStep(st, data, h) {
+      st = st && typeof st === "object" ? st : {};
+      const n = ((data && data.items) || []).length, hasX = !!(data && data.extra);
+      const idx = (v) => {
+        if (v === "extra" || v === "new") return hasX ? n : null;
+        const x = num(v);
+        return x != null && Number.isInteger(x) && x >= 0 && x < n + (hasX ? 1 : 0) ? x : null;
+      };
+      const idxList = (v) => {
+        const a = Array.isArray(v) ? v : typeof v === "string" ? v.split(/[\s,]+/) : v == null ? [] : [v];
+        return [...new Set(a.map(idx).filter(x => x != null))];
+      };
+      const ptr = {}; const src = st.ptr ?? st.pointers ?? st.markers ?? st.lines;
+      if (src && typeof src === "object") {
+        (Array.isArray(src) ? src.map(o => [o && (o.name ?? o.label), o && (o.x ?? o.at ?? o.value)]) : Object.entries(src)).forEach(([k, v]) => {
+          const name = h.str(k, 6), x = num(v);
+          if (name && x != null && Object.keys(ptr).length < MAX_PTR) ptr[name] = x;
+        });
+      }
+      const res = {
+        at: idx(st.at ?? st.cur ?? st.i), hi: idxList(st.hi ?? st.highlight), dim: idxList(st.dim ?? st.done ?? st.removed),
+        out: list(st.out ?? st.result ?? st.res ?? st.merged, false, h), clash: pair(st.clash ?? st.overlap ?? st.conflict), ptr,
+      };
+      const ex = hasX ? pair(st.extra ?? st.newInterval) : null;
+      if (ex) res.extra = ex;
+      return res;
+    },
+
+    draw(c, sc, f, h) {
+      const { COL, FONT, MONO, clamp, lerp } = h;
+      const A = f.area, items = Array.isArray(sc.items) ? sc.items : [], n = items.length;
+      const X0 = Array.isArray(sc.extra) ? sc.extra : null;
+      if (!A || (!n && !X0)) return;
+      const steps = Array.isArray(f.steps) ? f.steps : [], st = f.st || {}, pr = f.pr || st;
+      const u = clamp(f.u == null ? 1 : f.u, 0, 1), k = f.k || 0;
+      // the new interval as of step j: the latest step up to j that set "extra", else the scene's
+      const exAt = (j) => { for (let i = Math.min(j, steps.length - 1); i >= 0; i--) if (steps[i] && steps[i].extra) return steps[i].extra; return X0; };
+      const exNow = X0 ? exAt(k) : null, exPrev = X0 ? (steps[k - 1] ? exAt(k - 1) : exNow) : null;
+
+      // axis range over everything any step shows, so the scale never changes during the scene
+      let lo = Infinity, hi = -Infinity;
+      const see = (p) => { if (p) { lo = Math.min(lo, p[0]); hi = Math.max(hi, p[1]); } };
+      items.forEach(see); see(X0); steps.forEach(s => { if (X0) see(s.extra); (s.out || []).forEach(see); });
+      lo = Math.floor(lo); hi = Math.ceil(hi); if (hi <= lo) hi = lo + 1;
+      const pad = 36, axW = A.w - pad * 2;
+      const X = (v) => A.x + pad + (clamp(v, lo, hi) - lo) / (hi - lo) * axW;
+
+      // named marker lines: each label sits above the rows near its line; labels that would collide are spread sideways
+      const order = [...new Set(steps.flatMap(s => Object.keys(s.ptr || {})))];
+      const spread = (a, gapX) => { // a: [{cx, w}] sorted by cx; keeps them apart and inside the area
+        a.forEach((t, j) => { t.cx = Math.max(t.cx, (j ? a[j - 1].cx + a[j - 1].w / 2 + gapX : A.x + 4) + t.w / 2); });
+        for (let j = a.length - 1; j >= 0; j--) a[j].cx = Math.min(a[j].cx, (a[j + 1] ? a[j + 1].cx - a[j + 1].w / 2 - gapX : A.x + A.w - 4) - a[j].w / 2);
+        return a;
+      };
+      const ptrLay = (s) => {
+        c.font = `800 34px ${FONT}`;
+        return spread(order.map((nm, oi) => ({ nm, oi, v: (s.ptr || {})[nm] })).filter(p => p.v !== undefined)
+          .map(p => ({ ...p, text: `${p.nm}=${p.v}`, cx: X(p.v) })).map(p => ({ ...p, w: c.measureText(p.text).width })).sort((p, q) => p.cx - q.cx || p.oi - q.oi), 18);
+      };
+
+      // vertical layout: [marker labels] [extra row] [item rows] [result caption + row] [axis]
+      const rowsN = n + (X0 ? 1 : 0), anyOut = steps.some(s => (s.out || []).length);
+      // (the result row keeps its endpoints on a line of text under its bars: result bars are often too close for labels beside them)
+      const topPad = order.length ? 72 : 8, axisH = 62, capH = anyOut ? 48 : 0, lblH = anyOut ? 44 : 0;
+      const units = rowsN + (anyOut ? 1 : 0);
+      const rowH = Math.min(124, (A.h - topPad - axisH - capH - lblH) / units);
+      const top = A.y + (A.h - (topPad + rowH * units + capH + lblH + axisH)) / 2 + topPad;
+      const gap = clamp(rowH * 0.2, 6, 22), bh = rowH - gap, rad = Math.min(16, bh / 2.5);
+      const rowOf = (i) => i === n ? 0 : i + (X0 ? 1 : 0);          // the extra interval takes the first row
+      const rowY = (r) => top + r * rowH + gap / 2;
+      const outY = top + rowsN * rowH + capH + gap / 2;
+      const axisY = top + units * rowH + capH + lblH + 12;
+      const fs = clamp(Math.round(bh * 0.46), 24, 40);
+
+      // ticks: the smallest step whose labels do not touch
+      c.font = `500 26px ${MONO}`;
+      const tickW = Math.max(c.measureText(String(lo)).width, c.measureText(String(hi)).width) + 18;
+      const stepV = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].find(s => s * axW / (hi - lo) >= tickW) || 5000;
+      const ticks = []; for (let v = Math.ceil(lo / stepV) * stepV; v <= hi; v += stepV) ticks.push(v);
+      c.strokeStyle = "rgba(140,155,181,0.16)"; c.lineWidth = 2;
+      ticks.forEach(v => { c.beginPath(); c.moveTo(X(v), top - 4); c.lineTo(X(v), axisY); c.stroke(); });
+
+      const texts = [], late = []; // bar labels are drawn last, over the clash band and the marker lines
+      const barPath = (x0, x1, y) => { const w = Math.max(x1 - x0, 10); c.beginPath(); c.roundRect(x0, y, w, bh, Math.min(rad, w / 2)); return w; };
+      const label = (text, x0, w, y, inCol, outCol, alpha) => texts.push({ text, x0, w, y: y + bh / 2 + 2, inCol, outCol, alpha });
+      const has = (s, key, i) => (s[key] || []).includes(i);
+      const mix = (a, b) => lerp(a ? 1 : 0, b ? 1 : 0, u);
+
+      // item bars (and the extra interval, index n)
+      for (let i = 0; i < rowsN; i++) {
+        const isX = i === n, p = isX ? exNow : items[i], q = isX ? exPrev : p;
+        const x0 = lerp(X(q[0]), X(p[0]), u), x1 = lerp(X(q[1]), X(p[1]), u), y = rowY(rowOf(i));
+        const dimA = mix(has(pr, "dim", i), has(st, "dim", i)), atA = mix(pr.at === i, st.at === i), hiA = mix(has(pr, "hi", i), has(st, "hi", i));
+        const alpha = 1 - 0.68 * dimA;
+        c.save(); c.globalAlpha *= alpha;
+        const w = barPath(x0, x1, y); c.fillStyle = COL.disk; c.fill();
+        const wash = (a, col) => { if (a > 0) { c.save(); c.globalAlpha *= a; c.fillStyle = col; c.fill(); c.restore(); } };
+        const ring = (a, col, lw) => { if (a > 0) { c.save(); c.globalAlpha *= a; c.strokeStyle = col; c.lineWidth = lw; c.stroke(); c.restore(); } };
+        if (isX) wash(0.32, COL.violet);
+        wash(hiA, "rgba(77,184,255,0.16)"); wash(atA, COL.orange);
+        ring(1, isX ? COL.violet : "rgba(77,184,255,0.45)", isX ? 4 : 3); ring(hiA, COL.blue, 5); ring(atA, COL.orange, 3);
+        c.restore();
+        label(fmt(p, isX ? "mới" : p[2]), x0, w, y, atA > 0.5 ? COL.ink : COL.white, atA > 0.5 ? COL.orange : isX ? COL.violet : COL.white, alpha);
+      }
+
+      // result row: a bar that exists in the previous step slides from its old edges; a new bar grows from its start
+      if (anyOut) {
+        const so = [...(st.out || [])].sort((p, q) => p[0] - q[0]), po = pr.out || [];
+        c.save(); c.beginPath(); c.roundRect(A.x + 4, outY - 8, A.w - 8, bh + lblH + 12, 18);
+        c.globalAlpha *= 0.08; c.fillStyle = COL.green; c.fill(); c.globalAlpha *= 5; c.strokeStyle = COL.green; c.lineWidth = 2; c.stroke(); c.restore();
+        if (!so.length) { c.font = `500 28px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = COL.muted; c.fillText("(chưa có)", A.x + A.w / 2, outY + (bh + lblH) / 2); }
+        let lf = Math.min(fs, 30); c.font = `700 ${lf}px ${MONO}`;
+        if (so.reduce((sum, o) => sum + c.measureText(fmt(o)).width + 12, 0) > A.w - 12) { lf = 24; c.font = `700 ${lf}px ${MONO}`; }
+        const tags = spread(so.map(o => ({ text: fmt(o), w: c.measureText(fmt(o)).width, cx: X((o[0] + o[1]) / 2) })), 12);
+        const same = (p, o) => p[0] === o[0] && p[1] === o[1], gone = po.filter(p => !so.some(o => same(p, o)));
+        so.forEach((o, j) => {
+          // where this bar comes from: itself, else a bar of the previous step that it replaces (same edge or overlapping)
+          const m = po.find(p => same(p, o)) || gone.find(p => p[0] === o[0] || p[1] === o[1]) || gone.find(p => p[0] < o[1] && p[1] > o[0]);
+          const x0 = X(m ? lerp(m[0], o[0], u) : o[0]), x1 = X(m ? lerp(m[1], o[1], u) : lerp(o[0], o[1], u));
+          const fresh = !m || !same(m, o);
+          c.save(); if (!m) c.globalAlpha *= u;
+          barPath(x0, x1, outY); c.fillStyle = COL.green; c.fill();
+          if (fresh) { c.strokeStyle = COL.white; c.lineWidth = 4; c.stroke(); }
+          c.restore();
+          late.push(() => { c.save(); if (!m) c.globalAlpha *= u; c.font = `700 ${lf}px ${MONO}`; c.textAlign = "center"; c.textBaseline = "middle";
+            c.fillStyle = fresh ? COL.white : COL.green; c.fillText(tags[j].text, tags[j].cx, outY + bh + lblH / 2 + 2); c.restore(); });
+        });
+      }
+
+      // clash: a red band over the stretch where two intervals overlap, spanning the rows involved
+      let clashX = null;
+      if (st.clash) {
+        const [a, b] = st.clash, same = pr.clash && pr.clash[0] === a && pr.clash[1] === b;
+        const touches = (p) => !!p && (a === b ? p[0] <= a && p[1] >= a : p[0] < b && p[1] > a);
+        const geom = (i) => i === n ? exNow : items[i];
+        const all = Array.from({ length: rowsN }, (_, i) => i), live = (i) => !has(st, "dim", i);
+        const marked = [...new Set([st.at, ...(st.hi || []), X0 && live(n) ? n : null])].filter(i => i != null && i < rowsN);
+        const outHit = anyOut && (st.out || []).some(touches);
+        const span = (ids, withOut) => { const ys = ids.filter(i => touches(geom(i))).map(i => rowY(rowOf(i))); if (withOut && outHit) ys.push(outY); return ys; };
+        let ys = span(marked, false);
+        if (ys.length < 2) ys = span(marked, true);
+        if (ys.length < 2) ys = span(all.filter(live), true);
+        if (ys.length < 2) ys = [rowY(0), rowY(rowsN - 1)];
+        let x0 = X(a), x1 = X(b); if (x1 - x0 < 12) { const m = (x0 + x1) / 2; x0 = m - 6; x1 = m + 6; }
+        const y0 = Math.min(...ys) - 8, y1 = Math.max(...ys) + bh + 8;
+        clashX = [x0, x1, same ? 1 : u];
+        c.save(); c.globalAlpha *= clashX[2];
+        c.save(); c.globalAlpha *= 0.34; c.fillStyle = COL.red; c.fillRect(x0, y0, x1 - x0, y1 - y0); c.restore();
+        c.strokeStyle = COL.red; c.lineWidth = 4; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0, y1); c.moveTo(x1, y0); c.lineTo(x1, y1); c.stroke();
+        c.restore();
+      }
+
+      // axis
+      c.strokeStyle = COL.muted; c.lineWidth = 3; c.beginPath(); c.moveTo(X(lo) - 20, axisY); c.lineTo(X(hi) + 20, axisY);
+      ticks.forEach(v => { c.moveTo(X(v), axisY); c.lineTo(X(v), axisY + 12); }); c.stroke();
+      c.font = `500 26px ${MONO}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = COL.muted;
+      ticks.forEach(v => c.fillText(String(v), X(v), axisY + 33));
+      if (clashX) { c.save(); c.globalAlpha *= clashX[2]; c.strokeStyle = COL.red; c.lineWidth = 8; c.beginPath(); c.moveTo(clashX[0], axisY); c.lineTo(clashX[1], axisY); c.stroke(); c.restore(); }
+
+      // marker lines slide from their previous position
+      const cols = h.ptrCols(), pick = [2, 1, 3, 0], was = ptrLay(pr);
+      ptrLay(st).forEach(p => {
+        const old = was.find(q => q.nm === p.nm), x = old ? lerp(X(old.v), X(p.v), u) : X(p.v);
+        const col = cols[pick[p.oi % 4] % cols.length];
+        c.save(); if (!old) c.globalAlpha *= u;
+        c.strokeStyle = col; c.lineWidth = 4; c.setLineDash([10, 10]); c.lineDashOffset = p.oi * 10;
+        c.beginPath(); c.moveTo(x, top - 6); c.lineTo(x, axisY); c.stroke(); c.setLineDash([]);
+        c.fillStyle = col; c.beginPath(); c.moveTo(x, top - 4); c.lineTo(x - 15, top - 26); c.lineTo(x + 15, top - 26); c.closePath(); c.fill();
+        c.beginPath(); c.arc(x, axisY, 8, 0, Math.PI * 2); c.fill();
+        c.font = `800 34px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText(p.text, old ? lerp(old.cx, p.cx, u) : p.cx, top - 48);
+        c.restore();
+      });
+
+      // bar labels: inside the bar when they fit, otherwise beside it
+      c.font = `700 ${fs}px ${MONO}`; c.textBaseline = "middle";
+      texts.forEach(t => {
+        const tw = c.measureText(t.text).width;
+        c.save(); c.globalAlpha *= t.alpha;
+        if (tw + 20 <= t.w) { c.textAlign = "center"; c.fillStyle = t.inCol; c.fillText(t.text, t.x0 + t.w / 2, t.y); }
+        else if (t.x0 + t.w + 12 + tw <= A.x + A.w) { c.textAlign = "left"; c.fillStyle = t.outCol; c.fillText(t.text, t.x0 + t.w + 12, t.y); }
+        else { c.textAlign = "right"; c.fillStyle = t.outCol; c.fillText(t.text, t.x0 - 12, t.y); }
+        c.restore();
+      });
+      late.forEach(fn => fn());
+      if (anyOut) { // the caption sits on a dark tag so bands and marker lines pass behind it
+        c.font = `700 28px ${FONT}`; const tw = c.measureText("Kết quả").width, cy = outY - 32;
+        c.save(); c.globalAlpha *= 0.88; c.fillStyle = COL.bg; c.beginPath(); c.roundRect(A.x + 4, cy - 20, tw + 24, 40, 12); c.fill(); c.restore();
+        c.textAlign = "left"; c.textBaseline = "middle"; c.fillStyle = COL.green; c.fillText("Kết quả", A.x + 16, cy);
+      }
+    },
+
+    samples: [
+      { // LeetCode 56 Merge Intervals: the result row grows; no box, no vars
+        heading: "GỘP *KHOẢNG* TRÙNG NHAU", subtitle: "LeetCode 56: sắp theo điểm đầu rồi gộp dần từ trái sang phải",
+        narration: "Cùng chạy thuật toán gộp khoảng trên bốn khoảng đã sắp xếp.",
+        items: [[1, 3], [2, 6], [8, 10], [15, 18]],
+        steps: [
+          S("Bốn khoảng đã được sắp theo điểm bắt đầu. Mình sẽ đi từ trên xuống và gom dần vào hàng kết quả bên dưới.", { out: [] }),
+          S("Khoảng đầu tiên từ 1 đến 3. Kết quả đang rỗng nên mình đưa thẳng vào, và ghi nhớ điểm cuối hiện tại là 3.", { at: 0, out: [[1, 3]], ptr: { end: 3 } }),
+          S("Khoảng từ 2 đến 6 bắt đầu ở 2, nhỏ hơn điểm cuối 3. Hai khoảng chồng nhau ở đoạn màu đỏ nên phải gộp lại.", { at: 1, dim: [0], out: [[1, 3]], clash: [2, 3], ptr: { end: 3 } }),
+          S("Gộp tức là nới điểm cuối của khoảng trong kết quả ra số lớn hơn giữa 3 và 6. Bạn thấy thanh xanh dài ra tới 6.", { at: 1, dim: [0], out: [[1, 6]], ptr: { end: 6 } }),
+          S("Khoảng từ 8 đến 10 bắt đầu ở 8, lớn hơn điểm cuối 6. Không chồng lên ai nên mình mở một khoảng mới trong kết quả.", { at: 2, dim: [0, 1], out: [[1, 6], [8, 10]], ptr: { end: 10 } }),
+          S("Khoảng từ 15 đến 18 cũng bắt đầu sau điểm cuối 10, nên nó đứng riêng và được thêm vào kết quả.", { at: 3, dim: [0, 1, 2], out: [[1, 6], [8, 10], [15, 18]], ptr: { end: 18 } }),
+          S("Duyệt xong cả bốn khoảng. Kết quả còn ba khoảng rời nhau, và mỗi khoảng chỉ được xem đúng một lần sau khi sắp xếp.", { dim: [0, 1, 2, 3], out: [[1, 6], [8, 10], [15, 18]] }),
+        ],
+      },
+      { // LeetCode 253 Meeting Rooms II: sweep by start time, min-heap of end times in the box
+        heading: "CẦN *MẤY PHÒNG* HỌP", subtitle: "LeetCode 253: min-heap giữ giờ kết thúc của các phòng đang bận",
+        narration: "Mỗi thanh là một cuộc họp, heap cho biết phòng nào trống sớm nhất.",
+        items: [[0, 30], [5, 10], [15, 20]],
+        steps: [
+          S("Ba cuộc họp đã sắp theo giờ bắt đầu. Heap sẽ giữ giờ kết thúc của từng phòng đang có người dùng.", { box: heap([]), vars: { rooms: "0" } }),
+          S("Cuộc họp đầu tiên bắt đầu lúc 0. Chưa có phòng nào nên mình mở phòng mới và đẩy giờ kết thúc 30 vào heap.", { at: 0, ptr: { start: 0 }, box: heap(["30"]), vars: { start: "0", rooms: "1" } }),
+          S("Cuộc họp thứ hai bắt đầu lúc 5. Đỉnh heap là 30, tức phòng duy nhất còn bận tới 30, nên hai cuộc họp đè lên nhau.", { at: 1, hi: [0], clash: [5, 10], ptr: { start: 5 }, box: heap(["30"]), vars: { start: "5", rooms: "1" } }),
+          S("Không phòng nào trống nên phải mở phòng thứ hai. Đẩy 10 vào heap, và 10 nổi lên đỉnh vì nó kết thúc sớm nhất.", { at: 1, hi: [0], ptr: { start: 5 }, box: heap(["10", "30"]), vars: { start: "5", rooms: "2" } }),
+          S("Cuộc họp thứ ba bắt đầu lúc 15. Đỉnh heap là 10, nhỏ hơn 15, nghĩa là phòng đó đã họp xong và dùng lại được.", { at: 2, hi: [0, 1], ptr: { start: 15 }, box: heap(["10", "30"]), vars: { start: "15", rooms: "2" } }),
+          S("Mình lấy 10 ra khỏi heap rồi đẩy 20 vào: cuộc họp thứ ba dùng lại đúng phòng vừa trống, số phòng vẫn là 2.", { at: 2, hi: [0], dim: [1], ptr: { start: 15 }, box: heap(["20", "30"]), vars: { start: "15", rooms: "2" } }),
+          S("Hết danh sách. Kích thước heap là 2, đó chính là số phòng tối thiểu, vì chưa lúc nào có quá hai cuộc họp cùng diễn ra.", { hi: [0, 2], dim: [1], box: heap(["20", "30"]), vars: { start: "15", rooms: "2" } }),
+        ],
+      },
+      { // LeetCode 435 Non-overlapping Intervals: greedy by end time, removed intervals dimmed, "end" marker
+        heading: "BỎ ÍT *KHOẢNG* NHẤT", subtitle: "LeetCode 435: sắp theo điểm cuối, luôn giữ khoảng kết thúc sớm nhất",
+        narration: "Tham lam theo điểm kết thúc: giữ được càng nhiều thì bỏ càng ít.",
+        items: [[1, 2], [2, 3], [1, 3], [3, 4]],
+        steps: [
+          S("Các khoảng đã sắp theo điểm kết thúc. Khoảng nào kết thúc sớm thì chừa nhiều chỗ nhất cho những khoảng phía sau.", { out: [], vars: { removed: "0" } }),
+          S("Khoảng đầu tiên luôn được giữ. Mình đặt mốc end bằng 2, là điểm cuối của khoảng vừa giữ.", { at: 0, out: [[1, 2]], ptr: { end: 2 }, vars: { removed: "0" } }),
+          S("Khoảng từ 2 đến 3 bắt đầu đúng tại mốc end. Chạm nhau ở đầu mút không tính là chồng, nên giữ lại và dời end sang 3.", { at: 1, hi: [0], out: [[1, 2], [2, 3]], ptr: { end: 3 }, vars: { removed: "0" } }),
+          S("Khoảng từ 1 đến 3 bắt đầu ở 1, nằm trước mốc end là 3. Nó đè lên những khoảng đã giữ ở đoạn màu đỏ.", { at: 2, hi: [0, 1], out: [[1, 2], [2, 3]], clash: [1, 3], ptr: { end: 3 }, vars: { removed: "0" } }),
+          S("Mình bỏ khoảng này và tăng biến đếm lên 1. Mốc end giữ nguyên ở 3 vì tập đang giữ không thay đổi.", { hi: [0, 1], dim: [2], out: [[1, 2], [2, 3]], ptr: { end: 3 }, vars: { removed: "1" } }),
+          S("Khoảng cuối bắt đầu ở 3, đúng bằng end nên không chồng. Mình giữ nó lại và dời end sang 4.", { at: 3, hi: [0, 1], dim: [2], out: [[1, 2], [2, 3], [3, 4]], ptr: { end: 4 }, vars: { removed: "1" } }),
+          S("Duyệt xong. Chỉ cần bỏ một khoảng là ba khoảng còn lại nối đuôi nhau trên hàng kết quả, không khoảng nào chồng lên nhau.", { hi: [0, 1, 3], dim: [2], out: [[1, 2], [2, 3], [3, 4]], vars: { removed: "1" } }),
+        ],
+      },
+      { // LeetCode 57 Insert Interval: "extra" is the new interval; it grows as overlapping items are merged into it
+        heading: "CHÈN MỘT *KHOẢNG MỚI*", subtitle: "LeetCode 57: giữ phần bên trái, gộp phần chồng lấn, nối phần còn lại",
+        narration: "Khoảng mới sẽ lớn dần khi nó nuốt các khoảng chồng lên mình.",
+        items: [[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], extra: [4, 8],
+        steps: [
+          S("Danh sách đã sắp sẵn và không chồng nhau. Thanh màu tím là khoảng mới từ 4 đến 8 cần chèn vào đúng chỗ.", { out: [] }),
+          S("Khoảng từ 1 đến 2 kết thúc trước khi khoảng mới bắt đầu ở 4. Nó nằm hẳn bên trái nên đưa thẳng vào kết quả.", { at: 0, out: [[1, 2]] }),
+          S("Khoảng từ 3 đến 5 chưa kết thúc khi khoảng mới bắt đầu. Hai bên chồng nhau ở đoạn màu đỏ nên phải gộp.", { at: 1, dim: [0], out: [[1, 2]], clash: [4, 5] }),
+          S("Gộp bằng cách lấy điểm đầu nhỏ hơn và điểm cuối lớn hơn. Khoảng mới nới sang trái, bây giờ là từ 3 đến 8.", { at: 1, dim: [0], out: [[1, 2]], extra: [3, 8] }),
+          S("Khoảng từ 6 đến 7 nằm gọn bên trong khoảng mới. Gộp vào thì hai đầu mút không đổi, vẫn là từ 3 đến 8.", { at: 2, dim: [0, 1], out: [[1, 2]], clash: [6, 7] }),
+          S("Khoảng từ 8 đến 10 bắt đầu đúng tại điểm 8, nơi khoảng mới kết thúc. Chạm nhau ở đầu mút vẫn tính là chồng.", { at: 3, dim: [0, 1, 2], out: [[1, 2]], clash: [8, 8] }),
+          S("Vậy là gộp tiếp: điểm cuối của khoảng mới được nới từ 8 ra 10. Khoảng mới bây giờ trải từ 3 đến 10.", { at: 3, dim: [0, 1, 2], out: [[1, 2]], extra: [3, 10] }),
+          S("Khoảng từ 12 đến 16 bắt đầu sau điểm 10 nên không còn chồng nữa. Lúc này mình mới đưa khoảng đã gộp vào kết quả.", { at: 4, dim: [0, 1, 2, 3, 5], out: [[1, 2], [3, 10]] }),
+          S("Phần còn lại nằm hẳn bên phải nên chỉ việc nối vào sau. Kết quả gồm ba khoảng, vẫn theo đúng thứ tự tăng dần.", { dim: [0, 1, 2, 3, 4, 5], out: [[1, 2], [3, 10], [12, 16]] }),
+        ],
+      },
+    ],
+  }]);
+})();
+})();
 /* SIM-SCENES:END */
 </script>
 <script>
@@ -497,7 +2165,7 @@ let simHelpers = null;
 const simH = () => simHelpers || (simHelpers = {
   COL, FONT, MONO, W, H, clamp, easeOut: (t) => easeOut(t), easeInOut: (t) => easeInOut(t), ptrCols: () => PTR_COLS(),
   str: (v, n) => String(v == null ? "" : typeof v === "object" ? JSON.stringify(v) : v).trim().slice(0, n),
-  int: (v, lo, hi, dflt) => { const x = Math.round(+v); return Number.isFinite(x) && x >= lo && x <= hi ? x : dflt; },
+  int: (v, lo, hi, dflt) => { if (typeof v !== "number" && !(typeof v === "string" && v.trim() !== "")) return dflt; const x = Math.round(+v); return Number.isFinite(x) && x >= lo && x <= hi ? x : dflt; },
   lerp: (a, b, u) => a + (b - a) * u,
 });
 function normSim(layout, sc) {
@@ -1443,7 +3111,7 @@ function drawBox(c, box, prevBox, u, top) {
   c.textBaseline = "middle"; c.textAlign = "left";
   let fs = 32; c.font = `700 ${fs}px ${MONO}`; while (fs > 22 && c.measureText(box.name).width > labelW - 44) { fs -= 2; c.font = `700 ${fs}px ${MONO}`; }
   c.fillStyle = COL.violet; c.fillText(box.name, x0 + 28, top + 50);
-  c.font = `600 22px ${FONT}`; c.fillStyle = COL.muted; c.fillText(box.kind, x0 + 28, top + 92);
+  if (box.name.toLowerCase() !== box.kind) { c.font = `600 22px ${FONT}`; c.fillStyle = COL.muted; c.fillText(box.kind, x0 + 28, top + 92); }
   const ax = x0 + labelW, aw = w - labelW - 24;
   if (!n) { c.font = `500 30px ${FONT}`; c.fillStyle = COL.muted; c.fillText("(rỗng)", ax + 8, top + BOX_H / 2); c.restore(); return; }
   const gap = 10, cw = Math.min(150, (aw - gap * (n - 1)) / n), ch = 70, cy = top + 20;
@@ -1468,7 +3136,7 @@ function simLayout(sc) {
   const steps = sc.steps || []; const anyBox = steps.some(x => x.box);
   const maxVars = Math.min(anyBox ? 3 : 4, Math.max(0, ...steps.map(x => (x.vars || []).length)));
   const panelH = (anyBox ? BOX_H + 16 : 0) + (maxVars ? maxVars * 66 + 36 : 0);
-  const panelTop = 1520 - panelH;
+  const panelTop = 1505 - panelH;
   return { anyBox, maxVars, panelTop, area: { x: 70, y: 670, w: 940, h: (panelH ? panelTop - 30 : 1500) - 670 } };
 }
 function drawSim(c, sc, tl) {
@@ -2221,7 +3889,7 @@ function simEditor(sc, i, p) {
       <div class="sub-list">${steps.map((st, k) => { const { say, ...rest } = st; return `<div class="scene" style="padding:8px;gap:6px"><div class="row"><b class="hint">Bước ${k + 1}</b><span class="grow"></span><button class="btn small ghost danger" data-act="del-step" data-i="${i}" data-k="${k}" aria-label="Xóa bước">✕</button></div>
         <textarea rows="2" data-f="${p}.steps.${k}.say" id="ed-${i}-s${k}-say" placeholder="Lời đọc cho bước này: đang xét ô hay nút nào, vì sao, biến nào đổi">${esc(say || "")}</textarea>
         <input type="text" data-f="${p}.steps.${k}" data-type="simstep" id="ed-${i}-s${k}-st" value="${esc(JSON.stringify(rest))}" ${mono}></div>`; }).join("")}</div>
-      <div class="row"><button class="btn small" data-act="add-step" data-i="${i}" ${steps.length >= ARR_MAX_STEPS ? "disabled" : ""}>+ Bước</button>${def.samples && def.samples.length ? `<button class="btn small ghost" data-act="sim-sample" data-i="${i}">Điền ví dụ mẫu</button>` : ""}</div></div>`;
+      <div class="row"><button class="btn small" data-act="add-step" data-i="${i}" ${steps.length >= ARR_MAX_STEPS ? "disabled" : ""}>+ Bước</button>${def.samples && def.samples.length ? `<button class="btn small ghost" data-act="sim-sample" data-i="${i}" title="Bấm lần nữa để đổi sang ví dụ khác">Điền ví dụ mẫu (${def.samples.length})</button>` : ""}</div></div>`;
 }
 function markDirty() { state.dirty = true; const s = $("save-state"); if (s) { s.textContent = "Chưa lưu"; s.className = "save-state dirty"; } const t = $("ed-total"); if (t) t.textContent = totalDur(withOutro(normScript(state.draft))).toFixed(1) + "s"; pv.draw(); }
 $("editor").addEventListener("input", (e) => {
@@ -2269,7 +3937,7 @@ $("editor").addEventListener("click", async (e) => {
   else if (act === "del-link") { d.scenes[i].links.splice(k, 1); re(); }
   else if (act === "add-step") { const sc = d.scenes[i]; sc.steps = sc.steps || []; const last = sc.steps[sc.steps.length - 1]; sc.steps.push(last ? { ...JSON.parse(JSON.stringify(last)), say: "" } : { say: "", ptr: {}, win: null, hi: [], dim: [], vars: [] }); re(); }
   else if (act === "del-step") { d.scenes[i].steps.splice(k, 1); re(); }
-  else if (act === "sim-sample") { const def = SIMS[d.scenes[i].layout]; const smp = def && def.samples && def.samples[0]; if (smp) { (def.fields || []).forEach(f => { if (smp[f] !== undefined) d.scenes[i][f] = JSON.parse(JSON.stringify(smp[f])); }); d.scenes[i].steps = JSON.parse(JSON.stringify(smp.steps || [])); re(); } }
+  else if (act === "sim-sample") { const def = SIMS[d.scenes[i].layout]; const list = (def && def.samples) || []; const cur = list.findIndex(x => JSON.stringify(x.steps) === JSON.stringify(d.scenes[i].steps)); const smp = list[(cur + 1) % Math.max(1, list.length)]; if (smp) { ["heading", "subtitle", "narration"].forEach(f => { if (smp[f] && !String(d.scenes[i][f] || "").trim()) d.scenes[i][f] = smp[f]; }); (def.fields || []).forEach(f => { if (smp[f] !== undefined) d.scenes[i][f] = JSON.parse(JSON.stringify(smp[f])); }); d.scenes[i].steps = JSON.parse(JSON.stringify(smp.steps || [])); re(); } }
   else if (act === "preview-scene") { let acc = 0; for (let j = 0; j < i; j++) acc += +d.scenes[j].duration || 0; pv.seek(acc + 0.01); pv.play(); }
   else if (act === "save") await saveDraft();
   else if (act === "speak") {
