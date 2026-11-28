@@ -327,6 +327,7 @@ a.btn { text-decoration: none; color: inherit; }
         <div class="row" style="margin-top:10px"><button class="btn" id="v-test">▶ Nghe thử</button><span class="hint" id="v-msg"></span></div>
         <div class="f" style="margin-top:12px"><span class="hint" style="font-weight:600">Cách đọc từ tiếng Anh</span>
           <span class="hint">Giọng chỉ-tiếng-Việt đọc từ tiếng Anh theo kiểu tiếng Việt. Mỗi dòng: <code>từ = cách đọc</code>. Chỉ áp dụng cho giọng đọc, phụ đề vẫn giữ chữ gốc. <b>Giọng đa ngôn ngữ (Brian, Andrew, Ava) tự đọc từ tiếng Anh nên danh sách này được bỏ qua.</b></span>
+          <label class="toggle"><input type="checkbox" id="v-dict-auto"><span>Tự thêm cách đọc cho từ tiếng Anh mới mỗi khi tạo giọng đọc (AI phiên âm, ghi vào cuối danh sách này)</span></label>
           <textarea id="v-dict" rows="8" spellcheck="false"></textarea>
           <div class="row"><input type="text" id="v-dict-test" class="grow" value="Request đi qua proxy, đọc cache trong Redis rồi trả response cho client."><button class="btn small" id="v-dict-play">▶ Nghe câu này</button></div>
           <div class="row"><button class="btn small" id="v-dict-save">Lưu cách đọc</button><button class="btn small" id="v-dict-ai">AI gợi ý từ kịch bản đang mở</button><button class="btn small ghost" id="v-dict-reset">Khôi phục mặc định</button><span class="hint" id="v-dict-msg"></span></div>
@@ -1205,7 +1206,7 @@ async function carouselVideo(set, secs, onProgress = () => {}) {
     c.globalAlpha = k; c.drawImage(frames[i], (1 - k) * 160, top); c.globalAlpha = 1;
     const vf = new VideoFrame(canvas, { timestamp: Math.round((f * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
     venc.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
-    while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+    while (venc.encodeQueueSize > 6) await nextTick();
     if (f % 10 === 0) { onProgress(f / nFrames); await nextTick(); }
   }
   await venc.flush(); venc.close(); if (encErr) throw encErr;
@@ -1216,7 +1217,7 @@ async function carouselVideo(set, secs, onProgress = () => {}) {
       const m = Math.min(block, usable - off);
       const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: m, numberOfChannels: 2, timestamp: Math.round((off / 48000) * 1e6), data: new Float32Array(m * 2) });
       aenc.encode(ad); ad.close();
-      if (aenc.encodeQueueSize > 20) await new Promise(r => setTimeout(r, 2));
+      while (aenc.encodeQueueSize > 20) await nextTick();
     }
     await aenc.flush(); aenc.close(); if (encErr) throw encErr;
   }
@@ -1694,12 +1695,63 @@ function ttsText(text) {
   if (isMultilingual(state.settings.voice || serverVoice)) return text;
   let out = text;
   for (const r of pronounceRules()) {
-    const esc = r.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}_])${esc}(?![\\p{L}\\p{N}_])`, "giu"), r.say);
+    out = out.replace(termRegex(r.term), r.say);
   }
   return out;
 }
 const cleanSpeech = (t) => String(t || "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
+/* ---- English terms a Vietnamese-only voice would misread ----
+   A word of plain ASCII letters is taken as English unless it has the shape of a Vietnamese syllable written without
+   marks ("cho", "khi", "trong"): those are far more often Vietnamese. Acronyms in capitals always count. Words with a
+   Vietnamese letter are never English. */
+const VI_SYLLABLE = /^(?:gi|(?:ngh|ng|nh|gh|gi|kh|ph|th|tr|ch|qu|[bcdghklmnprstvx])?(?:ieu|yeu|oai|oay|oeo|uay|uoi|uou|uya|uye|uyu|ai|ao|au|ay|eo|eu|ia|ie|iu|oa|oe|oi|oo|ua|ue|ui|uo|uy|ya|ye|a|e|i|o|u|y)(?:ch|ng|nh|[cmnpt])?)$/i;
+function englishTerms(text) {
+  const out = new Map();
+  for (const w of String(text || "").normalize("NFC").split(/[^\p{L}\p{M}\p{N}_+#.\-]+/u)) {
+    const t = w.replace(/^[._+#\-]+|[._\-]+$/g, ""); // keeps a trailing + or # (C++, C#)
+    if (t.length < 2 || !/^[A-Za-z][A-Za-z0-9_+#.\-]*$/.test(t) || !/[A-Za-z]{2}/.test(t)) continue;
+    const acronym = /^[A-Z][A-Z0-9]+$/.test(t);
+    if (!acronym && t.split(/[._\-]/).every(part => !part || /^\d+$/.test(part) || VI_SYLLABLE.test(part))) continue;
+    if (!out.has(t.toLowerCase())) out.set(t.toLowerCase(), t);
+  }
+  return [...out.values()];
+}
+const termRegex = (term) => new RegExp(`(?<![\\p{L}\\p{N}_])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`, "giu");
+// English terms in the script's narration that the list does not cover yet and that were not turned down before.
+function newEnglishTerms(s) {
+  let text = s.scenes.map(sc => [sc.narration, ...(isSim(sc.layout) ? (sc.steps || []).map(x => x.say) : [])].map(cleanSpeech).join(" . ")).join(" . ");
+  for (const r of pronounceRules()) text = text.replace(termRegex(r.term), " ");
+  const skip = new Set((Array.isArray(state.settings.pronounceSkip) ? state.settings.pronounceSkip : []).map(x => String(x).toLowerCase()));
+  return englishTerms(text).filter(w => !skip.has(w.toLowerCase()));
+}
+async function suggestPronunciations(words) {
+  const r = await cap.sample.json(`Bạn giúp một giọng đọc tiếng Việt (text-to-speech) đọc đúng các thuật ngữ tiếng Anh trong video kỹ thuật.
+Với mỗi từ dưới đây, viết cách đọc mà lập trình viên Việt Nam hay nói, bằng chữ tiếng Việt có dấu, các âm tiết cách nhau bằng dấu cách (ví dụ: "server" → "sơ vơ", "cache" → "két", "API" → "ây pi ai", "DFS" → "đi ép ét", "numIslands" → "năm ai lần"). Từ viết tắt thì đọc từng chữ cái theo cách dev Việt thường đọc. Tên biến hay tên hàm ghép nhiều từ thì đọc lần lượt từng từ. KHÔNG trả về từ đã là tiếng Việt viết không dấu, hoặc từ mà giọng tiếng Việt đọc thẳng vẫn đúng.
+Danh sách: ${words.join(", ")}
+Chỉ trả về JSON: {"items": [{"term": "...", "say": "..."}]}`, aiOpts("light", "default"));
+  const asked = new Map(words.map(w => [w.toLowerCase(), w])); const seen = new Set();
+  return (r && Array.isArray(r.items) ? r.items : []).map(x => ({ term: asked.get(String((x && x.term) || "").trim().toLowerCase()), say: String((x && x.say) || "").replace(/\s+/g, " ").trim() }))
+    .filter(x => x.term && x.say && x.say.length <= 80 && /^[\p{L}\p{M} ]+$/u.test(x.say) && x.say.toLowerCase() !== x.term.toLowerCase() && !seen.has(x.term) && seen.add(x.term));
+}
+// Before a script is voiced: ask the AI how to say its new English terms and add them to the list. Words the AI turns
+// down are remembered so they are not asked about again. Any failure leaves the list as it was; the render goes on.
+let pronounceQueue = Promise.resolve();
+function autoPronounce(s) { const p = pronounceQueue.then(() => addPronunciations(s)).catch(() => 0); pronounceQueue = p; return p; }
+async function addPronunciations(s) {
+  const st = state.settings;
+  if (st.autoPronounce === false || !cap.sample || !cap.voice || isMultilingual(st.voice || serverVoice)) return 0;
+  const words = newEnglishTerms(s).slice(0, 60);
+  if (!words.length) return 0;
+  const items = await suggestPronunciations(words);
+  const got = new Set(items.map(x => x.term));
+  const base = typeof st.pronounce === "string" ? st.pronounce : DEFAULT_PRONOUNCE;
+  const pronounce = items.length ? base.replace(/\s*$/, "") + "\n" + items.map(x => `${x.term} = ${x.say}`).join("\n") : base;
+  const pronounceSkip = [...new Set([...(Array.isArray(st.pronounceSkip) ? st.pronounceSkip : []), ...words.filter(w => !got.has(w)).map(w => w.toLowerCase())])].slice(-600);
+  state.settings = { ...state.settings, pronounce, pronounceSkip }; // this render uses the new list right away
+  try { await saveLogoSettings({ pronounce, pronounceSkip }); } catch (e) {}
+  try { renderDictPanel(); } catch (e) {}
+  return items.length;
+}
 // In an array scene the narration is an optional lead-in, and each step carries its own line.
 const isStepScene = (sc) => isSim(sc.layout) && (sc.steps || []).some(x => cleanSpeech(x.say));
 const narrationText = (sc) => cleanSpeech([sc.narration, ...(isSim(sc.layout) ? (sc.steps || []).map(x => x.say) : [])].join(" "));
@@ -1746,8 +1798,11 @@ async function prefetchVoices(s, opts, onStep) {
   const worker = async () => { while (next < texts.length) { const t = texts[next++]; try { await narrationAudio(t, opts); } catch (e) {} done++; if (onStep) onStep(done, texts.length); } };
   await Promise.all(Array.from({ length: Math.min(width, texts.length) }, worker));
 }
-async function prepareVoice(s, onStep) {
+async function prepareVoice(s, onStep, onNote) {
   if (!voiceOn() || !s.scenes.some(sc => narrationText(sc))) return { script: s, voices: null };
+  if (onNote) onNote("Đang tìm cách đọc cho từ tiếng Anh mới");
+  const added = await autoPronounce(s);
+  if (onNote) onNote(added ? `Đã thêm cách đọc cho ${added} từ tiếng Anh` : "");
   const opts = voiceOpts(); const voices = [];
   await prefetchVoices(s, opts, onStep);
   const scenes = [];
@@ -1796,7 +1851,11 @@ async function pickEncoder() {
   if (!encoderPlan) encoderPlan = { fallback: typeof MediaRecorder !== "undefined" };
   return encoderPlan;
 }
-const nextTick = () => new Promise(r => setTimeout(r, 0));
+// Yields to the event loop without a timer. Browsers slow timers to about one a second in a background tab, so a
+// render that waited on setTimeout every few frames crawled as soon as the tab lost focus.
+const yieldChan = new MessageChannel(); const yieldWaiters = [];
+yieldChan.port1.onmessage = () => { const r = yieldWaiters.shift(); if (r) r(); };
+const nextTick = () => new Promise(r => { yieldWaiters.push(r); yieldChan.port2.postMessage(0); });
 async function renderMp4(s, job) {
   s = withOutro(s);
   const plan = await pickEncoder();
@@ -1805,7 +1864,7 @@ async function renderMp4(s, job) {
   await ensureFonts();
   let voices = null;
   if (voiceOn()) {
-    try { ({ script: s, voices } = await prepareVoice(s, (i, n) => { job.progress = 0.05 * (i / n); job.phase = "Đang tạo giọng đọc"; onJobProgress(job); })); }
+    try { ({ script: s, voices } = await prepareVoice(s, (i, n) => { job.progress = 0.05 * (i / n); job.phase = "Đang tạo giọng đọc"; onJobProgress(job); }, (note) => { if (note) { job.phase = note; onJobProgress(job); } })); }
     catch (e) { throw new Error("Không tạo được giọng đọc: " + ((e && e.message) || e)); }
     job.phase = "";
   }
@@ -1829,7 +1888,7 @@ async function renderMp4(s, job) {
     drawFrame(c, s, i / FPS);
     const vf = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
     venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
-    while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+    while (venc.encodeQueueSize > 6) await nextTick();
     if (i % 6 === 0) { job.progress = 0.05 + (i / nFrames) * (plan.audio ? 0.87 : 0.93); onJobProgress(job); await nextTick(); }
   }
   await venc.flush(); venc.close();
@@ -1844,7 +1903,7 @@ async function renderMp4(s, job) {
       data.set(L.subarray(off, off + n), 0); data.set(R.subarray(off, off + n), n);
       const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((off / 48000) * 1e6), data });
       aenc.encode(ad); ad.close();
-      if (aenc.encodeQueueSize > 20) await new Promise(r => setTimeout(r, 2));
+      while (aenc.encodeQueueSize > 20) await nextTick();
     }
     await aenc.flush(); aenc.close();
     if (encErr) throw encErr;
@@ -2218,6 +2277,7 @@ $("editor").addEventListener("click", async (e) => {
     if (speakAudio) { speakAudio.pause(); speakAudio = null; }
     b.disabled = true; b.innerHTML = '<span class="spin"></span>';
     try {
+      await autoPronounce({ scenes: [normScript(d).scenes[i]].filter(Boolean) });
       const ab = await cap.voice.synthesize(ttsText(text), voiceOpts());
       speakAudio = new Audio(URL.createObjectURL(new Blob([ab], { type: "audio/mpeg" })));
       speakAudio.play().catch(() => {});
@@ -3489,7 +3549,8 @@ $("b-enabled").addEventListener("change", async () => {
   try { await saveLogoSettings({ burnCaptions: v }); if (!cap.db) state.settings.burnCaptions = v; $("b-msg").textContent = "Đã lưu."; setTimeout(() => $("b-msg").textContent = "", 2000); pv.draw(); }
   catch (e) { $("b-msg").textContent = "Không lưu được."; }
 });
-function renderDictPanel() { const el = $("v-dict"); if (el && document.activeElement !== el) el.value = typeof state.settings.pronounce === "string" ? state.settings.pronounce : DEFAULT_PRONOUNCE; }
+$("v-dict-auto").addEventListener("change", async (e) => { try { await saveLogoSettings({ autoPronounce: e.target.checked }); $("v-dict-msg").textContent = e.target.checked ? "Đã bật tự thêm cách đọc." : "Đã tắt tự thêm cách đọc."; } catch (err) { $("v-dict-msg").textContent = "Không lưu được."; } });
+function renderDictPanel() { const au = $("v-dict-auto"); if (au) au.checked = state.settings.autoPronounce !== false; const el = $("v-dict"); if (el && document.activeElement !== el) el.value = typeof state.settings.pronounce === "string" ? state.settings.pronounce : DEFAULT_PRONOUNCE; }
 async function saveDict(text) {
   try { await saveLogoSettings({ pronounce: text }); if (!cap.db) state.settings.pronounce = text; $("v-dict-msg").textContent = "Đã lưu. Câu có từ đã sửa sẽ được tạo lại giọng ở lần render sau."; }
   catch (e) { $("v-dict-msg").textContent = "Không lưu được."; }
@@ -3509,18 +3570,12 @@ $("v-dict-ai").addEventListener("click", async () => {
   const d = state.draft || (state.editingId && state.scripts.get(state.editingId));
   if (!d) { $("v-dict-msg").textContent = "Mở một kịch bản ở tab Kịch bản trước."; return; }
   if (!cap.sample) { $("v-dict-msg").textContent = "AI không khả dụng."; return; }
-  const known = new Set(pronounceRules().map(r => r.term.toLowerCase()));
-  const words = new Set();
-  normScript(d).scenes.forEach(sc => (narrationText(sc).match(/[A-Za-z][A-Za-z0-9+#.\-]*[A-Za-z0-9+#]|[A-Za-z]/g) || []).forEach(w => { if (!known.has(w.toLowerCase()) && w.length > 1) words.add(w); }));
-  if (!words.size) { $("v-dict-msg").textContent = "Kịch bản này không có từ tiếng Anh mới."; return; }
+  const words = newEnglishTerms(normScript(d)).slice(0, 60);
+  if (!words.length) { $("v-dict-msg").textContent = "Kịch bản này không có từ tiếng Anh mới."; return; }
   const b = $("v-dict-ai"); b.disabled = true; $("v-dict-msg").innerHTML = '<span class="spin"></span> Đang gợi ý cách đọc…';
   try {
-    const r = await cap.sample.json(`Bạn giúp một giọng đọc tiếng Việt (text-to-speech) đọc đúng các thuật ngữ tiếng Anh trong video kỹ thuật.
-Với mỗi từ dưới đây, viết cách đọc mà lập trình viên Việt Nam hay nói, bằng chữ tiếng Việt có dấu, các âm tiết cách nhau bằng dấu cách (ví dụ: "server" → "sơ vơ", "cache" → "két", "API" → "ây pi ai"). Từ viết tắt thì đọc theo cách dev Việt thường đọc. Bỏ qua từ đã là tiếng Việt hoặc tên riêng đọc như tiếng Việt cũng đúng.
-Danh sách: ${[...words].slice(0, 60).join(", ")}
-Chỉ trả về JSON: {"items": [{"term": "...", "say": "..."}]}`, aiOpts("light", "default"));
-    const items = (r && Array.isArray(r.items) ? r.items : []).filter(x => x && x.term && x.say);
-    if (items.length) $("v-dict").value = $("v-dict").value.replace(/\s*$/, "") + "\n" + items.map(x => `${String(x.term).trim()} = ${String(x.say).trim()}`).join("\n");
+    const items = await suggestPronunciations(words);
+    if (items.length) $("v-dict").value = $("v-dict").value.replace(/\s*$/, "") + "\n" + items.map(x => `${x.term} = ${x.say}`).join("\n");
     $("v-dict-msg").textContent = items.length ? `Đã thêm ${items.length} từ vào cuối danh sách. Nghe thử rồi bấm Lưu cách đọc.` : "AI không gợi ý thêm từ nào.";
   } catch (err) { $("v-dict-msg").textContent = aiError(err); }
   b.disabled = false;
@@ -3684,6 +3739,6 @@ fillSelects(); renderLogoPanel(); renderList(); renderVoicePanel(); renderModelP
 ensureFonts().then(() => { pv.draw(); renderLogoPanel(); }); pv.draw();
 encInfo();
 initCaps();
-window.__codelens = { SIMS, simH, simLayout, isSim, carouselVideo, renderSlide, quickSlides, normCarousel, carouselPrompt, slideEditPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, scriptPrompt, normStep, parseStep, stepToText, stepStarts, reviewPrompt, keepCode, planPrompt, topicsPrompt, styleFor, renderAudio, totalDur, pickEncoder };
+window.__codelens = { englishTerms, newEnglishTerms, autoPronounce, prepareVoice, SIMS, simH, simLayout, isSim, carouselVideo, renderSlide, quickSlides, normCarousel, carouselPrompt, slideEditPrompt, ttsText, withCues, buildCues, toSrt, makeZip, toTranscript, drawFrame, normScript, withOutro, renderMp4, scriptPrompt, normStep, parseStep, stepToText, stepStarts, reviewPrompt, keepCode, planPrompt, topicsPrompt, styleFor, renderAudio, totalDur, pickEncoder };
 })();
 </script>
