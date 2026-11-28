@@ -47,12 +47,39 @@
   const db = { doc: docRef, collection: collectionRef };
 
   // ---- sample: Claude through the local server (API key) ----
-  const parseJson = (text) => {
+  // Long scripts (algorithm clips: code and step lists) sometimes come back as almost-JSON: a raw line break or tab
+  // inside a string, a stray backslash in code, a trailing comma, or prose around the object. Mend those before giving up.
+  const repairJson = (t) => {
+    const start = t.indexOf("{"); if (start < 0) return null;
+    let out = "", inStr = false, depth = 0;
+    for (let i = start; i < t.length; i++) {
+      const c = t[i];
+      if (inStr) {
+        if (c === "\\") {
+          const n = t[i + 1];
+          if (n !== undefined && '"\\/bfnrtu'.includes(n)) { out += c + n; i++; } else out += "\\\\";
+        } else if (c === '"') { inStr = false; out += c; }
+        else if (c === "\n") out += "\\n"; else if (c === "\r") out += "\\r"; else if (c === "\t") out += "\\t";
+        else if (c < " ") out += "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0");
+        else out += c;
+        continue;
+      }
+      if (c === '"') { inStr = true; out += c; continue; }
+      if (c === "{" || c === "[") depth++;
+      if (c === "}" || c === "]") { out = out.replace(/,\s*$/, ""); depth--; }
+      out += c;
+      if (depth === 0) return out;
+    }
+    return null; // cut off before the object closed
+  };
+  const parseJson = (text, truncated) => {
     let t = String(text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
     try { return JSON.parse(t); } catch (_) {}
     const a = t.indexOf("{"), b = t.lastIndexOf("}");
     if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (_) {} }
-    throw { code: "invalid_json", message: "Claude trả về kết quả không phải JSON hợp lệ." };
+    const fixed = repairJson(t);
+    if (fixed) { try { return JSON.parse(fixed); } catch (_) {} }
+    throw { code: "invalid_json", message: truncated ? "Claude trả lời quá dài nên bị cắt giữa chừng." : "Claude trả về kết quả không phải JSON hợp lệ." };
   };
   const sample = async (input, opts = {}) => {
     const r = await call("POST", "/api/ai", { input, modelTier: opts.modelTier || "default", model: opts.model || "" });
@@ -61,7 +88,7 @@
   };
   sample.json = async (input, opts = {}) => {
     const r = await sample(typeof input === "string" ? input + "\n\nChỉ trả về JSON hợp lệ, không kèm giải thích hay markdown." : input, opts);
-    return parseJson(r.text);
+    return parseJson(r.text, r.truncated);
   };
   sample.limits = async () => ({ maxPromptBytes: 2 * 1024 * 1024 });
 

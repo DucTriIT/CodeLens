@@ -2538,7 +2538,7 @@ function aiOpts(kind, tier) {
 }
 function aiError(err) {
   const code = err && err.code;
-  if (code === "no_api_key" || code === "bad_api_key" || code === "permission_denied") return err.message;
+  if (code === "no_api_key" || code === "bad_api_key" || code === "permission_denied" || code === "partial_series") return err.message;
   if (code === "not_granted") return "Bạn chưa cho phép trang dùng Claude. Mở menu Quyền của artifact để bật lại.";
   if (code === "rate_limited") return "Claude đang bận vì quá nhiều yêu cầu. Thử lại sau ít phút.";
   if (code === "invalid_json" || code === "empty_completion") return "AI trả về kết quả không đọc được. Thử lại một lần nữa.";
@@ -2604,6 +2604,15 @@ function normPlan(r, topic) {
   }));
   return { seriesTitle: String((r && r.seriesTitle) || topic).slice(0, 120), example: String((r && r.example) || "").slice(0, 300), parts: parts.length ? parts : [{ title: topic, covers: [], teaser: "" }] };
 }
+// One unreadable answer must not end a whole series: ask again before giving up. Other errors (no key, rate limit) pass straight through.
+async function sampleJsonRetry(prompt, opts, tries = 3) {
+  let last;
+  for (let k = 0; k < tries; k++) {
+    try { return await cap.sample.json(prompt, opts); }
+    catch (e) { last = e; if (!(e && (e.code === "invalid_json" || e.code === "empty_completion"))) throw e; }
+  }
+  throw last;
+}
 // Writes one script, or a series when the topic needs it. Returns the saved scripts in order.
 async function writeScripts({ topic, category, article, note, format, tier = "default", status = "draft", onStatus = () => {} }) {
   format = normFormat(format) || DEFAULT_FORMAT;
@@ -2619,7 +2628,13 @@ async function writeScripts({ topic, category, article, note, format, tier = "de
   for (let i = 0; i < n; i++) {
     const part = plan.parts[i]; const ctx = n > 1 ? seriesContext(plan, i) : "";
     onStatus(n > 1 ? `Claude đang viết phần ${i + 1}/${n}: “${part.title}”…` : "Claude đang viết kịch bản…");
-    const r0 = await cap.sample.json(scriptPrompt(n > 1 ? part.title : topic, category, article, note, ctx, format), aiOpts("write", article ? "complex" : tier));
+    let r0;
+    try { r0 = await sampleJsonRetry(scriptPrompt(n > 1 ? part.title : topic, category, article, note, ctx, format), aiOpts("write", article ? "complex" : tier)); }
+    catch (e) {
+      // Earlier parts are already saved; say so, instead of a bare "try again" that would write the whole series a second time.
+      if (saved.length && e && (e.code === "invalid_json" || e.code === "empty_completion")) throw { code: "partial_series", message: `Đã lưu ${saved.length}/${n} phần của series. Phần ${i + 1} (“${part.title}”) AI trả về kết quả không đọc được sau 3 lần thử. Viết riêng phần này với chủ đề “${part.title}”, hoặc xoá các phần đã lưu rồi tạo lại cả series.` };
+      throw e;
+    }
     onStatus(n > 1 ? `Đang kiểm tra kỹ thuật phần ${i + 1}/${n}…` : (article ? "Đang đối chiếu kịch bản với bài viết…" : "Claude đang kiểm tra lại độ chính xác kỹ thuật…"));
     let r = r0, issues = [], reviewed = false;
     try { const rv = await aiReview(normScript({ ...r0, format, sourceText: article || "" }), ctx); r = rv.fixed; issues = rv.issues; reviewed = true; } catch (e) { allReviewed = false; }
